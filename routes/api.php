@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\CustomerInteractionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LookupController;
+use App\Http\Controllers\Api\MitelController;
+use App\Http\Controllers\Api\WebSocketController;
 use App\Http\Controllers\LanguageController;
 
 Route::prefix('v1')->group(function () {
@@ -96,6 +98,41 @@ Route::prefix('v1')->group(function () {
         // Lookup Management (Admin only)
         Route::apiResource('admin/lookups', LookupController::class);
         Route::post('/admin/lookups/bulk-upsert', [LookupController::class, 'bulkUpsert']);
+        
+        // Mitel/MiContact Center Integration
+        Route::prefix('mitel')->group(function () {
+            // Agent State Management
+            Route::get('/agents/{agentId}/state', [MitelController::class, 'getAgentState']);
+            Route::put('/agents/{agentId}/state', [MitelController::class, 'updateAgentState']);
+            Route::get('/agents/{agentId}/queues', [MitelController::class, 'getAgentQueues']);
+            
+            // Conversation Management
+            Route::get('/agents/{agentId}/conversations', [MitelController::class, 'getConversations']);
+            Route::post('/agents/{agentId}/conversations', [MitelController::class, 'createConversation']);
+            Route::put('/agents/{agentId}/conversations/{conversationId}', [MitelController::class, 'updateConversation']);
+            
+            // Queue Monitoring
+            Route::get('/queues/{queueId}', [MitelController::class, 'getQueueState']);
+            
+            // OpenMedia Integration (Email, Chat, SMS)
+            Route::post('/openmedia', [MitelController::class, 'createOpenMedia']);
+            Route::put('/openmedia/{interactionId}', [MitelController::class, 'updateOpenMedia']);
+            
+            // Directory/Contacts
+            Route::get('/directory', [MitelController::class, 'getDirectory']);
+        });
+        
+        // Mitel Webhook (can be public or use API key authentication)
+        Route::post('/mitel/webhook', [MitelController::class, 'webhook']);
+        
+        // WebSocket Management & Testing
+        Route::prefix('websocket')->group(function () {
+            Route::get('/info', [WebSocketController::class, 'getConnectionInfo']);
+            Route::get('/health', [WebSocketController::class, 'healthCheck']);
+            Route::get('/channels', [WebSocketController::class, 'getActiveChannels']);
+            Route::post('/test', [WebSocketController::class, 'testBroadcast']);
+            Route::post('/broadcast', [WebSocketController::class, 'broadcastCustomEvent']);
+        });
         
         // Add your other protected API routes here
         Route::get('/users', function () {

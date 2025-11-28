@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'mitel' => [
+        'base_url' => env('MITEL_BASE_URL', 'https://your-mitel-server.com/miccsdk'),
+        'token' => env('MITEL_API_TOKEN'),
+        'timeout' => env('MITEL_API_TIMEOUT', 30),
+    ],
+
 ];
