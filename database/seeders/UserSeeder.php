@@ -12,51 +12,40 @@ class UserSeeder extends Seeder
     /**
      * Run the database seeds.
      */
+    /**
+     * Run the database seeds.
+     * 
+     * Note: This seeder creates users WITHOUT agent profiles (super_admin, admin).
+     * Users with agent profiles (supervisor, agent) are created by AgentSeeder.
+     */
     public function run(): void
     {
-        // Get super_admin role ID
+        // Get role IDs for users WITHOUT agent profiles
         $superAdminRole = DB::table('roles')->where('slug', 'super_admin')->first();
         $adminRole = DB::table('roles')->where('slug', 'admin')->first();
-        $supervisorRole = DB::table('roles')->where('slug', 'supervisor')->first();
-        $agentRole = DB::table('roles')->where('slug', 'agent')->first();
 
+        // Only create users that don't need agent profiles
         $users = [
             [
                 'name' => 'Super Administrator',
-                'email' => 'superadmin@jkm.gov.my',
+                'email' => 'superadmin@jkdm.gov.my',
                 'password' => Hash::make('SuperAdmin@123'),
                 'role_id' => $superAdminRole?->id,
                 'status' => 'active',
+                'ignite_id' => null,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
                 'name' => 'System Admin',
-                'email' => 'admin@jkm.gov.my',
+                'email' => 'admin@jkdm.gov.my',
                 'password' => Hash::make('Admin@123'),
                 'role_id' => $adminRole?->id,
                 'status' => 'active',
+                'ignite_id' => null,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
-            [
-                'name' => 'Supervisor User',
-                'email' => 'supervisor@jkm.gov.my',
-                'password' => Hash::make('Supervisor@123'),
-                'role_id' => $supervisorRole?->id,
-                'status' => 'active',
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
-            [
-                'name' => 'Ahmad Smith',
-                'email' => 'ahmad.smith@jkm.gov.my',
-                'password' => Hash::make('password123'),
-                'role_id' => $agentRole?->id,
-                'status' => 'active',
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
         ];
 
         // Only insert users that don't exist
@@ -68,23 +57,19 @@ class UserSeeder extends Seeder
 
         $this->command->info('Users seeded successfully!');
         $this->command->info('');
-        $this->command->info('Default Login Credentials:');
+        $this->command->info('═══════════════════════════════════════════════════════════');
+        $this->command->info('Users WITHOUT Agent Profiles:');
         $this->command->info('═══════════════════════════════════════════════════════════');
         $this->command->info('Super Admin:');
-        $this->command->info('  Email: superadmin@jkm.gov.my');
+        $this->command->info('  Email: superadmin@jkdm.gov.my');
         $this->command->info('  Password: SuperAdmin@123');
         $this->command->info('');
         $this->command->info('Admin:');
-        $this->command->info('  Email: admin@jkm.gov.my');
+        $this->command->info('  Email: admin@jkdm.gov.my');
         $this->command->info('  Password: Admin@123');
-        $this->command->info('');
-        $this->command->info('Supervisor:');
-        $this->command->info('  Email: supervisor@jkm.gov.my');
-        $this->command->info('  Password: Supervisor@123');
-        $this->command->info('');
-        $this->command->info('Agent:');
-        $this->command->info('  Email: ahmad.smith@jkm.gov.my');
-        $this->command->info('  Password: password123');
+        $this->command->info('═══════════════════════════════════════════════════════════');
+        $this->command->info('Note: Supervisor and Agent users are created by AgentSeeder');
+        $this->command->info('      with their corresponding agent profiles (one-to-one).');
         $this->command->info('═══════════════════════════════════════════════════════════');
     }
 }

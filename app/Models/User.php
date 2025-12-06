@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -11,7 +12,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -23,7 +24,8 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'password',
         'ignite_id',
-        'role',
+        'role_id',
+        'status',
     ];
 
     /**
@@ -67,8 +69,17 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'role' => $this->role,
+            'role' => $this->role ? $this->role->slug : null,
+            'role_id' => $this->role_id,
         ];
+    }
+
+    /**
+     * Get the role that owns the user.
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
     }
 
     /**

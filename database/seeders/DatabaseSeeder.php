@@ -25,7 +25,16 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AgentSeeder::class,
             CustomerSeeder::class,
+            CategorySeeder::class,
+            TicketNumberSequenceSeeder::class,
             TicketSeeder::class,
+            EmailTemplateSeeder::class,
+        ]);
+
+        // Seed menu items and role permissions
+        $this->call([
+            MenuItemsSeeder::class,
+            RoleMenuItemsSeeder::class,
         ]);
     }
 }

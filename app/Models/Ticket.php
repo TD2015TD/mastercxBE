@@ -117,6 +117,14 @@ class Ticket extends Model
     }
 
     /**
+     * Get attachments for this ticket.
+     */
+    public function attachments()
+    {
+        return $this->hasMany(TicketAttachment::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
      * Log a history entry for this ticket
      */
     public function logHistory(

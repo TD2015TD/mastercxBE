@@ -7,9 +7,11 @@ use App\Models\Ticket;
 use App\Models\Agent;
 use App\Models\TicketHistory;
 use App\Models\TicketNumberSequence;
+use App\Models\TicketAttachment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class TicketController extends Controller
@@ -19,54 +21,54 @@ class TicketController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Ticket::with(['customer', 'assignedAgent', 'creator', 'histories' => function($q) {
+        $query = Ticket::with(['customer', 'assignedAgent.user', 'creator', 'histories' => function($q) {
             $q->with('user')->latest()->take(5);
         }]);
 
         // Filter by priority
-        if ($request->has('priority')) {
+        if ($request->filled('priority')) {
             $query->byPriority($request->priority);
         }
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         // Filter by department
-        if ($request->has('department')) {
+        if ($request->filled('department')) {
             $query->byDepartment($request->department);
         }
 
         // Filter by assigned agent
-        if ($request->has('assigned_to')) {
+        if ($request->filled('assigned_to')) {
             $query->where('assigned_to', $request->assigned_to);
         }
 
         // Filter by customer
-        if ($request->has('customer_id')) {
+        if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
         }
 
         // Filter by SLA status
-        if ($request->has('sla_breached')) {
+        if ($request->filled('sla_breached')) {
             if ($request->sla_breached === 'true' || $request->sla_breached === '1') {
                 $query->slaBreached();
             }
         }
 
         // Filter by category
-        if ($request->has('category')) {
+        if ($request->filled('category')) {
             $query->where('category', $request->category);
         }
 
         // Filter by channel
-        if ($request->has('channel')) {
+        if ($request->filled('channel')) {
             $query->where('channel', $request->channel);
         }
 
         // Search by ticket number or subject
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('ticket_number', 'like', "%{$search}%")
@@ -132,8 +134,10 @@ class TicketController extends Controller
 
             $data = $validator->validated();
             
-            // Generate unique ticket number
-            $data['ticket_number'] = $this->generateTicketNumber();
+            // Generate unique ticket number based on channel
+            // Map channel to sequence name ('walk-in' -> 'walkIn')
+            $sequenceName = $data['channel'] === 'walk-in' ? 'walkIn' : $data['channel'];
+            $data['ticket_number'] = $this->generateTicketNumber($sequenceName);
             
             // Set created_by to authenticated user's agent ID
             if (auth()->check() && auth()->user()->agent) {
@@ -181,7 +185,7 @@ class TicketController extends Controller
 
             DB::commit();
 
-            $ticket->load(['customer', 'assignedAgent', 'creator']);
+            $ticket->load(['customer', 'assignedAgent.user', 'creator']);
 
             return response()->json([
                 'success' => true,
@@ -204,7 +208,7 @@ class TicketController extends Controller
      */
     public function show(string $id)
     {
-        $ticket = Ticket::with(['customer', 'assignedAgent', 'creator', 'histories' => function($q) {
+        $ticket = Ticket::with(['customer', 'assignedAgent.user', 'creator', 'histories' => function($q) {
             $q->with('user')->latest();
         }])->find($id);
 
@@ -303,7 +307,7 @@ class TicketController extends Controller
             $ticket->updateSlaRemaining();
             $ticket->save();
 
-            $ticket->load(['customer', 'assignedAgent', 'creator']);
+            $ticket->load(['customer', 'assignedAgent.user', 'creator']);
 
             return response()->json([
                 'success' => true,
@@ -400,7 +404,7 @@ class TicketController extends Controller
                 ]
             );
             
-            $ticket->load(['assignedAgent']);
+            $ticket->load(['assignedAgent.user']);
 
             return response()->json([
                 'success' => true,
@@ -503,7 +507,7 @@ class TicketController extends Controller
 
         try {
             $ticket->resolve($request->resolution_notes);
-            $ticket->load(['customer', 'assignedAgent']);
+            $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([
                 'success' => true,
@@ -535,7 +539,7 @@ class TicketController extends Controller
 
         try {
             $ticket->close();
-            $ticket->load(['customer', 'assignedAgent']);
+            $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([
                 'success' => true,
@@ -567,7 +571,7 @@ class TicketController extends Controller
 
         try {
             $ticket->reopen();
-            $ticket->load(['customer', 'assignedAgent']);
+            $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([
                 'success' => true,
@@ -623,12 +627,12 @@ class TicketController extends Controller
         $query = Ticket::query();
 
         // Filter by date range
-        if ($request->has('start_date') && $request->has('end_date')) {
+        if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('created_at', [$request->start_date, $request->end_date]);
         }
 
         // Filter by department
-        if ($request->has('department')) {
+        if ($request->filled('department')) {
             $query->where('department', $request->department);
         }
 
@@ -670,6 +674,31 @@ class TicketController extends Controller
     }
 
     /**
+     * Get ticket history.
+     */
+    public function history(string $id)
+    {
+        $ticket = Ticket::find($id);
+
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket not found',
+            ], 404);
+        }
+
+        $histories = TicketHistory::where('ticket_id', $id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $histories,
+        ]);
+    }
+
+    /**
      * Generate unique ticket number using configurable sequence.
      * 
      * @param string $sequenceName The sequence to use (default, urgent, vip, etc.)
@@ -703,5 +732,175 @@ class TicketController extends Controller
             ->first();
 
         return $agent?->id;
+    }
+
+    /**
+     * Upload attachment to a ticket.
+     */
+    public function uploadAttachment(Request $request, string $ticketId)
+    {
+        $ticket = Ticket::find($ticketId);
+
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket not found',
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|max:10240', // Max 10MB
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('ticket_attachments/' . $ticketId, $fileName);
+
+            $attachment = TicketAttachment::create([
+                'ticket_id' => $ticketId,
+                'uploaded_by' => auth()->id(),
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $filePath,
+                'file_type' => TicketAttachment::getFileTypeFromMime($file->getMimeType()),
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'description' => $request->description,
+            ]);
+
+            // Log attachment upload
+            $ticket->logHistory(
+                'attachment_added',
+                null,
+                null,
+                $attachment->file_name,
+                "File '{$attachment->file_name}' uploaded",
+                ['attachment_id' => $attachment->id]
+            );
+
+            $attachment->load('uploader');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attachment uploaded successfully',
+                'data' => $attachment,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload attachment',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all attachments for a ticket.
+     */
+    public function getAttachments(string $ticketId)
+    {
+        $ticket = Ticket::find($ticketId);
+
+        if (!$ticket) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket not found',
+            ], 404);
+        }
+
+        $attachments = TicketAttachment::where('ticket_id', $ticketId)
+            ->with('uploader')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $attachments,
+        ]);
+    }
+
+    /**
+     * Download an attachment.
+     */
+    public function downloadAttachment(string $ticketId, string $attachmentId)
+    {
+        $attachment = TicketAttachment::where('ticket_id', $ticketId)
+            ->where('id', $attachmentId)
+            ->first();
+
+        if (!$attachment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attachment not found',
+            ], 404);
+        }
+
+        $disk = Storage::disk(config('filesystems.default'));
+
+        if (!$disk->exists($attachment->file_path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File not found in storage',
+            ], 404);
+        }
+
+        return response()->download(
+            $disk->path($attachment->file_path),
+            $attachment->file_name,
+            ['Content-Type' => $attachment->mime_type]
+        );
+    }
+
+    /**
+     * Delete an attachment.
+     */
+    public function deleteAttachment(string $ticketId, string $attachmentId)
+    {
+        $attachment = TicketAttachment::where('ticket_id', $ticketId)
+            ->where('id', $attachmentId)
+            ->first();
+
+        if (!$attachment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attachment not found',
+            ], 404);
+        }
+
+        try {
+            $fileName = $attachment->file_name;
+            $ticket = $attachment->ticket;
+            
+            $attachment->delete();
+
+            // Log attachment deletion
+            $ticket->logHistory(
+                'attachment_deleted',
+                null,
+                $fileName,
+                null,
+                "File '{$fileName}' deleted",
+                ['attachment_id' => $attachmentId]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attachment deleted successfully',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete attachment',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

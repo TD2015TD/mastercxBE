@@ -47,18 +47,18 @@ return new class extends Migration
         $lookups = [
             // Ticket Status
             ['type' => 'ticket_status', 'code' => 'Open', 'name_en' => 'Open', 'name_ms' => 'Buka', 'color' => 'blue', 'icon' => 'folder-open', 'sort_order' => 1],
-            ['type' => 'ticket_status', 'code' => 'In Progress', 'name_en' => 'In Progress', 'name_ms' => 'Sedang Diproses', 'color' => 'yellow', 'icon' => 'clock', 'sort_order' => 2],
-            ['type' => 'ticket_status', 'code' => 'Pending', 'name_en' => 'Pending', 'name_ms' => 'Menunggu', 'color' => 'orange', 'icon' => 'pause', 'sort_order' => 3],
-            ['type' => 'ticket_status', 'code' => 'On Hold', 'name_en' => 'On Hold', 'name_ms' => 'Ditahan', 'color' => 'purple', 'icon' => 'hand', 'sort_order' => 4],
+            ['type' => 'ticket_status', 'code' => 'In Progress', 'name_en' => 'In Progress', 'name_ms' => 'Sedang Diproses', 'color' => 'purple', 'icon' => 'clock', 'sort_order' => 2],
+            ['type' => 'ticket_status', 'code' => 'Pending', 'name_en' => 'Pending', 'name_ms' => 'Menunggu', 'color' => 'yellow', 'icon' => 'pause', 'sort_order' => 3],
+            ['type' => 'ticket_status', 'code' => 'On Hold', 'name_en' => 'On Hold', 'name_ms' => 'Ditahan', 'color' => 'orange', 'icon' => 'hand', 'sort_order' => 4],
             ['type' => 'ticket_status', 'code' => 'Resolved', 'name_en' => 'Resolved', 'name_ms' => 'Diselesaikan', 'color' => 'green', 'icon' => 'check', 'sort_order' => 5],
             ['type' => 'ticket_status', 'code' => 'Closed', 'name_en' => 'Closed', 'name_ms' => 'Ditutup', 'color' => 'gray', 'icon' => 'check-circle', 'sort_order' => 6],
             ['type' => 'ticket_status', 'code' => 'Reopened', 'name_en' => 'Reopened', 'name_ms' => 'Dibuka Semula', 'color' => 'red', 'icon' => 'refresh', 'sort_order' => 7],
 
             // Ticket Priority
-            ['type' => 'ticket_priority', 'code' => 'P1', 'name_en' => 'Critical (P1)', 'name_ms' => 'Kritikal (P1)', 'description_en' => 'Urgent, business-critical issues', 'description_ms' => 'Isu kritikal perniagaan yang mendesak', 'color' => 'red', 'icon' => 'alert-circle', 'sort_order' => 1],
-            ['type' => 'ticket_priority', 'code' => 'P2', 'name_en' => 'High (P2)', 'name_ms' => 'Tinggi (P2)', 'description_en' => 'High priority issues', 'description_ms' => 'Isu keutamaan tinggi', 'color' => 'orange', 'icon' => 'alert-triangle', 'sort_order' => 2],
-            ['type' => 'ticket_priority', 'code' => 'P3', 'name_en' => 'Medium (P3)', 'name_ms' => 'Sederhana (P3)', 'description_en' => 'Medium priority issues', 'description_ms' => 'Isu keutamaan sederhana', 'color' => 'yellow', 'icon' => 'info', 'sort_order' => 3],
-            ['type' => 'ticket_priority', 'code' => 'P4', 'name_en' => 'Low (P4)', 'name_ms' => 'Rendah (P4)', 'description_en' => 'Low priority issues', 'description_ms' => 'Isu keutamaan rendah', 'color' => 'blue', 'icon' => 'message-circle', 'sort_order' => 4],
+            ['type' => 'ticket_priority', 'code' => 'P1', 'name_en' => 'Critical (P1)', 'name_ms' => 'Kritikal (P1)', 'description_en' => 'Urgent, business-critical issues', 'description_ms' => 'Isu kritikal perniagaan yang mendesak', 'color' => 'red', 'icon' => 'alert-circle', 'metadata' => json_encode(['hours' => 4]), 'sort_order' => 1],
+            ['type' => 'ticket_priority', 'code' => 'P2', 'name_en' => 'High (P2)', 'name_ms' => 'Tinggi (P2)', 'description_en' => 'High priority issues', 'description_ms' => 'Isu keutamaan tinggi', 'color' => 'orange', 'icon' => 'alert-triangle', 'metadata' => json_encode(['hours' => 8]), 'sort_order' => 2],
+            ['type' => 'ticket_priority', 'code' => 'P3', 'name_en' => 'Medium (P3)', 'name_ms' => 'Sederhana (P3)', 'description_en' => 'Medium priority issues', 'description_ms' => 'Isu keutamaan sederhana', 'color' => 'yellow', 'icon' => 'info', 'metadata' => json_encode(['hours' => 24]), 'sort_order' => 3],
+            ['type' => 'ticket_priority', 'code' => 'P4', 'name_en' => 'Low (P4)', 'name_ms' => 'Rendah (P4)', 'description_en' => 'Low priority issues', 'description_ms' => 'Isu keutamaan rendah', 'color' => 'blue', 'icon' => 'message-circle', 'metadata' => json_encode(['hours' => 72]), 'sort_order' => 4],
 
             // Urgency Levels
             ['type' => 'urgency', 'code' => 'Critical', 'name_en' => 'Critical', 'name_ms' => 'Kritikal', 'description_en' => 'Requires immediate attention', 'description_ms' => 'Memerlukan perhatian segera', 'color' => 'red', 'sort_order' => 1],
@@ -134,10 +134,25 @@ return new class extends Migration
             ['type' => 'agent_status', 'code' => 'offline', 'name_en' => 'Offline', 'name_ms' => 'Luar Talian', 'color' => 'gray', 'icon' => 'x-circle', 'sort_order' => 4],
 
             // Departments (JKDM specific)
-            ['type' => 'department', 'code' => 'customs', 'name_en' => 'Customs Operations', 'name_ms' => 'Operasi Kastam', 'sort_order' => 1],
-            ['type' => 'department', 'code' => 'data_update', 'name_en' => 'Data Update', 'name_ms' => 'Kemaskini Data', 'sort_order' => 2],
-            ['type' => 'department', 'code' => 'customer_service', 'name_en' => 'Customer Service', 'name_ms' => 'Perkhidmatan Pelanggan', 'sort_order' => 3],
-            ['type' => 'department', 'code' => 'technical_support', 'name_en' => 'Technical Support', 'name_ms' => 'Sokongan Teknikal', 'sort_order' => 4],
+            ['type' => 'department', 'code' => 'SALES TAX', 'name_en' => 'Sales Tax', 'name_ms' => 'Cukai Jualan', 'description_en' => 'Sales tax related inquiries', 'description_ms' => 'Pertanyaan berkaitan cukai jualan', 'sort_order' => 1],
+            ['type' => 'department', 'code' => 'SERVICE TAX', 'name_en' => 'Service Tax', 'name_ms' => 'Cukai Perkhidmatan', 'description_en' => 'Service tax related inquiries', 'description_ms' => 'Pertanyaan berkaitan cukai perkhidmatan', 'sort_order' => 2],
+            ['type' => 'department', 'code' => 'IMP/EXP & INDUSTRIES', 'name_en' => 'Import/Export & Industries', 'name_ms' => 'Import/Eksport & Industri', 'description_en' => 'Import, export and industrial matters', 'description_ms' => 'Perkara import, eksport dan perindustrian', 'sort_order' => 3],
+            ['type' => 'department', 'code' => 'GST', 'name_en' => 'GST', 'name_ms' => 'GST', 'description_en' => 'Goods and Services Tax matters', 'description_ms' => 'Perkara Cukai Barangan dan Perkhidmatan', 'sort_order' => 4],
+            ['type' => 'department', 'code' => 'EXCISE', 'name_en' => 'Excise', 'name_ms' => 'Eksais', 'description_en' => 'Excise duty related matters', 'description_ms' => 'Perkara berkaitan duti eksais', 'sort_order' => 5],
+            ['type' => 'department', 'code' => 'LEVY', 'name_en' => 'Levy', 'name_ms' => 'Levi', 'description_en' => 'Levy related matters', 'description_ms' => 'Perkara berkaitan levi', 'sort_order' => 6],
+            ['type' => 'department', 'code' => 'PASSENGER LEVY', 'name_en' => 'Passenger Levy', 'name_ms' => 'Levi Penumpang', 'description_en' => 'Passenger levy matters', 'description_ms' => 'Perkara levi penumpang', 'sort_order' => 7],
+            ['type' => 'department', 'code' => 'TTX', 'name_en' => 'Tourism Tax', 'name_ms' => 'Cukai Pelancongan', 'description_en' => 'Tourism tax related matters', 'description_ms' => 'Perkara berkaitan cukai pelancongan', 'sort_order' => 8],
+            ['type' => 'department', 'code' => 'TECHNICAL DIVISION', 'name_en' => 'Technical Division', 'name_ms' => 'Bahagian Teknikal', 'description_en' => 'Technical and classification matters', 'description_ms' => 'Perkara teknikal dan klasifikasi', 'sort_order' => 9],
+            ['type' => 'department', 'code' => 'PREVENTIVE', 'name_en' => 'Preventive (Enforcement)', 'name_ms' => 'Pencegahan (Penguatkuasaan)', 'description_en' => 'Enforcement and preventive matters', 'description_ms' => 'Perkara penguatkuasaan dan pencegahan', 'sort_order' => 10],
+            ['type' => 'department', 'code' => 'GENERAL', 'name_en' => 'General', 'name_ms' => 'Am', 'description_en' => 'General inquiries and administrative matters', 'description_ms' => 'Pertanyaan am dan perkara pentadbiran', 'sort_order' => 11],
+            ['type' => 'department', 'code' => 'OTHERS', 'name_en' => 'Others', 'name_ms' => 'Lain-lain', 'description_en' => 'Other inquiries', 'description_ms' => 'Pertanyaan lain', 'sort_order' => 12],
+
+            // ID Types (Malaysian identification documents)
+            ['type' => 'id_type', 'code' => 'MyKad', 'name_en' => 'MyKad', 'name_ms' => 'MyKad', 'description_en' => 'Malaysian Identity Card', 'description_ms' => 'Kad Pengenalan Malaysia', 'sort_order' => 1],
+            ['type' => 'id_type', 'code' => 'MyTentera', 'name_en' => 'MyTentera', 'name_ms' => 'MyTentera', 'description_en' => 'Malaysian Armed Forces Identity Card', 'description_ms' => 'Kad Pengenalan Angkatan Tentera Malaysia', 'sort_order' => 2],
+            ['type' => 'id_type', 'code' => 'MyPolis', 'name_en' => 'MyPolis', 'name_ms' => 'MyPolis', 'description_en' => 'Malaysian Police Identity Card', 'description_ms' => 'Kad Pengenalan Polis Diraja Malaysia', 'sort_order' => 3],
+            ['type' => 'id_type', 'code' => 'MyPR', 'name_en' => 'MyPR', 'name_ms' => 'MyPR', 'description_en' => 'Malaysian Permanent Resident Card', 'description_ms' => 'Kad Penduduk Tetap Malaysia', 'sort_order' => 4],
+            ['type' => 'id_type', 'code' => 'Passport', 'name_en' => 'Passport', 'name_ms' => 'Pasport', 'description_en' => 'Passport', 'description_ms' => 'Pasport', 'sort_order' => 5],
         ];
 
         foreach ($lookups as $lookup) {

@@ -17,22 +17,20 @@ class Agent extends Model
         'employee_id',
         'department',
         'designation',
+        // Mitel Telephony Integration - Real-time State Only
         'mitel_agent_id',
         'mitel_extension',
         'mitel_queue_ids',
+        'mitel_state',              // Current state: Available, Busy, DoNotDisturb, Away, Logout
+        'mitel_state_reason',       // Reason for state change (e.g., "Break", "Training")
+        'mitel_logged_in',          // Boolean: Is agent currently logged into Mitel
+        'mitel_last_state_change',  // Timestamp of last state change
+        // General Status
         'status',
         'availability',
         'skills',
         'languages',
         'max_concurrent_tickets',
-        'tickets_resolved_today',
-        'daily_target',
-        'avg_response_time',
-        'sla_compliance_rate',
-        'customer_satisfaction',
-        'shift_start',
-        'shift_end',
-        'working_days',
         'notes',
         'last_activity_at',
     ];
@@ -41,15 +39,10 @@ class Agent extends Model
         'skills' => 'array',
         'languages' => 'array',
         'mitel_queue_ids' => 'array',
-        'working_days' => 'array',
-        'tickets_resolved_today' => 'integer',
-        'daily_target' => 'integer',
         'max_concurrent_tickets' => 'integer',
-        'avg_response_time' => 'decimal:2',
-        'sla_compliance_rate' => 'decimal:2',
-        'customer_satisfaction' => 'decimal:2',
-        'shift_start' => 'datetime:H:i',
-        'shift_end' => 'datetime:H:i',
+        // Mitel telephony fields
+        'mitel_logged_in' => 'boolean',
+        'mitel_last_state_change' => 'datetime',
         'last_activity_at' => 'datetime',
     ];
 
@@ -78,6 +71,60 @@ class Agent extends Model
     }
 
     /**
+     * Get call statistics history for this agent.
+     */
+    public function callStatistics(): HasMany
+    {
+        return $this->hasMany(AgentCallStatistic::class);
+    }
+
+    /**
+     * Get today's call statistics for this agent.
+     */
+    public function todayStatistics()
+    {
+        return $this->callStatistics()
+                    ->whereDate('statistic_date', today())
+                    ->first();
+    }
+
+    /**
+     * Get shift schedules for this agent.
+     */
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(AgentShift::class);
+    }
+
+    /**
+     * Get current active shift for this agent.
+     */
+    public function currentShift()
+    {
+        return $this->shifts()
+                    ->where('shift_date', today())
+                    ->first();
+    }
+
+    /**
+     * Get performance metrics history for this agent.
+     */
+    public function performanceMetrics(): HasMany
+    {
+        return $this->hasMany(AgentPerformanceMetric::class);
+    }
+
+    /**
+     * Get today's performance metrics for this agent.
+     */
+    public function todayPerformance()
+    {
+        return $this->performanceMetrics()
+                    ->whereDate('metric_date', today())
+                    ->first();
+    }
+
+    /**
      * Scope a query to only include active agents.
      */
     public function scopeActive($query)
@@ -102,6 +149,69 @@ class Agent extends Model
     }
 
     /**
+     * Scope to filter agents currently logged into Mitel.
+     */
+    public function scopeMitelLoggedIn($query)
+    {
+        return $query->where('mitel_logged_in', true);
+    }
+
+    /**
+     * Scope to filter agents by Mitel state.
+     */
+    public function scopeByMitelState($query, $state)
+    {
+        return $query->where('mitel_state', $state);
+    }
+
+    /**
+     * Scope to filter agents available for calls.
+     */
+    public function scopeMitelAvailable($query)
+    {
+        return $query->where('mitel_logged_in', true)
+                    ->where('mitel_state', 'Available');
+    }
+
+    /**
+     * Update agent's Mitel state.
+     */
+    public function updateMitelState(string $state, ?string $reason = null): bool
+    {
+        return $this->update([
+            'mitel_state' => $state,
+            'mitel_state_reason' => $reason,
+            'mitel_last_state_change' => now(),
+            'mitel_logged_in' => $state !== 'Logout',
+            'last_activity_at' => now(),
+        ]);
+    }
+
+    /**
+     * Check if agent is currently available for calls.
+     */
+    public function isAvailableForCalls(): bool
+    {
+        return $this->mitel_logged_in && 
+               $this->mitel_state === 'Available' && 
+               $this->status === 'active';
+    }
+
+    /**
+     * Get agent's telephony status.
+     */
+    public function getTelephonyStatusAttribute(): array
+    {
+        return [
+            'logged_in' => $this->mitel_logged_in,
+            'state' => $this->mitel_state,
+            'state_reason' => $this->mitel_state_reason,
+            'last_state_change' => $this->mitel_last_state_change,
+            'available_for_calls' => $this->isAvailableForCalls(),
+        ];
+    }
+
+    /**
      * Get agent's full information including user details.
      */
     public function getFullProfileAttribute()
@@ -117,12 +227,14 @@ class Agent extends Model
             'availability' => $this->availability,
             'skills' => $this->skills,
             'languages' => $this->languages,
-            'performance' => [
-                'tickets_resolved_today' => $this->tickets_resolved_today,
-                'daily_target' => $this->daily_target,
-                'avg_response_time' => $this->avg_response_time,
-                'sla_compliance_rate' => $this->sla_compliance_rate,
-                'customer_satisfaction' => $this->customer_satisfaction,
+            'mitel' => [
+                'agent_id' => $this->mitel_agent_id,
+                'extension' => $this->mitel_extension,
+                'queue_ids' => $this->mitel_queue_ids,
+                'logged_in' => $this->mitel_logged_in,
+                'state' => $this->mitel_state,
+                'state_reason' => $this->mitel_state_reason,
+                'available_for_calls' => $this->isAvailableForCalls(),
             ],
         ];
     }

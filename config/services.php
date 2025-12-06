@@ -36,8 +36,10 @@ return [
     ],
 
     'mitel' => [
-        'base_url' => env('MITEL_BASE_URL', 'https://your-mitel-server.com/miccsdk'),
-        'token' => env('MITEL_API_TOKEN'),
+        'base_url' => env('MITEL_BASE_URL', 'https://micc.telediant.com.my/miccsdk'),
+        'auth_url' => env('MITEL_AUTH_URL', 'https://micc.telediant.com.my/AuthorizationServer/Token'),
+        'client_id' => env('MITEL_CLIENT_ID', 'CXCRM'),
+        'client_secret' => env('MITEL_CLIENT_SECRET'),
         'timeout' => env('MITEL_API_TIMEOUT', 30),
     ],
 

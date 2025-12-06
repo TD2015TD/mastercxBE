@@ -59,6 +59,22 @@ class Customer extends Model
     }
 
     /**
+     * Get all attachments for the customer.
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(CustomerAttachment::class);
+    }
+
+    /**
+     * Get all notes for the customer.
+     */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(CustomerNote::class);
+    }
+
+    /**
      * Scope a query to only include active customers.
      */
     public function scopeActive($query)

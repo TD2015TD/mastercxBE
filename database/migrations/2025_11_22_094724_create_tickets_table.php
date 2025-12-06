@@ -19,8 +19,8 @@ return new class extends Migration
             
             // Relationships
             $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
-            $table->foreignId('assigned_to')->nullable()->constrained('agents')->onDelete('set null');
-            $table->foreignId('created_by')->nullable()->constrained('agents')->onDelete('set null');
+            $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             
             // Classification
             $table->enum('priority', ['P1', 'P2', 'P3', 'P4'])->default('P3');

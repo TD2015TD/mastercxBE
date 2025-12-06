@@ -77,11 +77,11 @@ class Category extends Model
     }
 
     /**
-     * Scope to filter by department.
+     * Scope to filter by department (case-insensitive).
      */
     public function scopeByDepartment($query, $department)
     {
-        return $query->where('department', $department);
+        return $query->whereRaw('UPPER(department) = ?', [strtoupper($department)]);
     }
 
     /**
@@ -116,14 +116,14 @@ class Category extends Model
     }
 
     /**
-     * Get category tree for a specific department.
+     * Get category tree for a specific department (case-insensitive).
      */
     public static function getTree($department = null)
     {
         $query = static::roots()->active()->with('descendants');
 
         if ($department) {
-            $query->where('department', $department);
+            $query->whereRaw('UPPER(department) = ?', [strtoupper($department)]);
         }
 
         return $query->get();

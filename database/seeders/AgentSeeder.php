@@ -12,72 +12,59 @@ class AgentSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     * 
+     * Note: This seeder creates users WITH agent profiles (supervisor, agent roles only).
+     * Users without agent profiles (super_admin, admin) are created by UserSeeder.
+     * Maintains one-to-one User-Agent relationship.
      */
     public function run(): void
     {
-        // Get role IDs
+        // Get role IDs for users WITH agent profiles
         $agentRole = DB::table('roles')->where('slug', 'agent')->first();
         $supervisorRole = DB::table('roles')->where('slug', 'supervisor')->first();
-        $adminRole = DB::table('roles')->where('slug', 'admin')->first();
 
-        // Create sample users with agent profiles
+        // Create users with agent profiles (supervisor and agent roles only)
         $agents = [
-            [
-                'user' => [
-                    'name' => 'Ahmad Rahman',
-                    'email' => 'ahmad.rahman@jkdm.gov.my',
-                    'password' => Hash::make('Agent@123'),
-                    'role_id' => $agentRole->id,
-                    'ignite_id' => 'IGN-001',
-                ],
-                'agent' => [
-                    'employee_id' => 'EMP-001',
-                    'department' => 'Customer Service',
-                    'designation' => 'Senior Agent',
-                    'mitel_agent_id' => 'MITEL-001',
-                    'mitel_extension' => '1001',
-                    'mitel_queue_ids' => ['Q001', 'Q002'],
-                    'skills' => ['customs', 'gst', 'trade'],
-                    'languages' => ['en', 'ms'],
-                    'max_concurrent_tickets' => 5,
-                    'daily_target' => 15,
-                    'tickets_resolved_today' => 12,
-                    'avg_response_time' => 8.5,
-                    'sla_compliance_rate' => 94.0,
-                    'customer_satisfaction' => 4.3,
-                    'shift_start' => '08:00',
-                    'shift_end' => '17:00',
-                    'working_days' => [1, 2, 3, 4, 5],
-                    'status' => 'active',
-                    'availability' => 'available',
-                ],
-            ],
             [
                 'user' => [
                     'name' => 'Siti Nurhaliza',
                     'email' => 'siti.nurhaliza@jkdm.gov.my',
                     'password' => Hash::make('Super@123'),
                     'role_id' => $supervisorRole->id,
-                    'ignite_id' => 'IGN-002',
+                    'ignite_id' => 'IGN-001',
                 ],
                 'agent' => [
-                    'employee_id' => 'EMP-002',
+                    'employee_id' => 'EMP-001',
                     'department' => 'Customs Operations',
                     'designation' => 'Team Supervisor',
-                    'mitel_agent_id' => 'MITEL-002',
-                    'mitel_extension' => '1002',
+                    'mitel_agent_id' => 'MITEL-001',
+                    'mitel_extension' => '1001',
                     'mitel_queue_ids' => ['Q001', 'Q003'],
                     'skills' => ['customs', 'compliance', 'supervision'],
                     'languages' => ['en', 'ms'],
                     'max_concurrent_tickets' => 10,
-                    'daily_target' => 20,
-                    'tickets_resolved_today' => 18,
-                    'avg_response_time' => 7.2,
-                    'sla_compliance_rate' => 96.5,
-                    'customer_satisfaction' => 4.5,
-                    'shift_start' => '08:00',
-                    'shift_end' => '17:00',
-                    'working_days' => [1, 2, 3, 4, 5],
+                    'status' => 'active',
+                    'availability' => 'available',
+                ],
+            ],
+            [
+                'user' => [
+                    'name' => 'Ahmad Rahman',
+                    'email' => 'ahmad.rahman@jkdm.gov.my',
+                    'password' => Hash::make('Agent@123'),
+                    'role_id' => $agentRole->id,
+                    'ignite_id' => 'IGN-002',
+                ],
+                'agent' => [
+                    'employee_id' => 'EMP-002',
+                    'department' => 'Customer Service',
+                    'designation' => 'Senior Agent',
+                    'mitel_agent_id' => 'MITEL-002',
+                    'mitel_extension' => '1002',
+                    'mitel_queue_ids' => ['Q001', 'Q002'],
+                    'skills' => ['customs', 'gst', 'trade'],
+                    'languages' => ['en', 'ms'],
+                    'max_concurrent_tickets' => 5,
                     'status' => 'active',
                     'availability' => 'available',
                 ],
@@ -100,46 +87,8 @@ class AgentSeeder extends Seeder
                     'skills' => ['trade', 'compliance', 'documentation'],
                     'languages' => ['en', 'ms', 'ta'],
                     'max_concurrent_tickets' => 5,
-                    'daily_target' => 15,
-                    'tickets_resolved_today' => 8,
-                    'avg_response_time' => 10.3,
-                    'sla_compliance_rate' => 88.0,
-                    'customer_satisfaction' => 4.0,
-                    'shift_start' => '09:00',
-                    'shift_end' => '18:00',
-                    'working_days' => [1, 2, 3, 4, 5],
                     'status' => 'inactive',
                     'availability' => 'offline',
-                ],
-            ],
-            [
-                'user' => [
-                    'name' => 'Lim Wei Ming',
-                    'email' => 'lim.weiming@jkdm.gov.my',
-                    'password' => Hash::make('Admin@123'),
-                    'role_id' => $adminRole->id,
-                    'ignite_id' => 'IGN-004',
-                ],
-                'agent' => [
-                    'employee_id' => 'EMP-004',
-                    'department' => 'IT Operations',
-                    'designation' => 'System Administrator',
-                    'mitel_agent_id' => 'MITEL-004',
-                    'mitel_extension' => '1004',
-                    'mitel_queue_ids' => ['Q001', 'Q002', 'Q003'],
-                    'skills' => ['system-admin', 'technical-support', 'configuration'],
-                    'languages' => ['en', 'ms', 'zh'],
-                    'max_concurrent_tickets' => 8,
-                    'daily_target' => 10,
-                    'tickets_resolved_today' => 10,
-                    'avg_response_time' => 5.8,
-                    'sla_compliance_rate' => 99.0,
-                    'customer_satisfaction' => 4.7,
-                    'shift_start' => '08:00',
-                    'shift_end' => '17:00',
-                    'working_days' => [1, 2, 3, 4, 5],
-                    'status' => 'active',
-                    'availability' => 'available',
                 ],
             ],
         ];
@@ -168,5 +117,24 @@ class AgentSeeder extends Seeder
         }
 
         $this->command->info('Sample agents created successfully!');
+        $this->command->info('');
+        $this->command->info('═══════════════════════════════════════════════════════════');
+        $this->command->info('Users WITH Agent Profiles (One-to-One):');
+        $this->command->info('═══════════════════════════════════════════════════════════');
+        $this->command->info('1. Siti Nurhaliza (Team Supervisor)');
+        $this->command->info('   Email: siti.nurhaliza@jkdm.gov.my');
+        $this->command->info('   Password: Super@123');
+        $this->command->info('   Role: Supervisor | Status: Active');
+        $this->command->info('');
+        $this->command->info('2. Ahmad Rahman (Senior Agent)');
+        $this->command->info('   Email: ahmad.rahman@jkdm.gov.my');
+        $this->command->info('   Password: Agent@123');
+        $this->command->info('   Role: Agent | Status: Active');
+        $this->command->info('');
+        $this->command->info('3. Raj Kumar (Agent)');
+        $this->command->info('   Email: raj.kumar@jkdm.gov.my');
+        $this->command->info('   Password: Agent@123');
+        $this->command->info('   Role: Agent | Status: Inactive');
+        $this->command->info('═══════════════════════════════════════════════════════════');
     }
 }

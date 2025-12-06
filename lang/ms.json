@@ -38,6 +38,7 @@
     "filter": "Tapis",
     "export": "Eksport",
     "import": "Import",
+    "report": "Laporan",
     "yes": "Ya",
     "no": "Tidak",
     "ok": "OK",
@@ -69,5 +70,275 @@
     "description": "Penerangan",
     "customer": "Pelanggan",
     "category": "Kategori"
+  },
+  "supervisor": {
+    "dashboard": {
+      "title": "Papan Pemuka Penyelia",
+      "subtitle": "Pantau prestasi pasukan, pematuhan SLA, dan pengurusan beban kerja",
+      "refresh": "Muat Semula",
+      "refreshing": "Memuatkan Semula...",
+      "filter": "Tapis",
+      "loading": "Memuatkan papan pemuka...",
+      "errorLoading": "Ralat Memuatkan Papan Pemuka",
+      "noSession": "Tiada sesi pengguna dijumpai. Sila log masuk semula.",
+      "stats": {
+        "teamTickets": "Tiket Pasukan",
+        "unassigned": "belum ditugaskan",
+        "avgResponseTime": "Masa Respons Purata",
+        "target": "Sasaran: 5min",
+        "teamSLA": "SLA Pasukan",
+        "fromLastWeek": "dari minggu lepas",
+        "agentsOnline": "Ejen Dalam Talian",
+        "onBreak": "berehat"
+      },
+      "tabs": {
+        "overview": "Gambaran Keseluruhan",
+        "performance": "Prestasi Pasukan",
+        "sla": "Pematuhan SLA",
+        "workload": "Pengurusan Beban Kerja",
+        "monitoring": "Pemantauan Ejen"
+      },
+      "tabDescriptions": {
+        "overview": "Dapatkan gambaran menyeluruh prestasi pasukan, tiket aktif, dan notifikasi masa nyata.",
+        "performance": "Pantau metrik prestasi individu dan pasukan, masa respons, dan skor kepuasan pelanggan.",
+        "sla": "Jejak pematuhan SLA merentas keutamaan tiket dan jabatan yang berbeza.",
+        "workload": "Urus pengagihan beban kerja dan optimumkan penugasan tiket merentas pasukan anda.",
+        "monitoring": "Pemantauan masa nyata ketersediaan ejen, status, dan interaksi berterusan."
+      },
+      "quickActions": {
+        "title": "Tindakan Pantas",
+        "assignTicket": "Tugaskan Tiket",
+        "viewReports": "Lihat Laporan Pasukan",
+        "broadcast": "Siarkan Mesej",
+        "approveEscalation": "Luluskan Peningkatan"
+      },
+      "metrics": {
+        "activeTickets": "Tiket Aktif",
+        "slaCompliance": "Pematuhan SLA",
+        "agentsAvailable": "Ejen Tersedia",
+        "slaBreaches": "Pelanggaran SLA"
+      },
+      "agentPerformance": {
+        "title": "Prestasi Ejen",
+        "timeframe": "Jangka Masa",
+        "today": "Hari Ini",
+        "thisWeek": "Minggu Ini",
+        "thisMonth": "Bulan Ini",
+        "noData": "Tiada data prestasi ejen tersedia",
+        "tickets": "Tiket",
+        "avgResponse": "Respons Purata",
+        "resolution": "Penyelesaian",
+        "quality": "Kualiti",
+        "status": {
+          "available": "Tersedia",
+          "busy": "Sibuk",
+          "break": "Berehat",
+          "offline": "Luar Talian"
+        }
+      },
+      "workload": {
+        "title": "Pengurusan Beban Kerja",
+        "autoBalance": "Imbang Automatik",
+        "autoBalancing": "Mengimbangkan beban kerja...",
+        "load": "Beban",
+        "tickets": "Tiket",
+        "avgTime": "Purata Masa",
+        "efficiency": "Kecekapan",
+        "viewDetails": "Lihat Butiran",
+        "reassignTickets": "Agih Semula Tiket",
+        "adjustCapacity": "Laras Kapasiti",
+        "pendingAssignments": "Tugasan Tertunda",
+        "assign": "Agih",
+        "assignTo": "Agih kepada",
+        "selectAgent": "Pilih ejen",
+        "estimatedTime": "Anggaran {time}",
+        "noAgents": "Tiada ejen tersedia",
+        "noPendingTickets": "Tiada tiket tertunda untuk diagihkan",
+        "assignmentSuccess": "Tiket berjaya diagihkan",
+        "assignmentError": "Gagal mengagihkan tiket",
+        "status": {
+          "Available": "Tersedia",
+          "available": "Tersedia",
+          "Busy": "Sibuk",
+          "busy": "Sibuk",
+          "Overloaded": "Terlebih Beban",
+          "overloaded": "Terlebih Beban",
+          "Break": "Berehat",
+          "break": "Berehat",
+          "away": "Tidak Hadir",
+          "offline": "Luar Talian"
+        }
+      }
+    }
+  },
+  "systemAdmin": {
+    "title": "Pentadbiran Sistem",
+    "subtitle": "Konsol konfigurasi dan pengurusan sistem yang komprehensif",
+    "tabs": {
+      "users": "Pengurusan Pengguna",
+      "usersDesc": "Urus akaun pengguna dan kebenaran",
+      "system": "Konfigurasi Sistem",
+      "systemDesc": "Konfigur parameter sistem",
+      "audit": "Jejak Audit",
+      "auditDesc": "Lihat log aktiviti sistem",
+      "compliance": "Pematuhan",
+      "complianceDesc": "Pantau status pematuhan",
+      "health": "Kesihatan Sistem",
+      "healthDesc": "Pantau prestasi sistem"
+    },
+    "stats": {
+      "activeUsers": "Pengguna Aktif",
+      "systemUptime": "Masa Aktif Sistem",
+      "securityScore": "Skor Keselamatan",
+      "complianceRate": "Kadar Pematuhan",
+      "vsLastMonth": "berbanding bulan lepas"
+    },
+    "actions": {
+      "exportReport": "Eksport Laporan",
+      "systemSettings": "Tetapan Sistem"
+    },
+    "quickActions": {
+      "title": "Tindakan Pantas",
+      "addUser": "Tambah Pengguna Baharu",
+      "createBackup": "Cipta Sandaran",
+      "exportAuditLog": "Eksport Log Audit",
+      "healthCheck": "Pemeriksaan Kesihatan Sistem"
+    }
+  },
+  "sla": {
+    "management": {
+      "title": "Pengurusan SLA",
+      "description": "Konfigur dan pantau peraturan Perjanjian Tahap Perkhidmatan (SLA) dan metrik prestasi",
+      "subtitle": "Konfigur peraturan SLA, pantau pematuhan, dan urus ambang peningkatan"
+    },
+    "stats": {
+      "totalRules": "Jumlah Peraturan SLA",
+      "allActive": "Semua Aktif",
+      "activeSlas": "SLA Aktif",
+      "tracking": "Sedang dijejak",
+      "compliance": "Pematuhan SLA",
+      "thisMonth": "+2.1% bulan ini",
+      "breaches": "Pelanggaran SLA",
+      "monthPeriod": "Bulan ini"
+    },
+    "quickActions": {
+      "title": "Tindakan Pantas",
+      "duplicate": "Salin Konfigurasi",
+      "exportReport": "Eksport Laporan SLA"
+    },
+    "info": {
+      "calculationRules": "Peraturan Pengiraan SLA",
+      "description": "Pemasa SLA akan dijeda secara automatik apabila tiket berada dalam status \"Ditahan\" atau \"Tertunda\". Konfigurasi waktu perniagaan mengikut waktu bekerja Malaysia (9 PG - 5 PTG, Isnin - Jumaat). Amaran peningkatan dihantar apabila ambang pelanggaran SLA dicapai (lalai 80%)."
+    },
+    "configuration": {
+      "title": "Konfigurasi SLA",
+      "addNew": "Tambah Konfigurasi SLA Baharu",
+      "editConfig": "Edit Konfigurasi SLA",
+      "createConfig": "Cipta Konfigurasi SLA",
+      "search": "Cari konfigurasi...",
+      "filterByDepartment": "Tapis mengikut jabatan",
+      "filterByPriority": "Tapis mengikut keutamaan",
+      "allDepartments": "Semua Jabatan",
+      "allPriorities": "Semua Keutamaan",
+      "department": "Jabatan",
+      "selectDepartment": "Pilih Jabatan",
+      "priority": "Keutamaan",
+      "priorityLevel": "Tahap Keutamaan",
+      "duration": "Tempoh SLA",
+      "durationMinutes": "Tempoh SLA (minit)",
+      "durationPlaceholder": "cth., 1440 untuk 24 jam",
+      "settings": "Tetapan",
+      "businessHours": "Waktu Perniagaan Sahaja",
+      "businessHoursDesc": "Waktu perniagaan sahaja (9 PG - 5 PTG, Isnin-Jumaat)",
+      "pauseOnHold": "Jeda Apabila Ditahan",
+      "pauseOnHoldDesc": "Jeda pemasa SLA apabila tiket ditahan",
+      "pauseOnPending": "Jeda Apabila Tertunda",
+      "pauseOnPendingDesc": "Jeda pemasa SLA apabila tiket tertunda",
+      "escalation": "Peningkatan",
+      "escalationThreshold": "Ambang Peningkatan",
+      "escalationThresholdPercent": "Ambang Peningkatan (%)",
+      "escalationPlaceholder": "cth., 80",
+      "status": "Status",
+      "actions": "Tindakan",
+      "active": "Aktif",
+      "inactive": "Tidak Aktif",
+      "isActive": "Konfigurasi aktif",
+      "edit": "Edit",
+      "delete": "Padam",
+      "duplicate": "Salin",
+      "save": "Simpan Konfigurasi",
+      "cancel": "Batal",
+      "saving": "Menyimpan...",
+      "loading": "Memuatkan konfigurasi...",
+      "noResults": "Tiada konfigurasi SLA dijumpai",
+      "noResultsDesc": "Cuba laraskan kriteria carian atau penapis anda",
+      "noResultsEmpty": "Cipta konfigurasi SLA pertama anda untuk bermula",
+      "createSuccess": "Konfigurasi SLA berjaya dicipta",
+      "updateSuccess": "Konfigurasi SLA berjaya dikemaskini",
+      "deleteSuccess": "Konfigurasi SLA berjaya dipadam",
+      "deleteConfirm": "Adakah anda pasti mahu memadamkan konfigurasi SLA ini?",
+      "errorLoading": "Gagal memuatkan konfigurasi",
+      "errorSaving": "Gagal menyimpan konfigurasi",
+      "errorDeleting": "Gagal memadamkan konfigurasi",
+      "errorGeneric": "Ralat berlaku",
+      "description": "Penerangan",
+      "descriptionPlaceholder": "Terangkan bila konfigurasi SLA ini terpakai...",
+      "required": "Medan ini diperlukan",
+      "departmentRequired": "Jabatan diperlukan",
+      "priorityRequired": "Keutamaan diperlukan",
+      "durationRequired": "Tempoh mestilah sekurang-kurangnya 1 minit",
+      "showing": "Memaparkan {count} daripada {total} konfigurasi",
+      "previous": "Sebelumnya",
+      "next": "Seterusnya",
+      "minutes": "minit",
+      "warningMessage": "Perubahan kepada konfigurasi SLA akan digunakan serta-merta kepada semua tiket baharu. Tiket sedia ada akan terus menggunakan tetapan SLA asal mereka."
+    },
+    "engine": {
+      "save": "Simpan Konfigurasi Enjin SLA",
+      "reset": "Set Semula ke Lalai",
+      "saving": "Menyimpan...",
+      "loading": "Memuatkan tetapan enjin SLA...",
+      "saveSuccess": "Konfigurasi enjin SLA berjaya disimpan",
+      "resetSuccess": "Tetapan berjaya ditetapkan semula ke lalai",
+      "resetConfirm": "Adakah anda pasti mahu menetapkan semula ke tetapan lalai? Ini akan membuang semua konfigurasi tersuai.",
+      "errorLoading": "Gagal memuatkan tetapan",
+      "errorSaving": "Gagal menyimpan konfigurasi",
+      "errorResetting": "Gagal menetapkan semula tetapan",
+      "businessHours": {
+        "title": "Konfigurasi Waktu Perniagaan",
+        "enabled": "Dayakan pengiraan waktu perniagaan",
+        "startTime": "Masa Mula",
+        "endTime": "Masa Tamat",
+        "timezone": "Zon Waktu",
+        "workingDays": "Hari Bekerja"
+      },
+      "escalation": {
+        "title": "Peraturan Peningkatan",
+        "enabled": "Dayakan amaran peningkatan automatik",
+        "threshold": "Ambang Peningkatan Lalai (%)",
+        "thresholdDesc": "Amaran akan dihantar apabila masa SLA mencapai peratusan ini",
+        "recipients": "Penerima Notifikasi",
+        "notifyAgent": "Ejen Ditugaskan",
+        "notifySupervisor": "Penyelia",
+        "notifyManager": "Pengurus Jabatan",
+        "autoEscalate": "Peningkatan automatik apabila SLA dilanggar",
+        "escalationDelay": "Kelewatan Peningkatan (minit)",
+        "escalationDelayDesc": "Kelewatan dalam minit sebelum peningkatan automatik selepas ambang dicapai (0 untuk segera)"
+      },
+      "pause": {
+        "title": "Syarat Jeda SLA",
+        "subtitle": "Pemasa SLA akan dijeda secara automatik apabila tiket berada dalam status berikut:",
+        "onHold": "Ditahan",
+        "onHoldDesc": "Menunggu kebergantungan luaran atau respons pelanggan",
+        "pending": "Tertunda",
+        "pendingDesc": "Menunggu maklumat tambahan atau kelulusan",
+        "awaitingCustomer": "Menunggu Pelanggan",
+        "awaitingCustomerDesc": "Menunggu tindakan atau respons pelanggan"
+      },
+      "info": {
+        "title": "Maklumat Penting",
+        "description": "Perubahan kepada konfigurasi enjin SLA akan menjejaskan semua pengiraan SLA baharu. Tiket sedia ada akan terus menggunakan tetapan SLA semasa mereka sehingga dikemaskini atau diselesaikan."
+      }
+    }
   }
 }

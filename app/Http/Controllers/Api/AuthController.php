@@ -8,15 +8,88 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use OpenApi\Attributes as OA;
 
 class AuthController extends Controller
 {
     /**
      * Authenticate user via email/password or Ignite Mitel and return JWT token
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
+    #[OA\Post(
+        path: "/api/v1/auth/login",
+        summary: "User login",
+        description: "Authenticate user with email/password or Ignite token and return JWT access token",
+        tags: ["Authentication"],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ["email", "password"],
+                properties: [
+                    new OA\Property(property: "email", type: "string", format: "email", example: "superadmin@jkm.gov.my"),
+                    new OA\Property(property: "password", type: "string", format: "password", example: "password"),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: "Successful authentication",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: true),
+                        new OA\Property(
+                            property: "data",
+                            properties: [
+                                new OA\Property(
+                                    property: "user",
+                                    properties: [
+                                        new OA\Property(property: "id", type: "integer", example: 1),
+                                        new OA\Property(property: "name", type: "string", example: "Super Administrator"),
+                                        new OA\Property(property: "email", type: "string", example: "superadmin@jkm.gov.my"),
+                                        new OA\Property(property: "role_id", type: "integer", example: 1),
+                                        new OA\Property(
+                                            property: "role",
+                                            properties: [
+                                                new OA\Property(property: "id", type: "integer", example: 1),
+                                                new OA\Property(property: "name", type: "string", example: "Super Admin"),
+                                                new OA\Property(property: "slug", type: "string", example: "super_admin"),
+                                            ],
+                                            type: "object"
+                                        ),
+                                    ],
+                                    type: "object"
+                                ),
+                                new OA\Property(property: "access_token", type: "string", example: "eyJ0eXAiOiJKV1QiLCJhbGc..."),
+                                new OA\Property(property: "token_type", type: "string", example: "bearer"),
+                                new OA\Property(property: "expires_in", type: "integer", example: 3600),
+                            ],
+                            type: "object"
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: "Invalid credentials",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: false),
+                        new OA\Property(property: "message", type: "string", example: "Invalid credentials"),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: "Validation error",
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: "success", type: "boolean", example: false),
+                        new OA\Property(property: "errors", type: "object"),
+                    ]
+                )
+            ),
+        ]
+    )]
     public function login(Request $request)
     {
         // Check if it's email/password login or Ignite token login

@@ -1,0 +1,1185 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "JKDM CRM API Documentation",
+        "description": "JKDM CRM API - Customer Relationship Management System for Malaysian Government Agencies",
+        "contact": {
+            "email": "support@jkdm.gov.my"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Local Development Server"
+        },
+        {
+            "url": "https://api.jkdm.gov.my",
+            "description": "Production Server"
+        }
+    ],
+    "paths": {
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User login",
+                "description": "Authenticate user with email/password or Ignite token and return JWT access token",
+                "operationId": "fb66b153966d9fac2e999136ef0ade67",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "superadmin@jkm.gov.my"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful authentication",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Super Administrator"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "superadmin@jkm.gov.my"
+                                                        },
+                                                        "role_id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "role": {
+                                                            "properties": {
+                                                                "id": {
+                                                                    "type": "integer",
+                                                                    "example": 1
+                                                                },
+                                                                "name": {
+                                                                    "type": "string",
+                                                                    "example": "Super Admin"
+                                                                },
+                                                                "slug": {
+                                                                    "type": "string",
+                                                                    "example": "super_admin"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "access_token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "bearer"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer",
+                                                    "example": 3600
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid credentials"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/state": {
+            "get": {
+                "tags": [
+                    "Mitel - Agents"
+                ],
+                "summary": "Get agent current state",
+                "description": "Get current agent state",
+                "operationId": "6bc0d9b12a1d33744f81bf3d1ff82b88",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Agent state retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "agent_id": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "state": {
+                                                    "type": "string",
+                                                    "example": "Available"
+                                                },
+                                                "logged_in": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Mitel - Agents"
+                ],
+                "summary": "Update agent state",
+                "description": "Update agent state",
+                "operationId": "ef6a539365d04ca4afd9a098aa134888",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "state"
+                                ],
+                                "properties": {
+                                    "state": {
+                                        "type": "string",
+                                        "enum": [
+                                            "Available",
+                                            "Busy",
+                                            "DoNotDisturb",
+                                            "Away",
+                                            "Logout"
+                                        ],
+                                        "example": "Available"
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Break"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Agent state updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Agent state updated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "agent_id": {
+                                                    "type": "string",
+                                                    "example": "1234"
+                                                },
+                                                "state": {
+                                                    "type": "string",
+                                                    "example": "Available"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/statistics": {
+            "get": {
+                "tags": [
+                    "Mitel - Agents"
+                ],
+                "summary": "Get agent performance statistics",
+                "description": "Get agent statistics",
+                "operationId": "ebd671b279b0f1eb540f5caeb2741dce",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_calls": {
+                                                    "type": "integer",
+                                                    "example": 45
+                                                },
+                                                "answered_calls": {
+                                                    "type": "integer",
+                                                    "example": 42
+                                                },
+                                                "average_talk_time": {
+                                                    "type": "string",
+                                                    "example": "00:05:23"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls": {
+            "get": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Get agent's active calls",
+                "description": "Get active calls for agent",
+                "operationId": "4a83ae6d9e0cf6bbe245ee2d50921240",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active calls retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "call_id": {
+                                                        "type": "string",
+                                                        "example": "call-123"
+                                                    },
+                                                    "phone_number": {
+                                                        "type": "string",
+                                                        "example": "+60123456789"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "active"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Make outbound call",
+                "description": "Initiate outbound call",
+                "operationId": "262acd4bfd97d37ccd13ebbaf27e325b",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "phone_number"
+                                ],
+                                "properties": {
+                                    "phone_number": {
+                                        "type": "string",
+                                        "example": "+60123456789"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Call initiated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call initiated successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "call_id": {
+                                                    "type": "string",
+                                                    "example": "call-123"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "connecting"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/{callId}/answer": {
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Answer incoming call",
+                "description": "Answer incoming call",
+                "operationId": "ab872eefddaeba38248d4087f713a007",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "callId",
+                        "in": "path",
+                        "description": "Call ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call answered successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call answered successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/{callId}/hold": {
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Put call on hold",
+                "description": "Hold call",
+                "operationId": "6d10beb0c27afd0f558ff93c69f31ec0",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "callId",
+                        "in": "path",
+                        "description": "Call ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call put on hold successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call put on hold successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/{callId}/resume": {
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Resume call from hold",
+                "description": "Resume call from hold",
+                "operationId": "4d013030a5e783b22a16361b50420afe",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "callId",
+                        "in": "path",
+                        "description": "Call ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call resumed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call resumed successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/{callId}/transfer": {
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Transfer call to another agent or number",
+                "description": "Transfer call",
+                "operationId": "a192c388b2f6e69883b6cf5f72799a49",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "callId",
+                        "in": "path",
+                        "description": "Call ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "destination"
+                                ],
+                                "properties": {
+                                    "destination": {
+                                        "type": "string",
+                                        "example": "+60198765432"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Call transferred successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call transferred successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/{callId}/end": {
+            "post": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "End active call",
+                "description": "End call",
+                "operationId": "ea0aa98759bf3d93733ee9a9b0d9b412",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "callId",
+                        "in": "path",
+                        "description": "Call ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call ended successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Call ended successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/agents/{agentId}/calls/history": {
+            "get": {
+                "tags": [
+                    "Mitel - Calls"
+                ],
+                "summary": "Get agent call history",
+                "description": "Get call history",
+                "operationId": "121d3523645e015f3b8119a00eda37ca",
+                "parameters": [
+                    {
+                        "name": "agentId",
+                        "in": "path",
+                        "description": "Agent ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Start date (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "End date (YYYY-MM-DD)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call history retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "call_id": {
+                                                        "type": "string",
+                                                        "example": "call-123"
+                                                    },
+                                                    "phone_number": {
+                                                        "type": "string",
+                                                        "example": "+60123456789"
+                                                    },
+                                                    "duration": {
+                                                        "type": "string",
+                                                        "example": "00:05:23"
+                                                    },
+                                                    "timestamp": {
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/queues": {
+            "get": {
+                "tags": [
+                    "Mitel - Queues"
+                ],
+                "summary": "Get all available queues",
+                "description": "Get all available queues",
+                "operationId": "007a026017adef13a263de0f68a19cc6",
+                "responses": {
+                    "200": {
+                        "description": "Queues retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "queue_id": {
+                                                        "type": "string",
+                                                        "example": "queue-001"
+                                                    },
+                                                    "queue_name": {
+                                                        "type": "string",
+                                                        "example": "Customer Support"
+                                                    },
+                                                    "agents_count": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/queues/{queueId}/statistics": {
+            "get": {
+                "tags": [
+                    "Mitel - Queues"
+                ],
+                "summary": "Get queue statistics",
+                "description": "Get queue statistics",
+                "operationId": "3097ca9a10f5df02e79da74c053c2c9d",
+                "parameters": [
+                    {
+                        "name": "queueId",
+                        "in": "path",
+                        "description": "Queue ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Queue statistics retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "queue_id": {
+                                                    "type": "string",
+                                                    "example": "queue-001"
+                                                },
+                                                "calls_waiting": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "agents_available": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "average_wait_time": {
+                                                    "type": "string",
+                                                    "example": "00:02:15"
+                                                },
+                                                "longest_wait_time": {
+                                                    "type": "string",
+                                                    "example": "00:04:30"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/v1/mitel/webhook": {
+            "post": {
+                "tags": [
+                    "Mitel - Webhooks"
+                ],
+                "summary": "Receive Mitel real-time events (Webhook)",
+                "description": "Webhook endpoint for Mitel to send real-time events. Events are broadcast to WebSocket clients for live UI updates.",
+                "operationId": "98cad8269bbccd3ccbf0af93b1843883",
+                "requestBody": {
+                    "description": "Event data from Mitel system",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "eventType",
+                                    "data"
+                                ],
+                                "properties": {
+                                    "eventType": {
+                                        "description": "Type of event being sent",
+                                        "type": "string",
+                                        "enum": [
+                                            "AgentStateChanged",
+                                            "ConversationUpdated",
+                                            "QueueStateChanged"
+                                        ],
+                                        "example": "AgentStateChanged"
+                                    },
+                                    "data": {
+                                        "description": "Event-specific data payload",
+                                        "type": "object",
+                                        "example": {
+                                            "agent_id": "1234",
+                                            "state": "Available",
+                                            "timestamp": "2025-12-01T10:30:00Z"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "examples": {
+                                "Agent State Changed": {
+                                    "summary": "Agent changes status",
+                                    "value": {
+                                        "eventType": "AgentStateChanged",
+                                        "data": {
+                                            "agent_id": "1234",
+                                            "state": "Available",
+                                            "reason": "Break Ended",
+                                            "timestamp": "2025-12-01T10:30:00Z"
+                                        }
+                                    }
+                                },
+                                "Conversation Updated": {
+                                    "summary": "Call answered or ended",
+                                    "value": {
+                                        "eventType": "ConversationUpdated",
+                                        "data": {
+                                            "agent_id": "1234",
+                                            "call_id": "call-5678",
+                                            "action": "answered",
+                                            "phone_number": "+60123456789",
+                                            "timestamp": "2025-12-01T10:31:00Z"
+                                        }
+                                    }
+                                },
+                                "Queue State Changed": {
+                                    "summary": "Queue statistics updated",
+                                    "value": {
+                                        "eventType": "QueueStateChanged",
+                                        "data": {
+                                            "queue_id": "queue-001",
+                                            "calls_waiting": 5,
+                                            "agents_available": 3,
+                                            "timestamp": "2025-12-01T10:32:00Z"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Webhook processed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Webhook processed successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error processing webhook",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Failed to process webhook"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Error details"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "name": "Authorization",
+                "in": "header",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Mitel - Agents",
+            "description": "Agent state management and statistics for Mitel telephony system"
+        },
+        {
+            "name": "Mitel - Calls",
+            "description": "Telephony call management operations"
+        },
+        {
+            "name": "Mitel - Queues",
+            "description": "Queue monitoring and statistics management"
+        },
+        {
+            "name": "Mitel - Webhooks",
+            "description": "Webhook endpoints for receiving real-time events from Mitel system"
+        },
+        {
+            "name": "Authentication",
+            "description": "User authentication and authorization endpoints"
+        }
+    ]
+}

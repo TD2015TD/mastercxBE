@@ -38,6 +38,7 @@
     "filter": "Filter",
     "export": "Export",
     "import": "Import",
+    "report": "Report",
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
@@ -69,5 +70,275 @@
     "description": "Description",
     "customer": "Customer",
     "category": "Category"
+  },
+  "supervisor": {
+    "dashboard": {
+      "title": "Supervisor Dashboard",
+      "subtitle": "Monitor team performance, SLA compliance, and workload management",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing...",
+      "filter": "Filter",
+      "loading": "Loading dashboard...",
+      "errorLoading": "Error Loading Dashboard",
+      "noSession": "No user session found. Please log in again.",
+      "stats": {
+        "teamTickets": "Team Tickets",
+        "unassigned": "unassigned",
+        "avgResponseTime": "Avg Response Time",
+        "target": "Target: 5min",
+        "teamSLA": "Team SLA",
+        "fromLastWeek": "from last week",
+        "agentsOnline": "Agents Online",
+        "onBreak": "on break"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "performance": "Team Performance",
+        "sla": "SLA Compliance",
+        "workload": "Workload Management",
+        "monitoring": "Agent Monitoring"
+      },
+      "tabDescriptions": {
+        "overview": "Get a comprehensive overview of team performance, active tickets, and real-time notifications.",
+        "performance": "Monitor individual and team performance metrics, response times, and customer satisfaction scores.",
+        "sla": "Track SLA compliance across different ticket priorities and departments.",
+        "workload": "Manage workload distribution and optimize ticket assignments across your team.",
+        "monitoring": "Real-time monitoring of agent availability, status, and ongoing interactions."
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "assignTicket": "Assign Ticket",
+        "viewReports": "View Team Reports",
+        "broadcast": "Broadcast Message",
+        "approveEscalation": "Approve Escalation"
+      },
+      "metrics": {
+        "activeTickets": "Active Tickets",
+        "slaCompliance": "SLA Compliance",
+        "agentsAvailable": "Agents Available",
+        "slaBreaches": "SLA Breaches"
+      },
+      "agentPerformance": {
+        "title": "Agent Performance",
+        "timeframe": "Timeframe",
+        "today": "Today",
+        "thisWeek": "This Week",
+        "thisMonth": "This Month",
+        "noData": "No agent performance data available",
+        "tickets": "Tickets",
+        "avgResponse": "Avg Response",
+        "resolution": "Resolution",
+        "quality": "Quality",
+        "status": {
+          "available": "Available",
+          "busy": "Busy",
+          "break": "On Break",
+          "offline": "Offline"
+        }
+      },
+      "workload": {
+        "title": "Workload Management",
+        "autoBalance": "Auto Balance",
+        "autoBalancing": "Auto-balancing workload...",
+        "load": "Load",
+        "tickets": "Tickets",
+        "avgTime": "Avg Time",
+        "efficiency": "Efficiency",
+        "viewDetails": "View Details",
+        "reassignTickets": "Reassign Tickets",
+        "adjustCapacity": "Adjust Capacity",
+        "pendingAssignments": "Pending Assignments",
+        "assign": "Assign",
+        "assignTo": "Assign to",
+        "selectAgent": "Select an agent",
+        "estimatedTime": "Est. {time}",
+        "noAgents": "No agents available",
+        "noPendingTickets": "No pending tickets to assign",
+        "assignmentSuccess": "Ticket assigned successfully",
+        "assignmentError": "Failed to assign ticket",
+        "status": {
+          "Available": "Available",
+          "available": "Available",
+          "Busy": "Busy",
+          "busy": "Busy",
+          "Overloaded": "Overloaded",
+          "overloaded": "Overloaded",
+          "Break": "On Break",
+          "break": "On Break",
+          "away": "Away",
+          "offline": "Offline"
+        }
+      }
+    }
+  },
+  "systemAdmin": {
+    "title": "System Administration",
+    "subtitle": "Comprehensive system configuration and management console",
+    "tabs": {
+      "users": "User Management",
+      "usersDesc": "Manage user accounts and permissions",
+      "system": "System Config",
+      "systemDesc": "Configure system parameters",
+      "audit": "Audit Trail",
+      "auditDesc": "View system activity logs",
+      "compliance": "Compliance",
+      "complianceDesc": "Monitor compliance status",
+      "health": "System Health",
+      "healthDesc": "Monitor system performance"
+    },
+    "stats": {
+      "activeUsers": "Active Users",
+      "systemUptime": "System Uptime",
+      "securityScore": "Security Score",
+      "complianceRate": "Compliance Rate",
+      "vsLastMonth": "vs last month"
+    },
+    "actions": {
+      "exportReport": "Export Report",
+      "systemSettings": "System Settings"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "addUser": "Add New User",
+      "createBackup": "Create Backup",
+      "exportAuditLog": "Export Audit Log",
+      "healthCheck": "System Health Check"
+    }
+  },
+  "sla": {
+    "management": {
+      "title": "SLA Management",
+      "description": "Configure and monitor Service Level Agreement (SLA) rules and performance metrics",
+      "subtitle": "Configure SLA rules, monitor compliance, and manage escalation thresholds"
+    },
+    "stats": {
+      "totalRules": "Total SLA Rules",
+      "allActive": "All Active",
+      "activeSlas": "Active SLAs",
+      "tracking": "Currently tracking",
+      "compliance": "SLA Compliance",
+      "thisMonth": "+2.1% this month",
+      "breaches": "SLA Breaches",
+      "monthPeriod": "This month"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "duplicate": "Duplicate Configuration",
+      "exportReport": "Export SLA Report"
+    },
+    "info": {
+      "calculationRules": "SLA Calculation Rules",
+      "description": "SLA timers automatically pause when tickets are in \"On Hold\" or \"Pending\" status. Business hours configurations respect Malaysian working hours (9 AM - 5 PM, Monday - Friday). Escalation alerts are sent when SLA breach threshold is reached (default 80%)."
+    },
+    "configuration": {
+      "title": "SLA Configurations",
+      "addNew": "Add New SLA Configuration",
+      "editConfig": "Edit SLA Configuration",
+      "createConfig": "Create SLA Configuration",
+      "search": "Search configurations...",
+      "filterByDepartment": "Filter by department",
+      "filterByPriority": "Filter by priority",
+      "allDepartments": "All Departments",
+      "allPriorities": "All Priorities",
+      "department": "Department",
+      "selectDepartment": "Select Department",
+      "priority": "Priority",
+      "priorityLevel": "Priority Level",
+      "duration": "SLA Duration",
+      "durationMinutes": "SLA Duration (minutes)",
+      "durationPlaceholder": "e.g., 1440 for 24 hours",
+      "settings": "Settings",
+      "businessHours": "Business Hours Only",
+      "businessHoursDesc": "Business hours only (9 AM - 5 PM, Mon-Fri)",
+      "pauseOnHold": "Pause on Hold",
+      "pauseOnHoldDesc": "Pause SLA timer when ticket is on hold",
+      "pauseOnPending": "Pause on Pending",
+      "pauseOnPendingDesc": "Pause SLA timer when ticket is pending",
+      "escalation": "Escalation",
+      "escalationThreshold": "Escalation Threshold",
+      "escalationThresholdPercent": "Escalation Threshold (%)",
+      "escalationPlaceholder": "e.g., 80",
+      "status": "Status",
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive",
+      "isActive": "Configuration is active",
+      "edit": "Edit",
+      "delete": "Delete",
+      "duplicate": "Duplicate",
+      "save": "Save Configuration",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "loading": "Loading configurations...",
+      "noResults": "No SLA configurations found",
+      "noResultsDesc": "Try adjusting your search or filter criteria",
+      "noResultsEmpty": "Create your first SLA configuration to get started",
+      "createSuccess": "SLA configuration created successfully",
+      "updateSuccess": "SLA configuration updated successfully",
+      "deleteSuccess": "SLA configuration deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete this SLA configuration?",
+      "errorLoading": "Failed to load configurations",
+      "errorSaving": "Failed to save configuration",
+      "errorDeleting": "Failed to delete configuration",
+      "errorGeneric": "An error occurred",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe when this SLA configuration applies...",
+      "required": "This field is required",
+      "departmentRequired": "Department is required",
+      "priorityRequired": "Priority is required",
+      "durationRequired": "Duration must be at least 1 minute",
+      "showing": "Showing {count} of {total} configurations",
+      "previous": "Previous",
+      "next": "Next",
+      "minutes": "minutes",
+      "warningMessage": "Changes to SLA configurations will apply immediately to all new tickets. Existing tickets will continue using their original SLA settings."
+    },
+    "engine": {
+      "save": "Save SLA Engine Configuration",
+      "reset": "Reset to Defaults",
+      "saving": "Saving...",
+      "loading": "Loading SLA engine settings...",
+      "saveSuccess": "SLA engine configuration saved successfully",
+      "resetSuccess": "Settings reset to defaults successfully",
+      "resetConfirm": "Are you sure you want to reset to default settings? This will discard all custom configurations.",
+      "errorLoading": "Failed to load settings",
+      "errorSaving": "Failed to save configuration",
+      "errorResetting": "Failed to reset settings",
+      "businessHours": {
+        "title": "Business Hours Configuration",
+        "enabled": "Enable business hours calculation",
+        "startTime": "Start Time",
+        "endTime": "End Time",
+        "timezone": "Timezone",
+        "workingDays": "Working Days"
+      },
+      "escalation": {
+        "title": "Escalation Rules",
+        "enabled": "Enable automatic escalation alerts",
+        "threshold": "Default Escalation Threshold (%)",
+        "thresholdDesc": "Alert will be sent when SLA time reaches this percentage",
+        "recipients": "Notification Recipients",
+        "notifyAgent": "Assigned Agent",
+        "notifySupervisor": "Supervisor",
+        "notifyManager": "Department Manager",
+        "autoEscalate": "Auto-escalate on SLA breach",
+        "escalationDelay": "Escalation Delay (minutes)",
+        "escalationDelayDesc": "Delay in minutes before auto-escalating after threshold is reached (0 for immediate)"
+      },
+      "pause": {
+        "title": "SLA Pause Conditions",
+        "subtitle": "SLA timer will automatically pause when tickets are in the following statuses:",
+        "onHold": "On Hold",
+        "onHoldDesc": "Waiting for external dependency or customer response",
+        "pending": "Pending",
+        "pendingDesc": "Awaiting additional information or approval",
+        "awaitingCustomer": "Awaiting Customer",
+        "awaitingCustomerDesc": "Waiting for customer action or response"
+      },
+      "info": {
+        "title": "Important Information",
+        "description": "Changes to the SLA engine configuration will affect all new SLA calculations. Existing tickets will continue using their current SLA settings until they are updated or resolved."
+      }
+    }
   }
 }
