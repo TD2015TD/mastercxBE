@@ -23,7 +23,7 @@ class PublicAuthController extends Controller
             'phone_number' => [
                 'required',
                 'string',
-                'regex:/^01[0-9]-?[0-9]{7,8}$/',
+                'regex:/^(\+?6?01[0-46-9][-\s]?[0-9]{7,8}|01[0-46-9][-\s]?[0-9]{7,8})$/',
             ],
             'email' => 'required|email|max:255',
         ]);
@@ -39,6 +39,26 @@ class PublicAuthController extends Controller
         // Clean phone number (remove dashes and spaces)
         $phoneNumber = preg_replace('/[\s-]/', '', $request->phone_number);
         $email = strtolower(trim($request->email));
+
+        // Verify that customer exists with this phone number and email
+        // Normalize phone number for comparison (handle various formats)
+        $normalizedPhone = preg_replace('/^(\+?60|60)/', '0', $phoneNumber);
+        
+        $customer = Customer::where('email', $email)
+            ->where(function($query) use ($phoneNumber, $normalizedPhone) {
+                $query->where('phone_number', $phoneNumber)
+                      ->orWhere('phone_number', $normalizedPhone)
+                      ->orWhere('phone_number', '+60' . ltrim($normalizedPhone, '0'))
+                      ->orWhere('phone_number', '60' . ltrim($normalizedPhone, '0'));
+            })
+            ->first();
+        
+        if (!$customer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tiada rekod pelanggan dijumpai dengan nombor telefon dan e-mel ini.',
+            ], 404);
+        }
 
         // Rate limiting: Max 3 OTP requests per 30 minutes
         $recentRequests = CitizenAuthSession::countRecentRequests($phoneNumber, 30);
@@ -135,13 +155,23 @@ class PublicAuthController extends Controller
                 ], 401);
             }
 
-            // Verify that customer exists with this phone number
-            $customer = Customer::where('phone_number', $phoneNumber)->first();
+            // Verify that customer exists with this phone number and email
+            // Normalize phone number for comparison (remove country code prefix if exists)
+            $normalizedPhone = preg_replace('/^(\+?60|60)/', '0', $phoneNumber);
+            
+            $customer = Customer::where('email', $email)
+                ->where(function($query) use ($phoneNumber, $normalizedPhone) {
+                    $query->where('phone_number', $phoneNumber)
+                          ->orWhere('phone_number', $normalizedPhone)
+                          ->orWhere('phone_number', '+60' . ltrim($normalizedPhone, '0'))
+                          ->orWhere('phone_number', '60' . ltrim($normalizedPhone, '0'));
+                })
+                ->first();
             
             if (!$customer) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Tiada rekod pelanggan dijumpai untuk nombor telefon ini.',
+                    'message' => 'Tiada rekod pelanggan dijumpai dengan nombor telefon dan e-mel ini.',
                 ], 404);
             }
 

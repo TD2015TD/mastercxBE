@@ -44,7 +44,10 @@ class CitizenAuthSession extends Model
             'random' => Str::random(32),
         ]);
 
-        return base64_encode($payload) . '.' . hash_hmac('sha256', $payload, config('app.key'));
+        $encodedPayload = base64_encode($payload);
+        $signature = hash_hmac('sha256', $encodedPayload, config('app.key'));
+        
+        return $encodedPayload . '.' . $signature;
     }
 
     /**
@@ -52,30 +55,46 @@ class CitizenAuthSession extends Model
      */
     public static function verifySessionToken(string $token): ?array
     {
-        $parts = explode('.', $token);
-        if (count($parts) !== 2) {
+        try {
+            $parts = explode('.', $token);
+            if (count($parts) !== 2) {
+                \Log::warning('Invalid token format: wrong number of parts', ['parts_count' => count($parts)]);
+                return null;
+            }
+
+            [$payload, $signature] = $parts;
+            
+            // Verify signature
+            $expectedSignature = hash_hmac('sha256', $payload, config('app.key'));
+            if (!hash_equals($expectedSignature, $signature)) {
+                \Log::warning('Invalid token: signature mismatch');
+                return null;
+            }
+
+            // Decode payload
+            $decodedPayload = base64_decode($payload, true);
+            if ($decodedPayload === false) {
+                \Log::warning('Invalid token: base64 decode failed');
+                return null;
+            }
+            
+            $data = json_decode($decodedPayload, true);
+            if (!$data) {
+                \Log::warning('Invalid token: json decode failed');
+                return null;
+            }
+
+            // Check expiration
+            if (!isset($data['expires_at']) || $data['expires_at'] < now()->timestamp) {
+                \Log::warning('Token expired', ['expires_at' => $data['expires_at'] ?? 'missing']);
+                return null;
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            \Log::error('Token verification exception', ['error' => $e->getMessage()]);
             return null;
         }
-
-        [$payload, $signature] = $parts;
-        
-        // Verify signature
-        if (!hash_equals(hash_hmac('sha256', $payload, config('app.key')), $signature)) {
-            return null;
-        }
-
-        // Decode payload
-        $data = json_decode(base64_decode($payload), true);
-        if (!$data) {
-            return null;
-        }
-
-        // Check expiration
-        if ($data['expires_at'] < now()->timestamp) {
-            return null;
-        }
-
-        return $data;
     }
 
     /**

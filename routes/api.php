@@ -43,13 +43,15 @@ Route::prefix('v1')->group(function () {
         // Public Ticket APIs
         Route::post('/tickets', [PublicTicketController::class, 'submitTicket']);
         Route::post('/tickets/track', [PublicTicketController::class, 'trackTicket']);
-        Route::get('/tickets/{ticketNumber}', [PublicTicketController::class, 'viewTicket']);
-        Route::post('/tickets/{ticketNumber}/attachments', [PublicTicketController::class, 'uploadAttachment']);
         
         // Authenticated Citizen Routes (requires session token)
         Route::middleware('citizen.session')->group(function () {
             Route::get('/tickets/my-tickets', [PublicTicketController::class, 'getMyTickets']);
         });
+        
+        // Route with parameter must come after specific routes
+        Route::get('/tickets/{ticketNumber}', [PublicTicketController::class, 'viewTicket']);
+        Route::post('/tickets/{ticketNumber}/attachments', [PublicTicketController::class, 'uploadAttachment']);
         
         // Public Knowledge Base APIs (Elasticsearch)
         Route::prefix('knowledge-base')->group(function () {

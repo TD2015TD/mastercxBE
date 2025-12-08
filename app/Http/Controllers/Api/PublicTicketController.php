@@ -24,6 +24,7 @@ class PublicTicketController extends Controller
     public function submitTicket(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'department' => 'nullable|string|max:100',
             'category' => 'required|string',
             'subcategory' => 'nullable|string',
             'priority' => 'required|in:low,medium,high,critical',
@@ -33,6 +34,7 @@ class PublicTicketController extends Controller
             'customer_email' => 'required|email|max:255',
             'customer_phone' => 'nullable|string|max:20',
             'customer_company' => 'nullable|string|max:255',
+            'customer_id_type' => 'nullable|string|max:20',
             'customer_id_number' => 'nullable|string|max:50',
             'attachments' => 'nullable|array|max:5',
             'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB max per file
@@ -56,17 +58,18 @@ class PublicTicketController extends Controller
                 $customer = Customer::create([
                     'name' => $request->customer_name,
                     'email' => $request->customer_email,
-                    'phone' => $request->customer_phone,
+                    'phone_number' => $request->customer_phone,
                     'company_name' => $request->customer_company,
-                    'id_number' => $request->customer_id_number,
+                    'id_type' => $request->customer_id_type ?? 'MyKad',
+                    'id_no' => $request->customer_id_number,
                     'customer_type' => 'individual',
                     'status' => 'active',
                     'preferred_language' => $request->header('Accept-Language', 'en'),
                 ]);
             }
 
-            // Determine department based on category
-            $department = $this->determineDepartment($request->category);
+            // Determine department - use provided department or determine from category
+            $department = $request->department ?? $this->determineDepartment($request->category);
 
             // Create ticket
             $ticket = Ticket::create([
@@ -75,7 +78,7 @@ class PublicTicketController extends Controller
                 'subject' => $request->subject,
                 'description' => $request->description,
                 'priority' => $this->mapPriority($request->priority),
-                'status' => 'New',
+                'status' => 'Open',
                 'channel' => 'web',
                 'department' => $department,
                 'category' => $request->category,
@@ -111,7 +114,7 @@ class PublicTicketController extends Controller
                 'action' => 'created',
                 'description' => 'Ticket created via citizen portal',
                 'old_value' => null,
-                'new_value' => 'New',
+                'new_value' => 'Open',
                 'changed_by' => $customer->id,
                 'changed_by_type' => 'customer',
             ]);
@@ -173,7 +176,7 @@ class PublicTicketController extends Controller
             ->whereHas('customer', function($query) use ($request) {
                 $query->where('email', $request->email);
             })
-            ->with(['customer', 'assignedAgent', 'category'])
+            ->with(['customer', 'assignedAgent'])
             ->first();
 
         if (!$ticket) {
@@ -459,8 +462,17 @@ class PublicTicketController extends Controller
         }
 
         try {
-            // Find customer by phone number
-            $customer = Customer::where('phone_number', $phoneNumber)->first();
+            // Find customer by phone number (handle various formats)
+            // Normalize phone number for comparison
+            $normalizedPhone = preg_replace('/^(\+?60|60)/', '0', $phoneNumber);
+            
+            $customer = Customer::where(function($query) use ($phoneNumber, $normalizedPhone) {
+                    $query->where('phone_number', $phoneNumber)
+                          ->orWhere('phone_number', $normalizedPhone)
+                          ->orWhere('phone_number', '+60' . ltrim($normalizedPhone, '0'))
+                          ->orWhere('phone_number', '60' . ltrim($normalizedPhone, '0'));
+                })
+                ->first();
 
             if (!$customer) {
                 return response()->json([
