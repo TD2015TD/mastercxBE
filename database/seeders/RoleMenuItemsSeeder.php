@@ -26,8 +26,6 @@ class RoleMenuItemsSeeder extends Seeder
         $kbMenu = DB::table('menu_items')->where('path', '/knowledge-base-portal')->first();
         $analyticsMenu = DB::table('menu_items')->where('path', '/analytics-and-reporting')->first();
         $adminMenu = DB::table('menu_items')->where('path', '/system-administration')->first();
-        $directoryMenu = DB::table('menu_items')->where('path', '/directory-search-and-browsing')->first();
-        $globalNavMenu = DB::table('menu_items')->where('path', '/global-navigation-system')->first();
         $kbCreatorMenu = DB::table('menu_items')->where('path', '/knowledge-base-content-creator-portal')->first();
 
         $roleMenuItems = [];
@@ -134,8 +132,7 @@ class RoleMenuItemsSeeder extends Seeder
         if ($adminRole) {
             $allMenus = [
                 $dashboardMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu, 
-                $kbMenu, $analyticsMenu, $adminMenu, $directoryMenu, 
-                $globalNavMenu, $kbCreatorMenu
+                $kbMenu, $analyticsMenu, $adminMenu, $kbCreatorMenu
             ];
             
             foreach ($allMenus as $menu) {
@@ -156,8 +153,7 @@ class RoleMenuItemsSeeder extends Seeder
         if ($superAdminRole) {
             $allMenus = [
                 $dashboardMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu, 
-                $kbMenu, $analyticsMenu, $adminMenu, $directoryMenu, 
-                $globalNavMenu, $kbCreatorMenu
+                $kbMenu, $analyticsMenu, $adminMenu, $kbCreatorMenu
             ];
             
             foreach ($allMenus as $menu) {
