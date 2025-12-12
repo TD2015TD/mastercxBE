@@ -14,6 +14,7 @@ class Agent extends Model
     protected $fillable = [
         'user_id',
         'agent_code',
+        'agent_username',
         'employee_id',
         'department',
         'designation',
@@ -218,6 +219,7 @@ class Agent extends Model
     {
         return [
             'id' => $this->id,
+            'agent_username' => $this->agent_username,
             'agent_code' => $this->agent_code,
             'name' => $this->user->name,
             'email' => $this->user->email,

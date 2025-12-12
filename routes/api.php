@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\PublicKnowledgeBaseController;
 use App\Http\Controllers\Api\KnowledgeBaseController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemController;
+use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controller
 
 Route::prefix('v1')->group(function () {
     // Public routes
@@ -241,11 +242,25 @@ Route::prefix('v1')->group(function () {
         
         // Mitel/MiContact Center Integration (via Service Layer)
         Route::prefix('mitel')->group(function () {
-            // Agent Management
+            
+            // Employee Management (General Mitel API endpoints from MitelController)
+            Route::prefix('employees')->group(function () {
+                Route::get('/', [MitelController::class, 'getEmployees']); // Get all employees (OData)
+                Route::get('/{id}', [MitelController::class, 'getEmployee']); // Get employee by ID, username, or 'me'
+                Route::get('/{id}/state', [MitelController::class, 'getEmployeeState']); // Get employee state
+                Route::put('/{id}/state', [MitelController::class, 'updateEmployeeState']); // Update employee state
+            });
+            
+            // Agent Management (Existing MitelAgentController)
             Route::get('/agents', [MitelAgentController::class, 'index']);
             Route::get('/agents/{agentId}/state', [MitelAgentController::class, 'getState']);
             Route::put('/agents/{agentId}/state', [MitelAgentController::class, 'updateState']);
             Route::get('/agents/{agentId}/statistics', [MitelAgentController::class, 'getStatistics']);
+            
+            // Agent Status (Specific Agent methods from MitelController)
+            Route::get('/agents/{agentId}/status', [MitelController::class, 'getAgentStatus']); // GET /api/v1/mitel/agents/{agentId}/status
+            Route::post('/agents/{agentId}/status', [MitelController::class, 'setAgentStatus']); // POST /api/v1/mitel/agents/{agentId}/status
+            Route::get('/agents/{agentId}/stats', [MitelController::class, 'getAgentStats']); // GET /api/v1/mitel/agents/{agentId}/stats
             
             // Call/Conversation Management
             Route::get('/agents/{agentId}/calls', [MitelCallController::class, 'getActiveCalls']);
