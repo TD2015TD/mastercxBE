@@ -94,15 +94,45 @@ class AuthController extends Controller
     {
         // Check if it's email/password login or Ignite token login
         if ($request->has('email') && $request->has('password')) {
-            return $this->emailPasswordLogin($request);
+            $response = $this->emailPasswordLogin($request);
         } elseif ($request->has('ignite_token')) {
-            return $this->igniteTokenLogin($request);
+            $response = $this->igniteTokenLogin($request);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please provide either email/password or ignite_token'
+            ], 422);
         }
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Please provide either email/password or ignite_token'
-        ], 422);
+        // If login is successful, add MitelToken to the user attribute if agent_username exists
+        if ($response->getStatusCode() === 200 && $response->getData()->success) {
+            $user = $response->getData()->data->user;
+
+            if ($user->agent && !empty($user->agent->agent_username)) {
+                try {
+                    $mitelService = app(\App\Services\MitelService::class);
+                    $mitelToken = $mitelService->authenticate($user->agent->agent_username);
+
+                    $user->MitelToken = $mitelToken;
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'user' => $user,
+                            'MitelToken' => $mitelToken,
+                            'access_token' => $response->getData()->data->access_token,
+                        ]
+                    ]);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to retrieve MitelToken',
+                        'error' => $e->getMessage()
+                    ], 500);
+                }
+            }
+        }
+
+        return $response;
     }
 
     /**
@@ -132,12 +162,13 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            $user = auth()->user();
+            $user = auth()->user()->load('agent');
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'user' => $user,
+                    'agent' => $user->agent ? $user->agent->toArray() : null,
                     'access_token' => $token,
                     'token_type' => 'bearer',
                     'expires_in' => config('jwt.ttl') * 60
@@ -222,12 +253,15 @@ class AuthController extends Controller
     public function me()
     {
         try {
-            $user = auth()->user();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $user
-            ]);
+                $user = auth()->user()->load('agent');
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'user' => $user,
+                        'agent' => $user->agent ? $user->agent->toArray() : null,
+                    ]
+                ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

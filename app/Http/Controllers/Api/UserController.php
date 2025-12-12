@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -285,6 +286,8 @@ class UserController extends Controller
     )]
     public function update(Request $request, $id)
     {
+        Log::debug('Update method called for user ID: ' . $id);
+
         $user = User::find($id);
 
         if (!$user) {
@@ -337,7 +340,7 @@ class UserController extends Controller
             $newRoleId = $request->get('role_id', $user->role_id);
             $role = Role::find($newRoleId);
 
-            if ($role && strtolower($role->slug) === 'agent') {
+            if ($role && (strtolower($role->slug) === 'agent' || strtolower($role->slug) === 'supervisor')) {
                 // Check if agent record exists
                 $agent = Agent::where('user_id', $user->id)->first();
 
@@ -371,6 +374,9 @@ class UserController extends Controller
                     if ($request->has('agent_data.skills')) $agentUpdateData['skills'] = $request->input('agent_data.skills');
                     if ($request->has('agent_data.languages')) $agentUpdateData['languages'] = $request->input('agent_data.languages');
                     if ($request->has('agent_data.max_concurrent_tickets')) $agentUpdateData['max_concurrent_tickets'] = $request->input('agent_data.max_concurrent_tickets');
+                    if ($request->has('agent_data.agent_username')) $agentUpdateData['agent_username'] = $request->input('agent_data.agent_username');
+
+                    Log::debug('Agent update payload:', $agentUpdateData);
 
                     if (!empty($agentUpdateData)) {
                         $agent->update($agentUpdateData);

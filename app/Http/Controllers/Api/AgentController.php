@@ -94,6 +94,7 @@ class AgentController extends Controller
             'languages' => 'nullable|array',
             'max_concurrent_tickets' => 'nullable|integer|min:1|max:20',
             'notes' => 'nullable|string',
+            'agent_username' => 'nullable|string|unique:agents,agent_username',
         ]);
 
         if ($validator->fails()) {
@@ -158,7 +159,7 @@ class AgentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $agent = Agent::find($id);
+        $agent = Agent::where('user_id', $id)->first();
 
         if (!$agent) {
             return response()->json([
@@ -167,11 +168,13 @@ class AgentController extends Controller
             ], 404);
         }
 
-        $validator = Validator::make($request->all(), [
+        $agentData = $request->input('agent_data', []);
+
+        $validator = Validator::make($agentData, [
             'department' => 'sometimes|string|max:255',
             'designation' => 'nullable|string|max:255',
-            'employee_id' => 'nullable|string|unique:agents,employee_id,' . $id,
-            'mitel_agent_id' => 'nullable|string|unique:agents,mitel_agent_id,' . $id,
+            'employee_id' => 'nullable|string|unique:agents,employee_id,' . $agent->id,
+            'mitel_agent_id' => 'nullable|string|unique:agents,mitel_agent_id,' . $agent->id,
             'mitel_extension' => 'nullable|string|max:20',
             'mitel_queue_ids' => 'nullable|array',
             'status' => 'sometimes|in:active,inactive,suspended',
@@ -180,6 +183,7 @@ class AgentController extends Controller
             'languages' => 'nullable|array',
             'max_concurrent_tickets' => 'nullable|integer|min:1|max:20',
             'notes' => 'nullable|string',
+            'agent_username' => 'nullable|string|unique:agents,agent_username,' . $agent->id,
         ]);
 
         if ($validator->fails()) {
@@ -212,8 +216,8 @@ class AgentController extends Controller
      */
     public function destroy(string $id)
     {
-        $agent = Agent::find($id);
-
+        $agent = Agent::where('user_id', $id)->first();
+        Log::debug(("Agent is " . json_encode($agent)));
         if (!$agent) {
             return response()->json([
                 'success' => false,
@@ -354,9 +358,9 @@ class AgentController extends Controller
     )]
     public function getMitelState(Request $request, string $id): JsonResponse
     {
-        $agent = Agent::find($id);
-
-        if (!$agent || !$agent->mitel_agent_id) {
+        $agent = Agent::where('user_id', $id)->first();
+       
+        if (!$agent || !$agent->employee_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Agent not found or not configured for Mitel',
@@ -364,23 +368,25 @@ class AgentController extends Controller
         }
 
         try {
-            $data = $this->mitelService->getAgentStatus($agent->mitel_agent_id);
-
+            $data = $this->mitelService->getEmployeeState($agent->employee_id);
+            $state = null;
+            if (isset($data['presence']['aggregate']['state'])) {
+                $state = $data['presence']['aggregate']['state'];
+            }
             return response()->json([
                 'success' => true,
+                'state' => $state,
                 'data' => $data
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Error getting agent Mitel state', [
-                'agent_id' => $id,
-                'mitel_agent_id' => $agent->mitel_agent_id,
+            Log::error('Error getting employee Mitel state', [
+                'user_id' => $id,
+                'mitel_employee_id' => $agent->employee_id,
                 'error' => $e->getMessage()
             ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve agent state',
+                'message' => 'Failed to retrieve employee state',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -429,57 +435,107 @@ class AgentController extends Controller
     )]
     public function updateMitelState(Request $request, string $id): JsonResponse
     {
-        $agent = Agent::find($id);
+        $agent = Agent::where('user_id', $id)->first();
 
-        if (!$agent || !$agent->mitel_agent_id) {
+        if (!$agent || !$agent->employee_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Agent not found or not configured for Mitel',
             ], 404);
         }
 
+        // Accept frontend payload (all PresenceStateUpdateModel fields)
         $validated = $request->validate([
-            'state' => 'required|string|in:Available,Busy,DoNotDisturb,Away,Logout',
-            'reason' => 'nullable|string'
+            'State' => 'required|integer',
+            'AvailableReason' => 'required|integer',
+            'IsHotDeskExternal' => 'required|boolean',
+            'Reason' => 'nullable|string',
+            'DeviceId' => 'nullable|string',
+            'HotDeskBaseExtension' => 'nullable|string',
+            'HotDeskPin' => 'nullable|string',
+            'HotDeskAgentReporting' => 'nullable|string',
+            'IsCloudlinkAuthenticated' => 'nullable|boolean',
         ]);
 
-        try {
-            $data = $this->mitelService->setAgentStatus($agent->mitel_agent_id, $validated['state']);
+        // Map State (int) to Mitel state string for local update only
+        $stateMap = [
+            1 => 'Available',
+            2 => 'Busy',
+            3 => 'DoNotDisturb',
+            4 => 'Away',
+            5 => 'Logout',
+        ];
+        $stateString = $stateMap[$validated['State']] ?? null;
+        if (!$stateString) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid state value',
+            ], 422);
+        }
 
-            // Update local agent state
-            $agent->updateMitelState($validated['state'], $validated['reason'] ?? null);
+        // Build Mitel payload (all fields as per PresenceStateUpdateModel)
+        $mitelPayload = [
+            'State' => $validated['State'],
+            'AvailableReason' => $validated['AvailableReason'],
+            'IsHotDeskExternal' => $validated['IsHotDeskExternal'],
+        ];
+        if (isset($validated['Reason'])) {
+            $mitelPayload['Reason'] = $validated['Reason'];
+        }
+        if (isset($validated['DeviceId'])) {
+            $mitelPayload['DeviceId'] = $validated['DeviceId'];
+        }
+        if (isset($validated['HotDeskBaseExtension'])) {
+            $mitelPayload['HotDeskBaseExtension'] = $validated['HotDeskBaseExtension'];
+        }
+        if (isset($validated['HotDeskPin'])) {
+            $mitelPayload['HotDeskPin'] = $validated['HotDeskPin'];
+        }
+        if (isset($validated['HotDeskAgentReporting'])) {
+            $mitelPayload['HotDeskAgentReporting'] = $validated['HotDeskAgentReporting'];
+        }
+        if (isset($validated['IsCloudlinkAuthenticated'])) {
+            $mitelPayload['IsCloudlinkAuthenticated'] = $validated['IsCloudlinkAuthenticated'];
+        }
+
+        try {
+            // Pass full PresenceStateUpdateModel payload to Mitel
+            $data = $this->mitelService->updateEmployeeState($agent->employee_id, $mitelPayload);
+
+            // Update local agent state using mapped string
+            $agent->updateMitelState($stateString, $validated['Reason'] ?? null);
 
             // Broadcast agent state change event
             broadcast(new AgentStateChanged([
-                'agent_id' => $id,
-                'mitel_agent_id' => $agent->mitel_agent_id,
-                'state' => $validated['state'],
-                'reason' => $validated['reason'] ?? null,
+                'user_id' => $id,
+                'mitel_employee_id' => $agent->employee_id,
+                'state' => $stateString,
+                'reason' => $validated['Reason'] ?? null,
                 'timestamp' => now()
             ]));
 
             return response()->json([
                 'success' => true,
-                'message' => 'Agent state updated successfully',
+                'message' => 'Employee state updated successfully',
                 'data' => [
-                    'agent_id' => $id,
-                    'state' => $validated['state'],
+                    'user_id' => $id,
+                    'state' => $stateString,
                     'mitel_response' => $data
                 ]
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error updating agent Mitel state', [
-                'agent_id' => $id,
-                'mitel_agent_id' => $agent->mitel_agent_id,
-                'state' => $validated['state'],
+            Log::error('Error updating employee Mitel state', [
+                'user_id' => $id,
+                'mitel_employee_id' => $agent->mitel_agent_id,
+                'state' => $stateString,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update agent state',
-                'error' => $e->getMessage()
+                'message' => 'Failed to update employee state',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -518,9 +574,9 @@ class AgentController extends Controller
     )]
     public function getMitelStatistics(Request $request, string $id): JsonResponse
     {
-        $agent = Agent::find($id);
+        $agent = Agent::where('user_id', $id)->first();
 
-        if (!$agent || !$agent->mitel_agent_id) {
+        if (!$agent || !$agent->employee_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Agent not found or not configured for Mitel',
@@ -529,7 +585,6 @@ class AgentController extends Controller
 
         try {
             $date = $request->input('date', today()->format('Y-m-d'));
-            
             // Get from local database first
             $callStats = $agent->callStatistics()
                 ->whereDate('statistic_date', $date)
@@ -544,7 +599,7 @@ class AgentController extends Controller
             }
 
             // Fall back to Mitel API for real-time data
-            $data = $this->mitelService->getAgentStats($agent->mitel_agent_id);
+            $data = $this->mitelService->getEmployeeState($agent->employee_id);
 
             return response()->json([
                 'success' => true,
@@ -553,15 +608,15 @@ class AgentController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error getting agent call statistics', [
-                'agent_id' => $id,
-                'mitel_agent_id' => $agent->mitel_agent_id,
+            Log::error('Error getting employee call statistics', [
+                'user_id' => $id,
+                'mitel_employee_id' => $agent->employee_id,
                 'error' => $e->getMessage()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve agent statistics',
+                'message' => 'Failed to retrieve employee statistics',
                 'error' => $e->getMessage()
             ], 500);
         }

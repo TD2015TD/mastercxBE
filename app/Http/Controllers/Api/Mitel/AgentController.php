@@ -93,276 +93,62 @@ class AgentController extends Controller
     )]
     public function index(Request $request): JsonResponse
     {
+        // Build OData query parameters
+        $odataParams = [];
         try {
-            // Build OData query parameters
-            $odataParams = [];
-            
             if ($request->has('filter')) {
                 $odataParams['$filter'] = $request->query('filter');
             }
-            
             if ($request->has('top')) {
                 $odataParams['$top'] = $request->query('top');
             }
-            
             if ($request->has('skip')) {
                 $odataParams['$skip'] = $request->query('skip');
             }
-            
-            // Get agents from Mitel service
-            $data = $this->mitelService->getAgents($odataParams);
 
-            // Transform data for frontend
-            $agents = [];
-            if (isset($data['value']) && is_array($data['value'])) {
-                foreach ($data['value'] as $agent) {
-                    $agents[] = [
-                        'id' => $agent['id'] ?? null,
-                        'name' => $agent['name'] ?? null,
-                        'extension' => $agent['extension'] ?? null,
-                        'state' => $agent['state'] ?? null,
-                        'queues' => $agent['queues'] ?? [],
-                        'queue_count' => isset($agent['queues']) ? count($agent['queues']) : 0,
+            // Get employees from Mitel service
+            $data = $this->mitelService->getEmployees($odataParams);
+
+            // Transform data for frontend based on new JSON structure
+            $employees = [];
+            if (isset($data['_embedded']['items']) && is_array($data['_embedded']['items'])) {
+                foreach ($data['_embedded']['items'] as $employee) {
+                    $employees[] = [
+                        'id' => $employee['id'] ?? null,
+                        'name' => $employee['name'] ?? (($employee['firstName'] ?? '') . ' ' . ($employee['lastName'] ?? '')),
+                        'firstName' => $employee['firstName'] ?? null,
+                        'lastName' => $employee['lastName'] ?? null,
+                        'email' => $employee['email'] ?? null,
+                        'username' => $employee['username'] ?? null,
+                        'siteRefId' => $employee['siteRefId'] ?? null,
+                        'language' => $employee['language'] ?? null,
+                        'supervisorLicenseType' => $employee['supervisorLicenseType'] ?? null,
+                        'photoUrl' => $employee['photoUrl'] ?? null,
+                        'isEnabledForVoice' => $employee['isEnabledForVoice'] ?? null,
+                        'isEnabledForEmail' => $employee['isEnabledForEmail'] ?? null,
+                        'isEnabledForChat' => $employee['isEnabledForChat'] ?? null,
+                        'isEnabledForSMS' => $employee['isEnabledForSMS'] ?? null,
+                        'isEnabledForOpenMedia' => $employee['isEnabledForOpenMedia'] ?? null,
+                        'isRealTime' => $employee['isRealTime'] ?? null,
+                        'lastModified' => $employee['lastModified'] ?? null,
+                        // Add more fields as needed from the JSON structure
                     ];
                 }
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $agents
-            ]);
-
         } catch (\Exception $e) {
-            Log::error('Error getting Mitel agents', [
+            Log::error('Error getting Mitel employees', [
                 'error' => $e->getMessage()
             ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to retrieve Mitel agents',
+                'message' => 'Failed to retrieve agents',
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
 
-    /**
-     * Get current agent state
-     */
-    #[OA\Get(
-        path: "/api/v1/mitel/agents/{agentId}/state",
-        summary: "Get agent current state",
-        tags: ["Mitel - Agents"],
-        parameters: [
-            new OA\Parameter(
-                name: "agentId",
-                in: "path",
-                required: true,
-                description: "Agent ID",
-                schema: new OA\Schema(type: "string")
-            )
-        ],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: "Agent state retrieved successfully",
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: "success", type: "boolean", example: true),
-                        new OA\Property(
-                            property: "data",
-                            properties: [
-                                new OA\Property(property: "agent_id", type: "string", example: "1234"),
-                                new OA\Property(property: "state", type: "string", example: "Available"),
-                                new OA\Property(property: "logged_in", type: "boolean", example: true)
-                            ],
-                            type: "object"
-                        )
-                    ]
-                )
-            ),
-            new OA\Response(response: 500, description: "Server error")
-        ]
-    )]
-    public function getState(Request $request, string $agentId): JsonResponse
-    {
-        try {
-            $data = $this->mitelService->getAgentStatus($agentId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting agent state', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve agent state',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Update agent state
-     */
-    #[OA\Put(
-        path: "/api/v1/mitel/agents/{agentId}/state",
-        summary: "Update agent state",
-        tags: ["Mitel - Agents"],
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ["state"],
-                properties: [
-                    new OA\Property(
-                        property: "state",
-                        type: "string",
-                        enum: ["Available", "Busy", "DoNotDisturb", "Away", "Logout"],
-                        example: "Available"
-                    ),
-                    new OA\Property(property: "reason", type: "string", example: "Break")
-                ]
-            )
-        ),
-        parameters: [
-            new OA\Parameter(
-                name: "agentId",
-                in: "path",
-                required: true,
-                description: "Agent ID",
-                schema: new OA\Schema(type: "string")
-            )
-        ],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: "Agent state updated successfully",
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: "success", type: "boolean", example: true),
-                        new OA\Property(property: "message", type: "string", example: "Agent state updated successfully"),
-                        new OA\Property(
-                            property: "data",
-                            properties: [
-                                new OA\Property(property: "agent_id", type: "string", example: "1234"),
-                                new OA\Property(property: "state", type: "string", example: "Available")
-                            ],
-                            type: "object"
-                        )
-                    ]
-                )
-            ),
-            new OA\Response(response: 422, description: "Validation error"),
-            new OA\Response(response: 500, description: "Server error")
-        ]
-    )]
-    public function updateState(Request $request, string $agentId): JsonResponse
-    {
-        $validated = $request->validate([
-            'state' => 'required|string|in:Available,Busy,DoNotDisturb,Away,Logout',
-            'reason' => 'nullable|string'
+        return response()->json([
+            'success' => true,
+            'data' => $employees ?? []
         ]);
-
-        try {
-            $data = $this->mitelService->setAgentStatus($agentId, $validated['state']);
-
-            // Broadcast agent state change event
-            broadcast(new AgentStateChanged([
-                'agent_id' => $agentId,
-                'state' => $validated['state'],
-                'reason' => $validated['reason'] ?? null,
-                'timestamp' => now()
-            ]));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Agent state updated successfully',
-                'data' => [
-                    'agent_id' => $agentId,
-                    'state' => $validated['state'],
-                    'mitel_response' => $data
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error updating agent state', [
-                'agent_id' => $agentId,
-                'state' => $validated['state'],
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update agent state',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get agent statistics
-     */
-    #[OA\Get(
-        path: "/api/v1/mitel/agents/{agentId}/statistics",
-        summary: "Get agent performance statistics",
-        tags: ["Mitel - Agents"],
-        parameters: [
-            new OA\Parameter(
-                name: "agentId",
-                in: "path",
-                required: true,
-                description: "Agent ID",
-                schema: new OA\Schema(type: "string")
-            )
-        ],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: "Statistics retrieved successfully",
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: "success", type: "boolean", example: true),
-                        new OA\Property(
-                            property: "data",
-                            properties: [
-                                new OA\Property(property: "total_calls", type: "integer", example: 45),
-                                new OA\Property(property: "answered_calls", type: "integer", example: 42),
-                                new OA\Property(property: "average_talk_time", type: "string", example: "00:05:23")
-                            ],
-                            type: "object"
-                        )
-                    ]
-                )
-            ),
-            new OA\Response(response: 500, description: "Server error")
-        ]
-    )]
-    public function getStatistics(Request $request, string $agentId): JsonResponse
-    {
-        try {
-            $data = $this->mitelService->getAgentStats($agentId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting agent statistics', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve agent statistics',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 }

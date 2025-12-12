@@ -4,570 +4,289 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\MitelService;
-use App\Events\AgentStateChanged;
-use App\Events\ConversationUpdated;
-use App\Events\QueueStateChanged;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
- * MitelController - Integration with MiContact Center Web SDK
- * 
- * This controller acts as an intermediary between the frontend and Mitel API.
- * All Mitel API calls are handled through the MitelService layer.
- * 
- * Handles telephony operations including:
- * - Agent state management (login, logout, busy, available)
- * - Conversation handling (accept, transfer, hold, end)
- * - Open Media interactions (email, chat, SMS)
- * - Real-time queue monitoring
+ * Controller for interacting with the Mitel API via the MitelService.
  */
 class MitelController extends Controller
 {
     protected MitelService $mitelService;
 
+    /**
+     * MitelController constructor.
+     * @param MitelService $mitelService The injected MitelService instance.
+     */
     public function __construct(MitelService $mitelService)
     {
         $this->mitelService = $mitelService;
     }
 
     /**
-     * Get list of all Mitel agents
-     * GET /api/v1/mitel/agents
+     * Get a list of all employees (supports OData query parameters).
+     * Maps to: MitelService::getEmployees()
+     *
+     * @param Request $request
+     * @return JsonResponse
      */
-    public function getAgents(Request $request): JsonResponse
+    public function getEmployees(Request $request): JsonResponse
     {
         try {
-            // Get OData query parameters for filtering
-            $odataParams = [];
-            
-            if ($request->has('filter')) {
-                $odataParams['$filter'] = $request->query('filter');
-            }
-            
-            if ($request->has('top')) {
-                $odataParams['$top'] = $request->query('top');
-            }
-            
-            if ($request->has('skip')) {
-                $odataParams['$skip'] = $request->query('skip');
-            }
-            
-            $data = $this->mitelService->getAgents($odataParams);
-
-            // Transform data for frontend
-            $agents = [];
-            if (isset($data['value']) && is_array($data['value'])) {
-                foreach ($data['value'] as $agent) {
-                    $agents[] = [
-                        'id' => $agent['id'] ?? null,
-                        'name' => $agent['name'] ?? null,
-                        'extension' => $agent['extension'] ?? null,
-                        'state' => $agent['state'] ?? null,
-                        'queues' => $agent['queues'] ?? [],
-                        'queue_count' => isset($agent['queues']) ? count($agent['queues']) : 0,
-                    ];
-                }
-            }
+            // Pass all query parameters (like $top, $filter, etc.) directly to the service
+            $employees = $this->mitelService->getEmployees($request->query());
 
             return response()->json([
-                'success' => true,
-                'data' => $agents
+                'status' => 'success',
+                'data' => $employees,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting Mitel agents', [
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve Mitel agents',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => 'Failed to fetch employees: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get current agent state
-     * GET /api/v1/mitel/agents/{agentId}/state
+     * Get a single employee's details.
+     * Maps to: MitelService::getEmployee()
+     *
+     * @param string $id Employee ID, username, or 'me'.
+     * @return JsonResponse
      */
-    public function getAgentState(Request $request, string $agentId): JsonResponse
+    public function getEmployee(string $id): JsonResponse
     {
         try {
-            $data = $this->mitelService->getAgentStatus($agentId);
+            $employee = $this->mitelService->getEmployee($id);
 
             return response()->json([
-                'success' => true,
-                'data' => $data
+                'status' => 'success',
+                'data' => $employee,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting agent state', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve agent state',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch employee {$id}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Update agent state (login, logout, busy, available)
-     * PUT /api/v1/mitel/agents/{agentId}/state
+     * Get an employee's presence state.
+     * Maps to: MitelService::getEmployeeState()
+     *
+     * @param string $id Employee ID or 'me'.
+     * @return JsonResponse
      */
-    public function updateAgentState(Request $request, string $agentId): JsonResponse
+    public function getEmployeeState(string $id): JsonResponse
     {
-        $validated = $request->validate([
-            'state' => 'required|string|in:Available,Busy,DoNotDisturb,Away,Logout',
-            'reason' => 'nullable|string'
-        ]);
-
         try {
-            $data = $this->mitelService->setAgentStatus($agentId, $validated['state']);
-
-            // Broadcast agent state change event
-            broadcast(new AgentStateChanged([
-                'agent_id' => $agentId,
-                'state' => $validated['state'],
-                'reason' => $validated['reason'] ?? null,
-                'timestamp' => now()
-            ]));
+            $state = $this->mitelService->getEmployeeStateById($id);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Agent state updated successfully',
-                'data' => [
-                    'agent_id' => $agentId,
-                    'state' => $validated['state'],
-                    'mitel_response' => $data
-                ]
+                'status' => 'success',
+                'data' => $state,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error updating agent state', [
-                'agent_id' => $agentId,
-                'state' => $validated['state'],
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to update agent state',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch employee state for {$id}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get agent statistics
-     * GET /api/v1/mitel/agents/{agentId}/statistics
+     * Update an employee's presence state.
+     * Maps to: MitelService::updateEmployeeState()
+     *
+     * @param Request $request
+     * @param string $id Employee ID or 'me'.
+     * @return JsonResponse
      */
-    public function getAgentStatistics(Request $request, string $agentId): JsonResponse
+    public function updateEmployeeState(Request $request, string $id): JsonResponse
     {
         try {
-            $data = $this->mitelService->getAgentStats($agentId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
+            $validated = $request->validate([
+                'state' => 'required|string', // e.g., 'Available', 'Busy', 'Away'
+                // Add other potential state data fields as needed, e.g., 'reason'
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error getting agent statistics', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
+            $result = $this->mitelService->putEmployeeStateById($id, $validated);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve agent statistics',
-                'error' => $e->getMessage()
+                'status' => 'success',
+                'message' => "Employee {$id} state updated successfully.",
+                'data' => $result,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Failed to update employee state for {$id}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get agent's active calls/conversations
-     * GET /api/v1/mitel/agents/{agentId}/calls
+     * Get an agent's current ACD status.
+     * Maps to: MitelService::getAgentStatus()
+     *
+     * @param string $agentId Agent ID.
+     * @return JsonResponse
      */
-    public function getActiveCalls(Request $request, string $agentId): JsonResponse
+    public function getAgentStatus(string $agentId): JsonResponse
     {
         try {
-            $data = $this->mitelService->getActiveCalls($agentId);
+            $status = $this->mitelService->getAgentStatus($agentId);
 
             return response()->json([
-                'success' => true,
-                'data' => $data
+                'status' => 'success',
+                'data' => $status,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting active calls', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve active calls',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch agent status for {$agentId}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Initiate outbound call
-     * POST /api/v1/mitel/agents/{agentId}/call
+     * Set an agent's ACD status.
+     * Maps to: MitelService::setAgentStatus()
+     *
+     * @param Request $request
+     * @param string $agentId Agent ID.
+     * @return JsonResponse
      */
-    public function makeCall(Request $request, string $agentId): JsonResponse
+    public function setAgentStatus(Request $request, string $agentId): JsonResponse
     {
-        $validated = $request->validate([
-            'phone_number' => 'required|string|regex:/^[0-9+\-() ]+$/',
-        ]);
-
         try {
-            $data = $this->mitelService->makeCall($agentId, $validated['phone_number']);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Call initiated successfully',
-                'data' => $data
-            ], 201);
-
-        } catch (\Exception $e) {
-            Log::error('Error making call', [
-                'agent_id' => $agentId,
-                'phone_number' => $validated['phone_number'],
-                'error' => $e->getMessage()
+            $validated = $request->validate([
+                'status' => 'required|string', // e.g., 'Available', 'AuxWork', 'Logout'
             ]);
 
+            $result = $this->mitelService->setAgentStatus($agentId, $validated['status']);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to initiate call',
-                'error' => $e->getMessage()
+                'status' => 'success',
+                'message' => "Agent {$agentId} status updated to {$validated['status']}.",
+                'data' => $result,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Failed to set agent status for {$agentId}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Answer incoming call
-     * POST /api/v1/mitel/agents/{agentId}/calls/{callId}/answer
+     * Get an agent's statistics.
+     * Maps to: MitelService::getAgentStats()
+     *
+     * @param string $agentId Agent ID.
+     * @return JsonResponse
      */
-    public function answerCall(Request $request, string $agentId, string $callId): JsonResponse
+    public function getAgentStats(string $agentId): JsonResponse
     {
         try {
-            $data = $this->mitelService->answerCall($agentId, $callId);
-
-            // Broadcast conversation update event
-            broadcast(new ConversationUpdated([
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'action' => 'answered',
-                'timestamp' => now()
-            ]));
+            $stats = $this->mitelService->getAgentStats($agentId);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Call answered successfully',
-                'data' => $data
+                'status' => 'success',
+                'data' => $stats,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error answering call', [
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to answer call',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch agent statistics for {$agentId}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * End call
-     * POST /api/v1/mitel/agents/{agentId}/calls/{callId}/end
+     * Get the state of an employee by ID.
+     * Maps to: MitelService::getEmployeeStateById()
+     *
+     * @param string $id Employee ID.
+     * @return JsonResponse
      */
-    public function endCall(Request $request, string $agentId, string $callId): JsonResponse
+    public function getEmployeeStateById(string $id): JsonResponse
     {
         try {
-            $data = $this->mitelService->endCall($agentId, $callId);
-
-            // Broadcast conversation update event
-            broadcast(new ConversationUpdated([
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'action' => 'ended',
-                'timestamp' => now()
-            ]));
+            $state = $this->mitelService->getEmployeeStateById($id);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Call ended successfully',
-                'data' => $data
+                'status' => 'success',
+                'data' => $state,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error ending call', [
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to end call',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch employee state for {$id}: " . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Hold call
-     * POST /api/v1/mitel/agents/{agentId}/calls/{callId}/hold
+     * Get all reason codes.
+     * Maps to: MitelService::getReasonCodes()
+     *
+     * @param Request $request
+     * @return JsonResponse
      */
-    public function holdCall(Request $request, string $agentId, string $callId): JsonResponse
+    public function getReasonCodes(Request $request): JsonResponse
     {
         try {
-            $data = $this->mitelService->holdCall($agentId, $callId);
+            $reasonCodes = $this->mitelService->getReasonCodes($request->query());
 
             return response()->json([
-                'success' => true,
-                'message' => 'Call put on hold successfully',
-                'data' => $data
+                'status' => 'success',
+                'data' => $reasonCodes,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error holding call', [
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to hold call',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => 'Failed to fetch reason codes: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Resume call from hold
-     * POST /api/v1/mitel/agents/{agentId}/calls/{callId}/resume
+     * Get a single reason code by ID.
+     * Maps to: MitelService::getReasonCodeById()
+     *
+     * @param string $id Reason code ID.
+     * @return JsonResponse
      */
-    public function resumeCall(Request $request, string $agentId, string $callId): JsonResponse
+    public function getReasonCodeById(string $id): JsonResponse
     {
         try {
-            $data = $this->mitelService->resumeCall($agentId, $callId);
+            $reasonCode = $this->mitelService->getReasonCodeById($id);
 
             return response()->json([
-                'success' => true,
-                'message' => 'Call resumed successfully',
-                'data' => $data
+                'status' => 'success',
+                'data' => $reasonCode,
             ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error resuming call', [
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'error' => $e->getMessage()
-            ]);
-
+        } catch (Exception $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to resume call',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Transfer call to another agent or number
-     * POST /api/v1/mitel/agents/{agentId}/calls/{callId}/transfer
-     */
-    public function transferCall(Request $request, string $agentId, string $callId): JsonResponse
-    {
-        $validated = $request->validate([
-            'destination' => 'required|string',
-        ]);
-
-        try {
-            $data = $this->mitelService->transferCall($agentId, $callId, $validated['destination']);
-
-            // Broadcast conversation update event
-            broadcast(new ConversationUpdated([
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'action' => 'transferred',
-                'destination' => $validated['destination'],
-                'timestamp' => now()
-            ]));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Call transferred successfully',
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error transferring call', [
-                'agent_id' => $agentId,
-                'call_id' => $callId,
-                'destination' => $validated['destination'],
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to transfer call',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get call history for agent
-     * GET /api/v1/mitel/agents/{agentId}/history
-     */
-    public function getCallHistory(Request $request, string $agentId): JsonResponse
-    {
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
-
-        try {
-            $data = $this->mitelService->getCallHistory($agentId, $startDate, $endDate);
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting call history', [
-                'agent_id' => $agentId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve call history',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get queue statistics
-     * GET /api/v1/mitel/queues/{queueId}/statistics
-     */
-    public function getQueueStatistics(Request $request, string $queueId): JsonResponse
-    {
-        try {
-            $data = $this->mitelService->getQueueStats($queueId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting queue statistics', [
-                'queue_id' => $queueId,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve queue statistics',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get all available queues
-     * GET /api/v1/mitel/queues
-     */
-    public function getQueues(Request $request): JsonResponse
-    {
-        try {
-            $data = $this->mitelService->getQueues();
-
-            return response()->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error getting queues', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve queues',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Webhook receiver for Mitel real-time events
-     * POST /api/v1/mitel/webhook
-     */
-    public function webhook(Request $request): JsonResponse
-    {
-        try {
-            $eventType = $request->input('eventType');
-            $eventData = $request->input('data');
-
-            Log::info('Mitel Webhook Received', [
-                'event_type' => $eventType,
-                'data' => $eventData
-            ]);
-
-            // Process different event types
-            switch ($eventType) {
-                case 'AgentStateChanged':
-                    broadcast(new AgentStateChanged($eventData));
-                    break;
-
-                case 'ConversationUpdated':
-                    broadcast(new ConversationUpdated($eventData));
-                    break;
-
-                case 'QueueStateChanged':
-                    broadcast(new QueueStateChanged($eventData));
-                    break;
-
-                default:
-                    Log::warning('Unknown Mitel event type', ['event_type' => $eventType]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Webhook processed successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Mitel Webhook Error', [
-                'error' => $e->getMessage(),
-                'request' => $request->all()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to process webhook',
-                'error' => $e->getMessage()
+                'status' => 'error',
+                'message' => "Failed to fetch reason code {$id}: " . $e->getMessage(),
             ], 500);
         }
     }
