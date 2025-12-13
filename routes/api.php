@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\KnowledgeBaseController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controller
+use App\Http\Controllers\Api\SystemConfigurationController;
 
 Route::prefix('v1')->group(function () {
     // Public routes
@@ -209,6 +210,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/alerts/{id}/acknowledge', [SystemController::class, 'acknowledgeAlert']);
             Route::post('/health-check', [SystemController::class, 'performHealthCheck']);
             Route::post('/services/{serviceName}/restart', [SystemController::class, 'restartService']);
+
+            // System Configuration Management
+            Route::get('/configurations', [SystemConfigurationController::class, 'index']);
+            Route::get('/configurations/category/{category}', [SystemConfigurationController::class, 'getByCategory']);
+            Route::get('/configurations/{id}', [SystemConfigurationController::class, 'show']);
+            Route::put('/configurations/{id}', [SystemConfigurationController::class, 'update']);
+            Route::post('/configurations/bulk-update', [SystemConfigurationController::class, 'bulkUpdate']);
+            Route::post('/configurations/test-mail', [SystemConfigurationController::class, 'testMailConfig']);
+            Route::post('/configurations/test-ldap', [SystemConfigurationController::class, 'testLdapConnection']);
+            Route::post('/configurations/clear-cache', [SystemConfigurationController::class, 'clearCache']);
         });
         
         // Notifications
