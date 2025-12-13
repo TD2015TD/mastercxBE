@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
+use App\Services\AuthenticationService;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use OpenApi\Attributes as OA;
 
@@ -141,7 +142,7 @@ class AuthController extends Controller
     private function emailPasswordLogin(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -155,14 +156,23 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         try {
-            if (!$token = JWTAuth::attempt($credentials)) {
+            // Use AuthenticationService to handle both database and LDAP authentication
+            $authService = new AuthenticationService();
+            $authResult = $authService->authenticate($credentials);
+
+            if (!$authResult['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid credentials'
+                    'message' => $authResult['message']
                 ], 401);
             }
 
-            $user = auth()->user()->load('agent');
+            $user = $authResult['user'];
+
+            // Generate JWT token
+            $token = JWTAuth::fromUser($user);
+
+            $user->load('agent');
 
             return response()->json([
                 'success' => true,
