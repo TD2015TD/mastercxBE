@@ -142,7 +142,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/tickets/{id}/reopen', [TicketController::class, 'reopen']);
         Route::post('/tickets/{id}/response', [TicketController::class, 'recordResponse']);
         Route::get('/tickets/statistics/summary', [TicketController::class, 'statistics']);
-        
+        Route::get('/agents/{agentId}/statistics', [TicketController::class, 'getAgentStatistics']);
+
         // Ticket Attachments
         Route::post('/tickets/{ticketId}/attachments', [TicketController::class, 'uploadAttachment']);
         Route::get('/tickets/{ticketId}/attachments', [TicketController::class, 'getAttachments']);
