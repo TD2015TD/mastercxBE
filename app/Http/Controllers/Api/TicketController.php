@@ -110,6 +110,7 @@ class TicketController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
+            'conversation_id' => 'nullable|string|max:100',
             'assigned_to' => 'nullable|exists:agents,id',
             'priority' => 'required|in:P1,P2,P3,P4',
             'department' => 'required|string|max:100',
@@ -728,11 +729,18 @@ class TicketController extends Controller
      */
     private function autoAssignAgent(string $department): ?int
     {
+        // Try to find agent in the same department first
         $agent = Agent::where('department', $department)
             ->where('availability', 'available')
             ->where('status', 'active')
-            ->orderBy('tickets_resolved_today', 'asc')
             ->first();
+
+        // If no agent found in department, fallback to any available agent
+        if (!$agent) {
+            $agent = Agent::where('availability', 'available')
+                ->where('status', 'active')
+                ->first();
+        }
 
         return $agent?->id;
     }

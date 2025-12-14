@@ -364,19 +364,8 @@ class PublicTicketController extends Controller
 
     private function generateTicketNumber()
     {
-        $year = now()->year;
-        $lastTicket = Ticket::where('ticket_number', 'like', "TKT-{$year}-%")
-            ->orderBy('ticket_number', 'desc')
-            ->first();
-
-        if ($lastTicket) {
-            $lastNumber = (int)substr($lastTicket->ticket_number, -6);
-            $newNumber = str_pad($lastNumber + 1, 6, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '000001';
-        }
-
-        return "TKT-{$year}-{$newNumber}";
+        // Use the same sequence logic as TicketController for web tickets
+        return \App\Models\TicketNumberSequence::generateNextNumber('web');
     }
 
     private function determineDepartment($category)

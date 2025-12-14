@@ -60,6 +60,10 @@ return new class extends Migration
             $table->timestamp('first_response_at')->nullable();
             $table->integer('first_response_time_minutes')->nullable();
             $table->integer('resolution_time_minutes')->nullable();
+
+            // Resolution/Closure Timestamps
+            $table->timestamp('resolved_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
             
             // Communication
             $table->enum('channel', ['phone', 'email', 'chat', 'web', 'walk-in'])->default('phone');

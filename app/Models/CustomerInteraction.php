@@ -9,10 +9,21 @@ class CustomerInteraction extends Model
 {
     use SoftDeletes;
 
+    /**
+     * Valid interaction types
+     */
+    public const INTERACTION_TYPES = ['call', 'email', 'chat', 'sms', 'meeting', 'note'];
+
+    /**
+     * Valid channels
+     */
+    public const CHANNELS = ['phone', 'email', 'chat', 'web', 'walk-in', 'social_media'];
+
     protected $fillable = [
         'customer_id',
         'ticket_id',
         'agent_id',
+        'conversation_id',
         'interaction_type',
         'channel',
         'subject',
@@ -84,5 +95,13 @@ class CustomerInteraction extends Model
     public function scopeRecent($query, $days = 30)
     {
         return $query->where('interaction_at', '>=', now()->subDays($days));
+    }
+
+    /**
+     * Scope to filter by conversation ID.
+     */
+    public function scopeByConversation($query, $conversationId)
+    {
+        return $query->where('conversation_id', $conversationId);
     }
 }

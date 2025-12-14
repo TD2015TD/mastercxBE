@@ -37,6 +37,11 @@ class CustomerInteractionController extends Controller
             $query->where('agent_id', $request->agent_id);
         }
 
+        // Filter by conversation ID
+        if ($request->has('conversation_id')) {
+            $query->byConversation($request->conversation_id);
+        }
+
         // Filter by date range
         if ($request->has('start_date')) {
             $query->where('interaction_at', '>=', $request->start_date);
@@ -62,11 +67,12 @@ class CustomerInteractionController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => 'nullable|exists:customers,id',
             'ticket_id' => 'nullable|exists:tickets,id',
             'agent_id' => 'nullable|exists:agents,id',
-            'interaction_type' => 'required|in:call,email,chat,sms,meeting,note',
-            'channel' => 'required|in:phone,email,chat,web,walk-in,social_media',
+            'conversation_id' => 'nullable|string|max:100',
+            'interaction_type' => 'required|in:' . implode(',', CustomerInteraction::INTERACTION_TYPES),
+            'channel' => 'required|in:' . implode(',', CustomerInteraction::CHANNELS),
             'subject' => 'required|string|max:500',
             'description' => 'nullable|string',
             'duration_minutes' => 'nullable|integer|min:0',
@@ -84,15 +90,29 @@ class CustomerInteractionController extends Controller
         }
 
         $data = $request->all();
-        $data['agent_id'] = $data['agent_id'] ?? auth()->user()->agent->id ?? null;
+
+        // Try to get agent_id from request, auth user, or set to null
+        if (!isset($data['agent_id'])) {
+            $user = auth()->user();
+            if ($user && $user->agent) {
+                $data['agent_id'] = $user->agent->id;
+            } else {
+                $data['agent_id'] = null;
+            }
+        }
+
         $data['interaction_at'] = $data['interaction_at'] ?? now();
 
         $interaction = CustomerInteraction::create($data);
 
-        // Update customer's last contact timestamp
-        $customer = Customer::find($request->customer_id);
-        $customer->last_contact_at = $interaction->interaction_at;
-        $customer->save();
+        // Update customer's last contact timestamp (only if customer_id is provided)
+        if ($request->customer_id) {
+            $customer = Customer::find($request->customer_id);
+            if ($customer) {
+                $customer->last_contact_at = $interaction->interaction_at;
+                $customer->save();
+            }
+        }
 
         $interaction->load(['customer', 'ticket', 'agent']);
 

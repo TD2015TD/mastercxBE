@@ -30,6 +30,9 @@ class DatabaseSeeder extends Seeder
             TicketSeeder::class,
             EmailTemplateSeeder::class,
         ]);
+        
+            // Seed knowledge base categories
+            $this->call(\Database\Seeders\KnowledgeBaseCategorySeeder::class);
 
         // Seed menu items and role permissions
         $this->call([

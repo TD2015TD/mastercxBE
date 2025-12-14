@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -41,6 +40,16 @@ return [
         'client_id' => env('MITEL_CLIENT_ID', 'CXCRM'),
         'client_secret' => env('MITEL_CLIENT_SECRET'),
         'timeout' => env('MITEL_API_TIMEOUT', 30),
+    ],
+
+    'elasticsearch' => [
+        'host' => env('ELASTICSEARCH_HOST', 'localhost:9200'),
+    ],
+
+    'superset' => [
+        'url' => env('SUPERSET_URL', 'http://localhost:8088'),
+        'username' => env('SUPERSET_USERNAME', ''),
+        'password' => env('SUPERSET_PASSWORD', ''),
     ],
 
 ];

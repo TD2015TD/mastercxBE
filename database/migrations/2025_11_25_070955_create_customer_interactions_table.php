@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('customer_interactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             $table->foreignId('ticket_id')->nullable()->constrained('tickets')->onDelete('set null');
             $table->foreignId('agent_id')->nullable()->constrained('agents')->onDelete('set null');
             $table->enum('interaction_type', ['call', 'email', 'chat', 'sms', 'meeting', 'note']);

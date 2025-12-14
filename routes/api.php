@@ -251,6 +251,14 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('knowledge-base', KnowledgeBaseController::class);
         Route::post('/knowledge-base/bulk-import', [KnowledgeBaseController::class, 'bulkImport']);
         Route::get('/knowledge-base-statistics', [KnowledgeBaseController::class, 'statistics']);
+
+        // Elasticsearch/OpenSearch Knowledge Base Article API
+        Route::prefix('knowledge-base-articles')->group(function () {
+            Route::post('/', [KnowledgeBaseArticleController::class, 'store']);
+            Route::delete('/{id}', [KnowledgeBaseArticleController::class, 'delete']);
+            Route::get('/search', [KnowledgeBaseArticleController::class, 'search']);
+            Route::get('/aggregate/category', [KnowledgeBaseArticleController::class, 'aggregateByCategory']);
+        });
         
         // Mitel/MiContact Center Integration (via Service Layer)
         Route::prefix('mitel')->group(function () {
