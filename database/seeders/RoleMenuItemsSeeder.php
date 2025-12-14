@@ -20,6 +20,7 @@ class RoleMenuItemsSeeder extends Seeder
 
         // Get menu item IDs
         $dashboardMenu = DB::table('menu_items')->where('path', '/agent-dashboard')->first();
+        $employeeInboxMenu = DB::table('menu_items')->where('path', '/employee-inbox')->first();
         $supervisorDashboardMenu = DB::table('menu_items')->where('path', '/supervisor-dashboard')->first();
         $ticketsMenu = DB::table('menu_items')->where('path', '/ticket-management')->first();
         $customerMenu = DB::table('menu_items')->where('path', '/customer-360-profile')->first();
@@ -35,6 +36,16 @@ class RoleMenuItemsSeeder extends Seeder
             $roleMenuItems[] = [
                 'role_id' => $agentRole->id,
                 'menu_item_id' => $dashboardMenu->id,
+                'can_view' => true,
+                'can_create' => false,
+                'can_edit' => false,
+                'can_delete' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+            $roleMenuItems[] = [
+                'role_id' => $agentRole->id,
+                'menu_item_id' => $employeeInboxMenu->id,
                 'can_view' => true,
                 'can_create' => false,
                 'can_edit' => false,
@@ -131,10 +142,10 @@ class RoleMenuItemsSeeder extends Seeder
         // Admin Role Menus (All access)
         if ($adminRole) {
             $allMenus = [
-                $dashboardMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu, 
+                $dashboardMenu, $employeeInboxMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu,
                 $kbMenu, $analyticsMenu, $adminMenu, $kbCreatorMenu
             ];
-            
+
             foreach ($allMenus as $menu) {
                 $roleMenuItems[] = [
                     'role_id' => $adminRole->id,
@@ -152,10 +163,10 @@ class RoleMenuItemsSeeder extends Seeder
         // Super Admin Role Menus (All access)
         if ($superAdminRole) {
             $allMenus = [
-                $dashboardMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu, 
+                $dashboardMenu, $employeeInboxMenu, $supervisorDashboardMenu, $ticketsMenu, $customerMenu,
                 $kbMenu, $analyticsMenu, $adminMenu, $kbCreatorMenu
             ];
-            
+
             foreach ($allMenus as $menu) {
                 $roleMenuItems[] = [
                     'role_id' => $superAdminRole->id,
@@ -170,6 +181,6 @@ class RoleMenuItemsSeeder extends Seeder
             }
         }
 
-        DB::table('role_menu_items')->insert($roleMenuItems);
+        DB::table('role_menu_items')->insertOrIgnore($roleMenuItems);
     }
 }

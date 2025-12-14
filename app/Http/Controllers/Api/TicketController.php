@@ -30,9 +30,12 @@ class TicketController extends Controller
             $query->byPriority($request->priority);
         }
 
-        // Filter by status
+        // Filter by status (supports comma-separated values)
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $statuses = is_array($request->status)
+                ? $request->status
+                : explode(',', $request->status);
+            $query->whereIn('status', $statuses);
         }
 
         // Filter by department
@@ -899,6 +902,76 @@ class TicketController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete attachment',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get agent statistics for dashboard
+     */
+    public function getAgentStatistics(Request $request, $agentId)
+    {
+        try {
+            $today = now()->startOfDay();
+
+            // Get active tickets assigned to agent
+            $activeTickets = Ticket::where('assigned_to', $agentId)
+                ->whereNotIn('status', ['Closed', 'Cancelled', 'Resolved'])
+                ->count();
+
+            // Get tickets resolved today
+            $resolvedToday = Ticket::where('assigned_to', $agentId)
+                ->where('status', 'Resolved')
+                ->whereDate('updated_at', $today)
+                ->count();
+
+            // Get new tickets assigned today
+            $newToday = Ticket::where('assigned_to', $agentId)
+                ->whereDate('created_at', $today)
+                ->count();
+
+            // Calculate average response time (in minutes)
+            $avgResponseTime = DB::table('ticket_histories')
+                ->join('tickets', 'ticket_histories.ticket_id', '=', 'tickets.id')
+                ->where('tickets.assigned_to', $agentId)
+                ->where('ticket_histories.action', 'comment')
+                ->whereDate('ticket_histories.created_at', '>=', now()->subDays(7))
+                ->select(DB::raw('AVG(EXTRACT(EPOCH FROM (ticket_histories.created_at - tickets.created_at))/60) as avg_response'))
+                ->value('avg_response');
+
+            // Format average response time
+            $formattedAvgResponse = $avgResponseTime
+                ? ($avgResponseTime < 60 ? round($avgResponseTime) . ' min' : round($avgResponseTime / 60, 1) . ' hrs')
+                : '0 min';
+
+            // Calculate SLA compliance (percentage of tickets meeting SLA)
+            $totalTickets = Ticket::where('assigned_to', $agentId)
+                ->whereDate('created_at', '>=', now()->subDays(30))
+                ->count();
+
+            $slaCompliantTickets = Ticket::where('assigned_to', $agentId)
+                ->whereDate('created_at', '>=', now()->subDays(30))
+                ->where('sla_breached', false)
+                ->count();
+
+            $slaCompliance = $totalTickets > 0 ? round(($slaCompliantTickets / $totalTickets) * 100) : 100;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'activeTickets' => $activeTickets,
+                    'resolvedToday' => $resolvedToday,
+                    'newToday' => $newToday,
+                    'avgResponseTime' => $formattedAvgResponse,
+                    'avgResponseMinutes' => round($avgResponseTime ?? 0),
+                    'slaCompliance' => $slaCompliance,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch agent statistics',
                 'error' => $e->getMessage(),
             ], 500);
         }
