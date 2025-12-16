@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use Elasticsearch\ClientBuilder;
+use OpenSearch\ClientBuilder;
 
 class ElasticsearchService
 {
@@ -10,9 +10,22 @@ class ElasticsearchService
 
     public function __construct()
     {
-        $this->client = ClientBuilder::create()
-            ->setHosts([config('services.elasticsearch.host')])
-            ->build();
+        // Configure OpenSearch client
+        $hosts = [config('services.elasticsearch.host')];
+
+        $clientBuilder = ClientBuilder::create()
+            ->setHosts($hosts);
+
+        // Add basic authentication if configured
+        if (config('services.elasticsearch.username')) {
+            $clientBuilder->setBasicAuthentication(
+                config('services.elasticsearch.username'),
+                config('services.elasticsearch.password')
+            );
+        }
+
+        // Build client
+        $this->client = $clientBuilder->build();
     }
 
     public function getClient()

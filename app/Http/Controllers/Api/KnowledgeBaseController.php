@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
-use Elastic\Elasticsearch\ClientBuilder;
+use OpenSearch\ClientBuilder;
 
 class KnowledgeBaseController extends Controller
 {
@@ -19,12 +19,21 @@ class KnowledgeBaseController extends Controller
         try {
             // Initialize OpenSearch client
             $hosts = [
-                env('OPENSEARCH_HOST', 'localhost:9200')
+                config('services.elasticsearch.host', 'localhost:9200')
             ];
 
-            $this->opensearch = ClientBuilder::create()
-                ->setHosts($hosts)
-                ->build();
+            $clientBuilder = ClientBuilder::create()
+                ->setHosts($hosts);
+
+            // Add basic authentication if configured
+            if (config('services.elasticsearch.username')) {
+                $clientBuilder->setBasicAuthentication(
+                    config('services.elasticsearch.username'),
+                    config('services.elasticsearch.password')
+                );
+            }
+
+            $this->opensearch = $clientBuilder->build();
         } catch (\Exception $e) {
             Log::error('OpenSearch connection failed: ' . $e->getMessage());
         }
@@ -232,14 +241,11 @@ class KnowledgeBaseController extends Controller
                 ]
             ]);
 
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            if ($e->getCode() === 404) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Article not found'
-                ], 404);
-            }
-            throw $e;
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Get article failed: ' . $e->getMessage());
             return response()->json([
@@ -308,14 +314,11 @@ class KnowledgeBaseController extends Controller
                 'message' => 'Article updated successfully'
             ]);
 
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            if ($e->getCode() === 404) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Article not found'
-                ], 404);
-            }
-            throw $e;
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Update article failed: ' . $e->getMessage());
             return response()->json([
@@ -344,14 +347,11 @@ class KnowledgeBaseController extends Controller
                 'message' => 'Article deleted successfully'
             ]);
 
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            if ($e->getCode() === 404) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Article not found'
-                ], 404);
-            }
-            throw $e;
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Delete article failed: ' . $e->getMessage());
             return response()->json([

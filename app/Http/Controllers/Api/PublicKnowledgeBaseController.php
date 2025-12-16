@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Elastic\Elasticsearch\ClientBuilder;
+use OpenSearch\ClientBuilder;
 
 class PublicKnowledgeBaseController extends Controller
 {
@@ -16,15 +16,23 @@ class PublicKnowledgeBaseController extends Controller
     public function __construct()
     {
         try {
-            // Initialize OpenSearch client (compatible with Elasticsearch client)
-            // Assumes OpenSearch is configured at OPENSEARCH_HOST env variable
+            // Initialize OpenSearch client
             $hosts = [
-                env('OPENSEARCH_HOST', 'localhost:9200')
+                config('services.elasticsearch.host', 'localhost:9200')
             ];
 
-            $this->elasticsearch = ClientBuilder::create()
-                ->setHosts($hosts)
-                ->build();
+            $clientBuilder = ClientBuilder::create()
+                ->setHosts($hosts);
+
+            // Add basic authentication if configured
+            if (config('services.elasticsearch.username')) {
+                $clientBuilder->setBasicAuthentication(
+                    config('services.elasticsearch.username'),
+                    config('services.elasticsearch.password')
+                );
+            }
+
+            $this->elasticsearch = $clientBuilder->build();
         } catch (\Exception $e) {
             Log::error('OpenSearch connection failed: ' . $e->getMessage());
         }
@@ -177,14 +185,11 @@ class PublicKnowledgeBaseController extends Controller
                 ]
             ]);
 
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            if ($e->getCode() === 404) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Article not found'
-                ], 404);
-            }
-            throw $e;
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Get article failed: ' . $e->getMessage());
             return response()->json([
@@ -336,14 +341,11 @@ class PublicKnowledgeBaseController extends Controller
                 'message' => 'Thank you for your feedback!'
             ]);
 
-        } catch (\Elastic\Elasticsearch\Exception\ClientResponseException $e) {
-            if ($e->getCode() === 404) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Article not found'
-                ], 404);
-            }
-            throw $e;
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
         } catch (\Exception $e) {
             Log::error('Submit feedback failed: ' . $e->getMessage());
             return response()->json([

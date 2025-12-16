@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "007439556850755fbd1be1cd821e11fe",
+    "content-hash": "cff5585e869f0f8e68b446936796da3a",
     "packages": [
         {
             "name": "brick/math",
@@ -667,120 +667,115 @@
             "time": "2025-03-06T22:45:56+00:00"
         },
         {
-            "name": "elastic/transport",
-            "version": "v9.0.1",
+            "name": "ezimuel/guzzlestreams",
+            "version": "4.1.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/elastic/elastic-transport-php.git",
-                "reference": "3488b9d070e220f2a1ebdb500e6c588069f1897f"
+                "url": "https://github.com/ezimuel/guzzlestreams.git",
+                "reference": "903161be81e9f497cc42fb7db982404a4e6441b0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/elastic/elastic-transport-php/zipball/3488b9d070e220f2a1ebdb500e6c588069f1897f",
-                "reference": "3488b9d070e220f2a1ebdb500e6c588069f1897f",
+                "url": "https://api.github.com/repos/ezimuel/guzzlestreams/zipball/903161be81e9f497cc42fb7db982404a4e6441b0",
+                "reference": "903161be81e9f497cc42fb7db982404a4e6441b0",
                 "shasum": ""
             },
             "require": {
-                "composer-runtime-api": "^2.0",
-                "nyholm/psr7": "^1.8",
-                "open-telemetry/api": "^1.0",
-                "php": "^8.1",
-                "php-http/discovery": "^1.14",
-                "php-http/httplug": "^2.4",
-                "psr/http-client": "^1.0",
-                "psr/http-factory": "^1.0",
-                "psr/http-message": "^2.0",
-                "psr/log": "^2.0 || ^3.0"
+                "php": ">=7.4.0"
             },
             "require-dev": {
-                "open-telemetry/sdk": "^1.0",
-                "php-http/mock-client": "^1.5",
                 "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^10",
-                "symfony/http-client": "^6.0"
+                "phpunit/phpunit": "~9.0"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "3.0-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
-                    "Elastic\\Transport\\": "src/"
+                    "GuzzleHttp\\Stream\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
-            "description": "HTTP transport PHP library for Elastic products",
+            "authors": [
+                {
+                    "name": "Michael Dowling",
+                    "email": "mtdowling@gmail.com",
+                    "homepage": "https://github.com/mtdowling"
+                }
+            ],
+            "description": "Fork of guzzle/streams (abandoned) to be used with elasticsearch-php",
+            "homepage": "http://guzzlephp.org/",
             "keywords": [
-                "PSR_17",
-                "elastic",
-                "http",
-                "psr-18",
-                "psr-7",
-                "transport"
+                "Guzzle",
+                "stream"
             ],
             "support": {
-                "issues": "https://github.com/elastic/elastic-transport-php/issues",
-                "source": "https://github.com/elastic/elastic-transport-php/tree/v9.0.1"
+                "source": "https://github.com/ezimuel/guzzlestreams/tree/4.1.0"
             },
-            "time": "2025-05-08T12:31:50+00:00"
+            "time": "2025-08-05T06:44:46+00:00"
         },
         {
-            "name": "elasticsearch/elasticsearch",
-            "version": "v9.2.0",
+            "name": "ezimuel/ringphp",
+            "version": "1.4.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/elastic/elasticsearch-php.git",
-                "reference": "b9f6f3a05e568458ca21e2b5d43ad3140a919dfe"
+                "url": "https://github.com/ezimuel/ringphp.git",
+                "reference": "bc983599ec7add50c00e420e867c403c8ed16ae7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/elastic/elasticsearch-php/zipball/b9f6f3a05e568458ca21e2b5d43ad3140a919dfe",
-                "reference": "b9f6f3a05e568458ca21e2b5d43ad3140a919dfe",
+                "url": "https://api.github.com/repos/ezimuel/ringphp/zipball/bc983599ec7add50c00e420e867c403c8ed16ae7",
+                "reference": "bc983599ec7add50c00e420e867c403c8ed16ae7",
                 "shasum": ""
             },
             "require": {
-                "elastic/transport": "^9.0",
-                "php": "^8.1",
-                "psr/http-client": "^1.0",
-                "psr/http-message": "^2.0",
-                "psr/log": "^2.0|^3.0"
+                "ezimuel/guzzlestreams": "^3.0.1 || ^4.0.0",
+                "php": ">=5.4.0",
+                "react/promise": "^2.0 || ^3.0"
+            },
+            "replace": {
+                "guzzlehttp/ringphp": "self.version"
             },
             "require-dev": {
-                "ext-yaml": "*",
-                "ext-zip": "*",
-                "guzzlehttp/guzzle": "^7.0",
-                "mockery/mockery": "^1.6",
-                "nette/php-generator": "^4.0",
-                "nyholm/psr7": "^1.8",
-                "php-http/mock-client": "^1.6",
-                "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^10.0",
-                "psr/http-factory": "^1.0",
-                "symfony/finder": "^6.0",
-                "symfony/http-client": "^6.0|^7.0"
+                "ext-curl": "*",
+                "phpunit/phpunit": "~9.0"
+            },
+            "suggest": {
+                "ext-curl": "Guzzle will use specific adapters if cURL is present"
             },
             "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.1-dev"
+                }
+            },
             "autoload": {
                 "psr-4": {
-                    "Elastic\\Elasticsearch\\": "src/"
+                    "GuzzleHttp\\Ring\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
-            "description": "PHP Client for Elasticsearch",
-            "keywords": [
-                "client",
-                "elastic",
-                "elasticsearch",
-                "search"
+            "authors": [
+                {
+                    "name": "Michael Dowling",
+                    "email": "mtdowling@gmail.com",
+                    "homepage": "https://github.com/mtdowling"
+                }
             ],
+            "description": "Fork of guzzle/RingPHP (abandoned) to be used with elasticsearch-php",
             "support": {
-                "issues": "https://github.com/elastic/elasticsearch-php/issues",
-                "source": "https://github.com/elastic/elasticsearch-php/tree/v9.2.0"
+                "source": "https://github.com/ezimuel/ringphp/tree/1.4.0"
             },
-            "time": "2025-11-14T10:26:20+00:00"
+            "time": "2025-08-07T09:30:38+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -2936,211 +2931,90 @@
             "time": "2025-11-20T02:34:59+00:00"
         },
         {
-            "name": "nyholm/psr7",
-            "version": "1.8.2",
+            "name": "opensearch-project/opensearch-php",
+            "version": "2.5.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/Nyholm/psr7.git",
-                "reference": "a71f2b11690f4b24d099d6b16690a90ae14fc6f3"
+                "url": "https://github.com/opensearch-project/opensearch-php.git",
+                "reference": "478c5125ab62c5f01c29043b9ab5015b67156d85"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Nyholm/psr7/zipball/a71f2b11690f4b24d099d6b16690a90ae14fc6f3",
-                "reference": "a71f2b11690f4b24d099d6b16690a90ae14fc6f3",
+                "url": "https://api.github.com/repos/opensearch-project/opensearch-php/zipball/478c5125ab62c5f01c29043b9ab5015b67156d85",
+                "reference": "478c5125ab62c5f01c29043b9ab5015b67156d85",
                 "shasum": ""
             },
             "require": {
-                "php": ">=7.2",
-                "psr/http-factory": "^1.0",
-                "psr/http-message": "^1.1 || ^2.0"
-            },
-            "provide": {
-                "php-http/message-factory-implementation": "1.0",
-                "psr/http-factory-implementation": "1.0",
-                "psr/http-message-implementation": "1.0"
+                "ext-curl": "*",
+                "ext-json": ">=1.3.7",
+                "ezimuel/ringphp": "^1.4.0",
+                "php": "^8.1",
+                "php-http/discovery": "^1.20",
+                "psr/http-client": "^1.0.3",
+                "psr/http-client-implementation": "*",
+                "psr/http-factory": "^1.1.0",
+                "psr/http-factory-implementation": "*",
+                "psr/http-message": "^2.0",
+                "psr/http-message-implementation": "*",
+                "psr/log": "^3.0.2",
+                "symfony/yaml": "^v6.4.26|^7.3.5"
             },
             "require-dev": {
-                "http-interop/http-factory-tests": "^0.9",
-                "php-http/message-factory": "^1.0",
-                "php-http/psr7-integration-tests": "^1.0",
-                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.4",
-                "symfony/error-handler": "^4.4"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.8-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Nyholm\\Psr7\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Tobias Nyholm",
-                    "email": "tobias.nyholm@gmail.com"
-                },
-                {
-                    "name": "Martijn van der Ven",
-                    "email": "martijn@vanderven.se"
-                }
-            ],
-            "description": "A fast PHP7 implementation of PSR-7",
-            "homepage": "https://tnyholm.se",
-            "keywords": [
-                "psr-17",
-                "psr-7"
-            ],
-            "support": {
-                "issues": "https://github.com/Nyholm/psr7/issues",
-                "source": "https://github.com/Nyholm/psr7/tree/1.8.2"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/Zegnat",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nyholm",
-                    "type": "github"
-                }
-            ],
-            "time": "2024-09-09T07:06:30+00:00"
-        },
-        {
-            "name": "open-telemetry/api",
-            "version": "1.7.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/opentelemetry-php/api.git",
-                "reference": "45bda7efa8fcdd9bdb0daa2f26c8e31f062f49d4"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/api/zipball/45bda7efa8fcdd9bdb0daa2f26c8e31f062f49d4",
-                "reference": "45bda7efa8fcdd9bdb0daa2f26c8e31f062f49d4",
-                "shasum": ""
-            },
-            "require": {
-                "open-telemetry/context": "^1.4",
-                "php": "^8.1",
-                "psr/log": "^1.1|^2.0|^3.0",
-                "symfony/polyfill-php82": "^1.26"
-            },
-            "conflict": {
-                "open-telemetry/sdk": "<=1.0.8"
-            },
-            "type": "library",
-            "extra": {
-                "spi": {
-                    "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\HookManagerInterface": [
-                        "OpenTelemetry\\API\\Instrumentation\\AutoInstrumentation\\ExtensionHookManager"
-                    ]
-                },
-                "branch-alias": {
-                    "dev-main": "1.8.x-dev"
-                }
-            },
-            "autoload": {
-                "files": [
-                    "Trace/functions.php"
-                ],
-                "psr-4": {
-                    "OpenTelemetry\\API\\": "."
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "Apache-2.0"
-            ],
-            "authors": [
-                {
-                    "name": "opentelemetry-php contributors",
-                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
-                }
-            ],
-            "description": "API for OpenTelemetry PHP.",
-            "keywords": [
-                "Metrics",
-                "api",
-                "apm",
-                "logging",
-                "opentelemetry",
-                "otel",
-                "tracing"
-            ],
-            "support": {
-                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
-                "docs": "https://opentelemetry.io/docs/languages/php",
-                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
-                "source": "https://github.com/open-telemetry/opentelemetry-php"
-            },
-            "time": "2025-10-19T10:49:48+00:00"
-        },
-        {
-            "name": "open-telemetry/context",
-            "version": "1.4.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/opentelemetry-php/context.git",
-                "reference": "d4c4470b541ce72000d18c339cfee633e4c8e0cf"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/opentelemetry-php/context/zipball/d4c4470b541ce72000d18c339cfee633e4c8e0cf",
-                "reference": "d4c4470b541ce72000d18c339cfee633e4c8e0cf",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^8.1",
-                "symfony/polyfill-php82": "^1.26"
+                "aws/aws-sdk-php": "^3.359.8",
+                "colinodell/psr-testlogger": "^1.3.1",
+                "ext-zip": "*",
+                "friendsofphp/php-cs-fixer": "^v3.89.1",
+                "guzzlehttp/psr7": "^2.8.0",
+                "mockery/mockery": "^1.6.12",
+                "phpstan/extension-installer": "^1.4.3",
+                "phpstan/phpstan": "^1.12.32",
+                "phpstan/phpstan-deprecation-rules": "^1.2.1",
+                "phpstan/phpstan-mockery": "^1.1.3",
+                "phpstan/phpstan-phpunit": "^1.4.2",
+                "phpunit/phpunit": "^10.5.58",
+                "react/promise": "^v3.3",
+                "symfony/console": "^v6.4.27|^7.3.6",
+                "symfony/finder": "^v6.4.27|^7.3.6",
+                "symfony/http-client": "^6.4.27|^7.3.6",
+                "symfony/http-client-contracts": "^v3.6.0"
             },
             "suggest": {
-                "ext-ffi": "To allow context switching in Fibers"
+                "aws/aws-sdk-php": "Required (^3.0.0) in order to use the AWS Signing Client Decorator",
+                "guzzlehttp/psr7": "Required (^2.7) in order to use the Guzzle HTTP client",
+                "monolog/monolog": "Allows for client-level logging and tracing",
+                "symfony/http-client": "Required (^6.4|^7.0) in order to use the Symfony HTTP client"
             },
             "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-main": "1.0.x-dev"
-                }
-            },
             "autoload": {
-                "files": [
-                    "fiber/initialize_fiber_handler.php"
-                ],
                 "psr-4": {
-                    "OpenTelemetry\\Context\\": "."
+                    "OpenSearch\\": "src/OpenSearch/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "Apache-2.0"
+                "Apache-2.0",
+                "LGPL-2.1-only"
             ],
             "authors": [
                 {
-                    "name": "opentelemetry-php contributors",
-                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                    "name": "Elastic"
+                },
+                {
+                    "name": "OpenSearch Contributors"
                 }
             ],
-            "description": "Context implementation for OpenTelemetry PHP.",
+            "description": "PHP Client for OpenSearch",
             "keywords": [
-                "Context",
-                "opentelemetry",
-                "otel"
+                "client",
+                "elasticsearch",
+                "opensearch",
+                "search"
             ],
             "support": {
-                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
-                "docs": "https://opentelemetry.io/docs/php",
-                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
-                "source": "https://github.com/open-telemetry/opentelemetry-php"
+                "issues": "https://github.com/opensearch-project/opensearch-php/issues",
+                "source": "https://github.com/opensearch-project/opensearch-php/tree/2.5.0"
             },
-            "time": "2025-09-19T00:05:49+00:00"
+            "time": "2025-11-14T21:48:40+00:00"
         },
         {
             "name": "php-http/discovery",
@@ -3220,115 +3094,6 @@
                 "source": "https://github.com/php-http/discovery/tree/1.20.0"
             },
             "time": "2024-10-02T11:20:13+00:00"
-        },
-        {
-            "name": "php-http/httplug",
-            "version": "2.4.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-http/httplug.git",
-                "reference": "5cad731844891a4c282f3f3e1b582c46839d22f4"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-http/httplug/zipball/5cad731844891a4c282f3f3e1b582c46839d22f4",
-                "reference": "5cad731844891a4c282f3f3e1b582c46839d22f4",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.1 || ^8.0",
-                "php-http/promise": "^1.1",
-                "psr/http-client": "^1.0",
-                "psr/http-message": "^1.0 || ^2.0"
-            },
-            "require-dev": {
-                "friends-of-phpspec/phpspec-code-coverage": "^4.1 || ^5.0 || ^6.0",
-                "phpspec/phpspec": "^5.1 || ^6.0 || ^7.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Http\\Client\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Eric GELOEN",
-                    "email": "geloen.eric@gmail.com"
-                },
-                {
-                    "name": "Márk Sági-Kazár",
-                    "email": "mark.sagikazar@gmail.com",
-                    "homepage": "https://sagikazarmark.hu"
-                }
-            ],
-            "description": "HTTPlug, the HTTP client abstraction for PHP",
-            "homepage": "http://httplug.io",
-            "keywords": [
-                "client",
-                "http"
-            ],
-            "support": {
-                "issues": "https://github.com/php-http/httplug/issues",
-                "source": "https://github.com/php-http/httplug/tree/2.4.1"
-            },
-            "time": "2024-09-23T11:39:58+00:00"
-        },
-        {
-            "name": "php-http/promise",
-            "version": "1.3.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-http/promise.git",
-                "reference": "fc85b1fba37c169a69a07ef0d5a8075770cc1f83"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-http/promise/zipball/fc85b1fba37c169a69a07ef0d5a8075770cc1f83",
-                "reference": "fc85b1fba37c169a69a07ef0d5a8075770cc1f83",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.1 || ^8.0"
-            },
-            "require-dev": {
-                "friends-of-phpspec/phpspec-code-coverage": "^4.3.2 || ^6.3",
-                "phpspec/phpspec": "^5.1.2 || ^6.2 || ^7.4"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Http\\Promise\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Joel Wurtz",
-                    "email": "joel.wurtz@gmail.com"
-                },
-                {
-                    "name": "Márk Sági-Kazár",
-                    "email": "mark.sagikazar@gmail.com"
-                }
-            ],
-            "description": "Promise used for asynchronous HTTP requests",
-            "homepage": "http://httplug.io",
-            "keywords": [
-                "promise"
-            ],
-            "support": {
-                "issues": "https://github.com/php-http/promise/issues",
-                "source": "https://github.com/php-http/promise/tree/1.3.1"
-            },
-            "time": "2024-03-15T13:55:21+00:00"
         },
         {
             "name": "phpoffice/math",
@@ -4349,6 +4114,79 @@
                 "source": "https://github.com/ramsey/uuid/tree/4.9.1"
             },
             "time": "2025-09-04T20:59:21+00:00"
+        },
+        {
+            "name": "react/promise",
+            "version": "v3.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/reactphp/promise.git",
+                "reference": "23444f53a813a3296c1368bb104793ce8d88f04a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/reactphp/promise/zipball/23444f53a813a3296c1368bb104793ce8d88f04a",
+                "reference": "23444f53a813a3296c1368bb104793ce8d88f04a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "1.12.28 || 1.4.10",
+                "phpunit/phpunit": "^9.6 || ^7.5"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/functions_include.php"
+                ],
+                "psr-4": {
+                    "React\\Promise\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jan Sorgalla",
+                    "email": "jsorgalla@gmail.com",
+                    "homepage": "https://sorgalla.com/"
+                },
+                {
+                    "name": "Christian Lück",
+                    "email": "christian@clue.engineering",
+                    "homepage": "https://clue.engineering/"
+                },
+                {
+                    "name": "Cees-Jan Kiewiet",
+                    "email": "reactphp@ceesjankiewiet.nl",
+                    "homepage": "https://wyrihaximus.net/"
+                },
+                {
+                    "name": "Chris Boden",
+                    "email": "cboden@gmail.com",
+                    "homepage": "https://cboden.dev/"
+                }
+            ],
+            "description": "A lightweight implementation of CommonJS Promises/A for PHP",
+            "keywords": [
+                "promise",
+                "promises"
+            ],
+            "support": {
+                "issues": "https://github.com/reactphp/promise/issues",
+                "source": "https://github.com/reactphp/promise/tree/v3.3.0"
+            },
+            "funding": [
+                {
+                    "url": "https://opencollective.com/reactphp",
+                    "type": "open_collective"
+                }
+            ],
+            "time": "2025-08-19T18:57:03+00:00"
         },
         {
             "name": "smalot/pdfparser",
@@ -5966,86 +5804,6 @@
             "time": "2025-01-02T08:10:11+00:00"
         },
         {
-            "name": "symfony/polyfill-php82",
-            "version": "v1.33.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/symfony/polyfill-php82.git",
-                "reference": "5d2ed36f7734637dacc025f179698031951b1692"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php82/zipball/5d2ed36f7734637dacc025f179698031951b1692",
-                "reference": "5d2ed36f7734637dacc025f179698031951b1692",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.2"
-            },
-            "type": "library",
-            "extra": {
-                "thanks": {
-                    "url": "https://github.com/symfony/polyfill",
-                    "name": "symfony/polyfill"
-                }
-            },
-            "autoload": {
-                "files": [
-                    "bootstrap.php"
-                ],
-                "psr-4": {
-                    "Symfony\\Polyfill\\Php82\\": ""
-                },
-                "classmap": [
-                    "Resources/stubs"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Nicolas Grekas",
-                    "email": "p@tchwork.com"
-                },
-                {
-                    "name": "Symfony Community",
-                    "homepage": "https://symfony.com/contributors"
-                }
-            ],
-            "description": "Symfony polyfill backporting some PHP 8.2+ features to lower PHP versions",
-            "homepage": "https://symfony.com",
-            "keywords": [
-                "compatibility",
-                "polyfill",
-                "portable",
-                "shim"
-            ],
-            "support": {
-                "source": "https://github.com/symfony/polyfill-php82/tree/v1.33.0"
-            },
-            "funding": [
-                {
-                    "url": "https://symfony.com/sponsor",
-                    "type": "custom"
-                },
-                {
-                    "url": "https://github.com/fabpot",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/nicolas-grekas",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2024-09-09T11:45:10+00:00"
-        },
-        {
             "name": "symfony/polyfill-php83",
             "version": "v1.33.0",
             "source": {
@@ -7045,16 +6803,16 @@
         },
         {
             "name": "symfony/yaml",
-            "version": "v7.4.0",
+            "version": "v7.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "6c84a4b55aee4cd02034d1c528e83f69ddf63810"
+                "reference": "24dd4de28d2e3988b311751ac49e684d783e2345"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/6c84a4b55aee4cd02034d1c528e83f69ddf63810",
-                "reference": "6c84a4b55aee4cd02034d1c528e83f69ddf63810",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/24dd4de28d2e3988b311751ac49e684d783e2345",
+                "reference": "24dd4de28d2e3988b311751ac49e684d783e2345",
                 "shasum": ""
             },
             "require": {
@@ -7097,7 +6855,7 @@
             "description": "Loads and dumps YAML files",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/yaml/tree/v7.4.0"
+                "source": "https://github.com/symfony/yaml/tree/v7.4.1"
             },
             "funding": [
                 {
@@ -7117,7 +6875,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-11-16T10:14:42+00:00"
+            "time": "2025-12-04T18:11:45+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",

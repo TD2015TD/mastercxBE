@@ -254,10 +254,14 @@ Route::prefix('v1')->group(function () {
 
         // Elasticsearch/OpenSearch Knowledge Base Article API
         Route::prefix('knowledge-base-articles')->group(function () {
-            Route::post('/', [KnowledgeBaseArticleController::class, 'store']);
-            Route::delete('/{id}', [KnowledgeBaseArticleController::class, 'delete']);
-            Route::get('/search', [KnowledgeBaseArticleController::class, 'search']);
-            Route::get('/aggregate/category', [KnowledgeBaseArticleController::class, 'aggregateByCategory']);
+            Route::get('/search', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'search']);
+            Route::get('/stats', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'stats']);
+            Route::get('/', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'update']);
+            Route::post('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'update']); // For multipart form data
+            Route::delete('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'destroy']);
         });
         
         // Mitel/MiContact Center Integration (via Service Layer)

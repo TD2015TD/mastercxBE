@@ -5,6 +5,10 @@ namespace App\Services;
 use App\Models\KnowledgeBaseArticle;
 use App\Models\Lookup;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Smalot\PdfParser\Parser as PdfParser;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Settings;
 
 class KnowledgeBaseArticleService
 {
@@ -14,6 +18,115 @@ class KnowledgeBaseArticleService
     public function __construct(ElasticsearchService $esService)
     {
         $this->es = $esService->getClient();
+    }
+
+    /**
+     * Parse uploaded document and extract text content
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string
+     * @throws \Exception
+     */
+    public function parseDocument($file)
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $content = '';
+
+        try {
+            switch ($extension) {
+                case 'pdf':
+                    $content = $this->parsePdf($file);
+                    break;
+
+                case 'doc':
+                case 'docx':
+                    $content = $this->parseWord($file);
+                    break;
+
+                case 'txt':
+                    $content = file_get_contents($file->getRealPath());
+                    break;
+
+                default:
+                    throw new \Exception("Unsupported file format: {$extension}. Supported formats: PDF, DOC, DOCX, TXT");
+            }
+
+            return trim($content);
+        } catch (\Exception $e) {
+            Log::error("Document parsing failed: " . $e->getMessage());
+            throw new \Exception("Failed to parse document: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Parse PDF document
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string
+     */
+    private function parsePdf($file)
+    {
+        $parser = new PdfParser();
+        $pdf = $parser->parseFile($file->getRealPath());
+        $text = $pdf->getText();
+
+        // Clean up extra whitespace and normalize line breaks
+        $text = preg_replace('/\s+/', ' ', $text);
+        $text = str_replace(['\r\n', '\r'], '\n', $text);
+
+        return $text;
+    }
+
+    /**
+     * Parse Word document (DOC/DOCX)
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string
+     */
+    private function parseWord($file)
+    {
+        $phpWord = IOFactory::load($file->getRealPath());
+        $content = '';
+
+        foreach ($phpWord->getSections() as $section) {
+            foreach ($section->getElements() as $element) {
+                if (method_exists($element, 'getText')) {
+                    $content .= $element->getText() . "\n";
+                } elseif (method_exists($element, 'getElements')) {
+                    // Handle nested elements (like tables)
+                    foreach ($element->getElements() as $childElement) {
+                        if (method_exists($childElement, 'getText')) {
+                            $content .= $childElement->getText() . "\n";
+                        }
+                    }
+                }
+            }
+        }
+
+        return $content;
+    }
+
+    /**
+     * Store article with optional file upload
+     *
+     * @param array $data
+     * @param \Illuminate\Http\UploadedFile|null $file
+     * @return KnowledgeBaseArticle
+     */
+    public function storeWithFile($data, $file = null)
+    {
+        // Parse document if file is provided
+        if ($file) {
+            $data['content'] = $this->parseDocument($file);
+
+            // Store original file
+            $filePath = $file->store('knowledge-base-documents', 'public');
+            $data['file_path'] = $filePath;
+            $data['file_name'] = $file->getClientOriginalName();
+            $data['file_type'] = $file->getClientOriginalExtension();
+        }
+
+        return $this->store($data);
     }
 
     public function store($data)

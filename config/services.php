@@ -44,6 +44,8 @@ return [
 
     'elasticsearch' => [
         'host' => env('ELASTICSEARCH_HOST', 'localhost:9200'),
+        'username' => env('ELASTICSEARCH_USERNAME'),
+        'password' => env('ELASTICSEARCH_PASSWORD'),
     ],
 
     'superset' => [

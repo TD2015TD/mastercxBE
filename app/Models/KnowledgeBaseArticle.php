@@ -15,6 +15,9 @@ class KnowledgeBaseArticle extends Model
         'category_code', // references Lookup.code
         'author',
         'published_at',
+        'file_path',
+        'file_name',
+        'file_type',
     ];
 
     protected $casts = [
