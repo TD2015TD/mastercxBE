@@ -292,10 +292,27 @@ Route::prefix('v1')->group(function () {
             Route::post('/agents/{agentId}/calls/{callId}/answer', [MitelCallController::class, 'answerCall']);
             Route::post('/agents/{agentId}/calls/{callId}/hold', [MitelCallController::class, 'holdCall']);
             Route::post('/agents/{agentId}/calls/{callId}/resume', [MitelCallController::class, 'resumeCall']);
-            Route::post('/agents/{agentId}/calls/{callId}/transfer', [MitelCallController::class, 'transferCall']);
+
+            // Transfer endpoints
+            Route::post('/agents/{agentId}/calls/{callId}/transfer/blind', [MitelCallController::class, 'blindTransferCall']);
+            Route::post('/agents/{agentId}/calls/{callId}/transfer/consult/initiate', [MitelCallController::class, 'initiateConsultTransfer']);
+            Route::post('/agents/{agentId}/calls/{callId}/transfer/consult/complete', [MitelCallController::class, 'completeConsultTransfer']);
+            Route::post('/agents/{agentId}/calls/{callId}/transfer/consult/cancel', [MitelCallController::class, 'cancelConsultTransfer']);
+
             Route::post('/agents/{agentId}/calls/{callId}/end', [MitelCallController::class, 'endCall']);
             Route::get('/agents/{agentId}/calls/history', [MitelCallController::class, 'getCallHistory']);
-            
+
+            // Agent & Softphone endpoints
+            Route::get('/agents/{agentId}/agentgrouppresence', [MitelCallController::class, 'getAgentGroupPresence']);
+            Route::get('/agents/{agentId}/integratedsoftphone', [MitelCallController::class, 'getIntegratedSoftphoneCredentials']);
+            Route::get('/agents/{agentId}/busyreasoncodes', [MitelCallController::class, 'getBusyReasonCodes']);
+
+            // Directory Search
+            Route::get('/directory/search', [MitelCallController::class, 'searchDirectory']);
+
+            // Outbound Calls
+            Route::post('/employees/{employeeId}/conversations', [MitelCallController::class, 'makeOutboundCall']);
+
             // Queue Monitoring
             Route::get('/queues', [MitelQueueController::class, 'index']);
             Route::get('/queues/{queueId}/statistics', [MitelQueueController::class, 'getStatistics']);

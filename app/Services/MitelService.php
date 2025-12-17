@@ -591,4 +591,373 @@ class MitelService
             throw $e;
         }
     }
+
+    // ========================================================================
+    // CONVERSATION/CALL TRANSFER METHODS
+    // ========================================================================
+
+    /**
+     * Perform a blind transfer of a conversation
+     *
+     * @param string $employeeId Employee ID or 'me'
+     * @param string $conversationId Conversation/Call ID
+     * @param string $destination Transfer destination (extension or phone number)
+     * @return array The response from the Mitel API
+     * @throws Exception If the API request fails
+     */
+    public function blindTransfer(string $employeeId, string $conversationId, string $destination): array
+    {
+        $this->log('INFO', 'Performing blind transfer', [
+            'employee_id' => $employeeId,
+            'conversation_id' => $conversationId,
+            'destination' => $destination
+        ]);
+
+        try {
+            $payload = [
+                'conversationAction' => 'BlindTransfer',
+                'conversationId' => $conversationId,
+                'destination' => $destination
+            ];
+
+            $response = $this->makeRequest('PUT', "/api/v1/employees/{$employeeId}/conversations/{$conversationId}", $payload);
+            $this->log('INFO', 'Blind transfer successful', ['conversation_id' => $conversationId, 'destination' => $destination]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Blind transfer failed', [
+                'conversation_id' => $conversationId,
+                'destination' => $destination,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Initiate a consultation transfer (create consultation call)
+     *
+     * @param string $employeeId Employee ID or 'me'
+     * @param string $conversationId Original conversation/Call ID
+     * @param string $destination Transfer destination (extension or phone number)
+     * @return array The response from the Mitel API containing consultation conversation ID
+     * @throws Exception If the API request fails
+     */
+    public function initiateConsultTransfer(string $employeeId, string $conversationId, string $destination): array
+    {
+        $this->log('INFO', 'Initiating consultation transfer', [
+            'employee_id' => $employeeId,
+            'conversation_id' => $conversationId,
+            'destination' => $destination
+        ]);
+
+        try {
+            $payload = [
+                'conversationAction' => 'InitiateConsult',
+                'conversationId' => $conversationId,
+                'destination' => $destination
+            ];
+
+            $response = $this->makeRequest('PUT', "/api/v1/employees/{$employeeId}/conversations/{$conversationId}", $payload);
+            $this->log('INFO', 'Consultation transfer initiated', ['conversation_id' => $conversationId, 'response' => $response]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to initiate consultation transfer', [
+                'conversation_id' => $conversationId,
+                'destination' => $destination,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Complete a consultation transfer
+     *
+     * @param string $employeeId Employee ID or 'me'
+     * @param string $conversationId Original conversation/Call ID
+     * @return array The response from the Mitel API
+     * @throws Exception If the API request fails
+     */
+    public function completeConsultTransfer(string $employeeId, string $conversationId): array
+    {
+        $this->log('INFO', 'Completing consultation transfer', [
+            'employee_id' => $employeeId,
+            'conversation_id' => $conversationId
+        ]);
+
+        try {
+            $payload = [
+                'conversationAction' => 'CompleteTransfer',
+                'conversationId' => $conversationId
+            ];
+
+            $response = $this->makeRequest('PUT', "/api/v1/employees/{$employeeId}/conversations/{$conversationId}", $payload);
+            $this->log('INFO', 'Consultation transfer completed', ['conversation_id' => $conversationId]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to complete consultation transfer', [
+                'conversation_id' => $conversationId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Cancel a consultation transfer
+     *
+     * @param string $employeeId Employee ID or 'me'
+     * @param string $conversationId Consultation conversation/Call ID to cancel
+     * @return array The response from the Mitel API
+     * @throws Exception If the API request fails
+     */
+    public function cancelConsultTransfer(string $employeeId, string $conversationId): array
+    {
+        $this->log('INFO', 'Canceling consultation transfer', [
+            'employee_id' => $employeeId,
+            'conversation_id' => $conversationId
+        ]);
+
+        try {
+            $payload = [
+                'conversationAction' => 'CancelConsult',
+                'conversationId' => $conversationId
+            ];
+
+            $response = $this->makeRequest('PUT', "/api/v1/employees/{$employeeId}/conversations/{$conversationId}", $payload);
+            $this->log('INFO', 'Consultation transfer canceled', ['conversation_id' => $conversationId]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to cancel consultation transfer', [
+                'conversation_id' => $conversationId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get agent group presence information
+     * Returns agent groups with their presence states (Voice, OpenMedia, etc.)
+     *
+     * @param string $employeeId
+     * @return array
+     * @throws Exception
+     */
+    public function getAgentGroupPresence(string $employeeId): array
+    {
+        try {
+            $this->log('INFO', 'Fetching agent group presence', [
+                'employee_id' => $employeeId
+            ]);
+
+            $response = $this->makeRequest('GET', "/api/v1/employees/{$employeeId}/agentgrouppresence");
+
+            $this->log('INFO', 'Agent group presence retrieved successfully', [
+                'employee_id' => $employeeId,
+                'agent_groups_count' => count($response['agentGroups'] ?? [])
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to get agent group presence', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get integrated softphone credentials for WebRTC connection
+     * Returns credentials for connecting to Mitel Border Gateway
+     *
+     * @param string $agentId
+     * @return array
+     * @throws Exception
+     */
+    public function getIntegratedSoftphoneCredentials(string $agentId): array
+    {
+        try {
+            $this->log('INFO', 'Fetching integrated softphone credentials', [
+                'agent_id' => $agentId
+            ]);
+
+            $response = $this->makeRequest('GET', "/api/v1/agents/{$agentId}/integratedsoftphone");
+
+            $this->log('INFO', 'Integrated softphone credentials retrieved successfully', [
+                'agent_id' => $agentId,
+                'gateway_type' => $response['gatewayMediaServerType'] ?? null
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to get integrated softphone credentials', [
+                'agent_id' => $agentId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Get busy reason codes for the agent
+     * Returns available reason codes when agent changes status to busy
+     *
+     * @param string $employeeId
+     * @return array
+     * @throws Exception
+     */
+    public function getBusyReasonCodes(string $employeeId): array
+    {
+        try {
+            $this->log('INFO', 'Fetching busy reason codes', [
+                'employee_id' => $employeeId
+            ]);
+
+            $response = $this->makeRequest('GET', "/api/v1/employees/{$employeeId}/busyreasoncodes");
+
+            $this->log('INFO', 'Busy reason codes retrieved successfully', [
+                'employee_id' => $employeeId,
+                'count' => $response['count'] ?? 0
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to get busy reason codes', [
+                'employee_id' => $employeeId,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Search directory for employees/agents
+     * Returns directory entries matching the search query
+     *
+     * @param string $searchQuery
+     * @param bool $voiceOnly
+     * @param int $skip
+     * @param int $top
+     * @return array
+     * @throws Exception
+     */
+    public function searchDirectory(string $searchQuery = '', bool $voiceOnly = true, int $skip = 0, int $top = 25, string $searchType = 'text'): array
+    {
+        try {
+            $this->log('INFO', 'Searching directory', [
+                'search_query' => $searchQuery,
+                'search_type' => $searchType,
+                'voice_only' => $voiceOnly,
+                'skip' => $skip,
+                'top' => $top
+            ]);
+
+            // Build query parameters
+            $params = [
+                '$filter' => "Type eq Mitel.MiccSdk.Models.DirectoryEntryType'Employee'",
+                'voiceOnly' => $voiceOnly ? 'true' : 'false',
+                '$orderby' => 'name asc',
+                '$skip' => $skip,
+                '$top' => $top
+            ];
+
+            // Add search query if provided
+            if (!empty($searchQuery)) {
+                // Support both text and ID-based search
+                if ($searchType === 'id') {
+                    // Search by ID: 'id: {uuid}'
+                    $params['$search'] = "'id: " . $searchQuery . "'";
+                } else {
+                    // Search by text (name/extension): 'media:voice;{query}'
+                    $params['$search'] = "'media:voice;" . $searchQuery . "'";
+                }
+            }
+
+            // Build query string
+            $queryString = http_build_query($params);
+            $endpoint = "/api/v1/directory/?" . $queryString;
+
+            $response = $this->makeRequest('GET', $endpoint);
+
+            $this->log('INFO', 'Directory search completed', [
+                'search_query' => $searchQuery,
+                'search_type' => $searchType,
+                'count' => $response['count'] ?? 0
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to search directory', [
+                'search_query' => $searchQuery,
+                'search_type' => $searchType,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Make an outbound call (create conversation)
+     *
+     * @param string $employeeId Employee ID (use 'me' for current employee)
+     * @param string $to Destination agent ID or phone number
+     * @param string $from Caller ID (optional)
+     * @param string $type Call type (Voice, Email, etc.)
+     * @param bool $dialAsIs Whether to dial as-is without modifications
+     * @param array $lightDirectoryEntryModels Optional directory entry models
+     * @return array
+     * @throws Exception
+     */
+    public function makeOutboundCall(
+        string $employeeId,
+        string $to,
+        string $from = '',
+        string $type = 'Voice',
+        bool $dialAsIs = false,
+        array $lightDirectoryEntryModels = []
+    ): array {
+        try {
+            $this->log('INFO', 'Making outbound call', [
+                'employee_id' => $employeeId,
+                'to' => $to,
+                'type' => $type,
+                'dial_as_is' => $dialAsIs
+            ]);
+
+            $payload = [
+                'to' => $to,
+                'from' => $from,
+                'type' => $type,
+                'lightDirectoryEntryModels' => $lightDirectoryEntryModels
+            ];
+
+            // Build query parameters
+            $queryParams = [];
+            if ($dialAsIs !== null) {
+                $queryParams['dialAsIs'] = $dialAsIs ? 'true' : 'false';
+            }
+
+            $queryString = !empty($queryParams) ? '?' . http_build_query($queryParams) : '';
+            $endpoint = "/api/v1/employees/{$employeeId}/conversations{$queryString}";
+
+            $response = $this->makeRequest('POST', $endpoint, $payload);
+
+            $this->log('INFO', 'Outbound call initiated successfully', [
+                'employee_id' => $employeeId,
+                'to' => $to,
+                'response' => $response
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to make outbound call', [
+                'employee_id' => $employeeId,
+                'to' => $to,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
 }
