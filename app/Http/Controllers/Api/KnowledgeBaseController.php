@@ -12,7 +12,7 @@ use OpenSearch\ClientBuilder;
 class KnowledgeBaseController extends Controller
 {
     private $opensearch;
-    private $index = 'knowledge_base';
+    private $index = 'knowledge_base_articles';
 
     public function __construct()
     {
@@ -492,6 +492,189 @@ class KnowledgeBaseController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve statistics'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get aggregated statistics for portal
+     * GET /api/v1/knowledge-base/aggregate
+     */
+    public function aggregate()
+    {
+        try {
+            // Get current month start date
+            $currentMonthStart = now()->startOfMonth()->toIso8601String();
+            $weekStart = now()->startOfWeek()->toIso8601String();
+
+            $params = [
+                'index' => $this->index,
+                'body' => [
+                    'size' => 0,
+                    'aggs' => [
+                        'total_articles' => [
+                            'value_count' => ['field' => '_id']
+                        ],
+                        'articles_this_month' => [
+                            'filter' => [
+                                'range' => [
+                                    'created_at' => ['gte' => $currentMonthStart]
+                                ]
+                            ]
+                        ],
+                        'total_categories' => [
+                            'cardinality' => ['field' => 'category.keyword']
+                        ],
+                        'total_views' => [
+                            'sum' => ['field' => 'views']
+                        ],
+                        'views_this_week' => [
+                            'filter' => [
+                                'range' => [
+                                    'updated_at' => ['gte' => $weekStart]
+                                ]
+                            ],
+                            'aggs' => [
+                                'total' => [
+                                    'sum' => ['field' => 'views']
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
+            $response = $this->opensearch->search($params);
+            $aggs = $response['aggregations'];
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_articles' => $aggs['total_articles']['value'],
+                    'articles_this_month' => $aggs['articles_this_month']['doc_count'],
+                    'total_categories' => $aggs['total_categories']['value'],
+                    'total_views' => $aggs['total_views']['value'],
+                    'views_this_week' => $aggs['views_this_week']['total']['value'] ?? 0
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get aggregate statistics failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve aggregate statistics'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get recent views (recently viewed articles)
+     * GET /api/v1/knowledge-base/recent-views
+     */
+    public function recentViews(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'limit' => 'nullable|integer|min:1|max:50'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $limit = $request->input('limit', 10);
+
+            $params = [
+                'index' => $this->index,
+                'body' => [
+                    'size' => $limit,
+                    'query' => [
+                        'bool' => [
+                            'must' => [
+                                ['term' => ['status' => 'published']]
+                            ],
+                            'filter' => [
+                                ['range' => ['views' => ['gt' => 0]]]
+                            ]
+                        ]
+                    ],
+                    'sort' => [
+                        'updated_at' => ['order' => 'desc']
+                    ]
+                ]
+            ];
+
+            $response = $this->opensearch->search($params);
+
+            $articles = [];
+            foreach ($response['hits']['hits'] as $hit) {
+                $source = $hit['_source'];
+                $articles[] = [
+                    'id' => $hit['_id'],
+                    'title' => $source['title'],
+                    'excerpt' => $this->generateExcerpt($source['content'], 200),
+                    'category' => $source['category'],
+                    'tags' => $source['tags'] ?? [],
+                    'views' => $source['views'] ?? 0,
+                    'updated_at' => $source['updated_at'] ?? null
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $articles
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get recent views failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve recent views'
+            ], 500);
+        }
+    }
+
+    /**
+     * Increment view count for an article
+     * POST /api/v1/knowledge-base/{id}/view
+     */
+    public function incrementView(string $id)
+    {
+        try {
+            // Get current article to increment views
+            $params = [
+                'index' => $this->index,
+                'id' => $id,
+                'body' => [
+                    'script' => [
+                        'source' => 'ctx._source.views = (ctx._source.views ?: 0) + 1; ctx._source.updated_at = params.now',
+                        'params' => [
+                            'now' => now()->toIso8601String()
+                        ]
+                    ]
+                ]
+            ];
+
+            $this->opensearch->update($params);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'View count incremented'
+            ]);
+
+        } catch (\OpenSearch\Common\Exceptions\Missing404Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Article not found'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Increment view failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to increment view count'
             ], 500);
         }
     }

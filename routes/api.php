@@ -251,6 +251,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('knowledge-base', KnowledgeBaseController::class);
         Route::post('/knowledge-base/bulk-import', [KnowledgeBaseController::class, 'bulkImport']);
         Route::get('/knowledge-base-statistics', [KnowledgeBaseController::class, 'statistics']);
+        Route::get('/knowledge-base/aggregate/stats', [KnowledgeBaseController::class, 'aggregate']);
+        Route::get('/knowledge-base/views/recent', [KnowledgeBaseController::class, 'recentViews']);
+        Route::post('/knowledge-base/{id}/view', [KnowledgeBaseController::class, 'incrementView']);
 
         // Elasticsearch/OpenSearch Knowledge Base Article API
         Route::prefix('knowledge-base-articles')->group(function () {
