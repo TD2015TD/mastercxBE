@@ -91,9 +91,16 @@ class Lookup extends Model
             ->map(function ($items) use ($locale) {
                 return $items->map(function ($item) use ($locale) {
                     return [
+                        'id' => $item->id,
                         'code' => $item->code,
                         'name' => $locale === 'ms' ? $item->name_ms : $item->name_en,
+                        'name_en' => $item->name_en,
+                        'name_ms' => $item->name_ms,
                         'description' => $locale === 'ms' ? $item->description_ms : $item->description_en,
+                        'description_en' => $item->description_en,
+                        'description_ms' => $item->description_ms,
+                        'sort_order' => $item->sort_order,
+                        'is_active' => $item->is_active,
                         'color' => $item->color,
                         'icon' => $item->icon,
                         'metadata' => $item->metadata,
