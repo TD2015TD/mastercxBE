@@ -70,6 +70,11 @@ class TicketController extends Controller
             $query->where('channel', $request->channel);
         }
 
+        // Filter by conversation_id
+        if ($request->filled('conversation_id')) {
+            $query->where('conversation_id', $request->conversation_id);
+        }
+
         // Search by ticket number or subject
         if ($request->filled('search')) {
             $search = $request->search;
