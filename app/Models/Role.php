@@ -58,4 +58,25 @@ class Role extends Model
     {
         return $this->menuItems()->where('menu_items.is_active', true);
     }
+
+    /**
+     * Get the Superset dashboards assigned to this role.
+     */
+    public function supersetDashboards(): BelongsToMany
+    {
+        return $this->belongsToMany(SupersetDashboard::class, 'role_superset_dashboard')
+            ->withPivot(['can_view', 'can_export', 'can_share', 'custom_rls'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get active Superset dashboards for this role.
+     */
+    public function activeSupersetDashboards(): BelongsToMany
+    {
+        return $this->supersetDashboards()
+            ->where('superset_dashboards.is_active', true)
+            ->orderBy('superset_dashboards.order')
+            ->orderBy('superset_dashboards.title_en');
+    }
 }

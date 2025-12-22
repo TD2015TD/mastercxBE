@@ -31,6 +31,8 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controller
 use App\Http\Controllers\Api\SystemConfigurationController;
+use App\Http\Controllers\Api\SupersetController;
+use App\Http\Controllers\Api\SupersetDashboardController;
 
 Route::prefix('v1')->group(function () {
     // Public routes
@@ -331,6 +333,21 @@ Route::prefix('v1')->group(function () {
             Route::get('/channels', [WebSocketController::class, 'getActiveChannels']);
             Route::post('/test', [WebSocketController::class, 'testBroadcast']);
             Route::post('/broadcast', [WebSocketController::class, 'broadcastCustomEvent']);
+        });
+
+        // Superset Embedded Dashboard Integration
+        Route::prefix('superset')->group(function () {
+            // Guest token generation
+            Route::post('/guest-token', [SupersetController::class, 'getGuestToken']);
+            Route::get('/dashboards', [SupersetController::class, 'getDashboards']);
+
+            // Dashboard management (CRUD)
+            Route::apiResource('dashboard-configs', SupersetDashboardController::class);
+
+            // Custom dashboard endpoints
+            Route::get('/my-dashboards', [SupersetDashboardController::class, 'myDashboards']);
+            Route::get('/categories', [SupersetDashboardController::class, 'categories']);
+            Route::post('/dashboard-configs/{id}/assign-roles', [SupersetDashboardController::class, 'assignRoles']);
         });
     });
 });

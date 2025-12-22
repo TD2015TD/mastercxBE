@@ -104,4 +104,62 @@ class CustomerInteraction extends Model
     {
         return $query->where('conversation_id', $conversationId);
     }
+
+    /**
+     * Get call status from metadata.callState
+     */
+    public function getCallStatusAttribute()
+    {
+        return $this->metadata['callState'] ?? null;
+    }
+
+    /**
+     * Get caller number from metadata.callerNumber
+     */
+    public function getCallerNumberAttribute()
+    {
+        return $this->metadata['callerNumber'] ?? null;
+    }
+
+    /**
+     * Get caller name from metadata.callerName
+     */
+    public function getCallerNameAttribute()
+    {
+        return $this->metadata['callerName'] ?? null;
+    }
+
+    /**
+     * Get queue from metadata.queue
+     */
+    public function getQueueAttribute()
+    {
+        return $this->metadata['queue'] ?? null;
+    }
+
+    /**
+     * Get conversation ID from metadata.conversationId
+     */
+    public function getMetadataConversationIdAttribute()
+    {
+        return $this->metadata['conversationId'] ?? null;
+    }
+
+    /**
+     * Get answered at timestamp from metadata.answeredAt
+     */
+    public function getAnsweredAtAttribute()
+    {
+        $answeredAt = $this->metadata['answeredAt'] ?? null;
+
+        if ($answeredAt) {
+            try {
+                return \Carbon\Carbon::parse($answeredAt);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
 }
