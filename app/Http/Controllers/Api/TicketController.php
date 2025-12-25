@@ -131,6 +131,7 @@ class TicketController extends Controller
             'source' => 'nullable|string|max:100',
             'tags' => 'nullable|array',
             'custom_fields' => 'nullable|array',
+            'ticket_number' => 'nullable|string|max:50|unique:tickets,ticket_number',
         ]);
 
         if ($validator->fails()) {
@@ -144,11 +145,14 @@ class TicketController extends Controller
             DB::beginTransaction();
 
             $data = $validator->validated();
-            
-            // Generate unique ticket number based on channel
-            // Map channel to sequence name ('walk-in' -> 'walkIn')
-            $sequenceName = $data['channel'] === 'walk-in' ? 'walkIn' : $data['channel'];
-            $data['ticket_number'] = $this->generateTicketNumber($sequenceName);
+
+            // Use provided ticket number if available (from reservation), otherwise generate new one
+            if (!isset($data['ticket_number']) || empty($data['ticket_number'])) {
+                // Generate unique ticket number based on channel
+                // Map channel to sequence name ('walk-in' -> 'walkIn')
+                $sequenceName = $data['channel'] === 'walk-in' ? 'walkIn' : $data['channel'];
+                $data['ticket_number'] = $this->generateTicketNumber($sequenceName);
+            }
             
             // Set created_by to authenticated user's agent ID
             if (auth()->check() && auth()->user()->agent) {
@@ -715,6 +719,50 @@ class TicketController extends Controller
      * @param string $sequenceName The sequence to use (default, urgent, vip, etc.)
      * @return string
      */
+    /**
+     * Reserve a ticket number based on case_id and phone_number to guarantee uniqueness.
+     * This endpoint is called when the form is loaded with case_id and phone_number.
+     * Each call generates a NEW unique ticket number - subsequent calls return new numbers.
+     */
+    public function reserveTicketNumber(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'case_id' => 'required|string|max:100',
+            'phone_number' => 'required|string|max:50',
+            'channel' => 'nullable|in:phone,email,chat,web,walk-in',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $channel = $request->channel ?? 'phone';
+
+            // Always generate a new ticket number for each call
+            // The uniqueness is guaranteed by the sequence generation mechanism
+            $sequenceName = $channel === 'walk-in' ? 'walkIn' : $channel;
+            $ticketNumber = $this->generateTicketNumber($sequenceName);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ticket_number' => $ticketNumber,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error reserving ticket number: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reserve ticket number',
+            ], 500);
+        }
+    }
+
     private function generateTicketNumber(string $sequenceName = 'default'): string
     {
         try {
@@ -722,7 +770,7 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             // Fallback to old method if sequence generation fails
             \Log::error('Ticket number generation failed: ' . $e->getMessage());
-            
+
             do {
                 $number = 'TKT' . date('Ymd') . strtoupper(Str::random(6));
             } while (Ticket::where('ticket_number', $number)->exists());
