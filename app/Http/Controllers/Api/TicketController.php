@@ -116,6 +116,8 @@ class TicketController extends Controller
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'conversation_id' => 'nullable|string|max:100',
+            'call_id' => 'nullable|string|max:100',
+            'case_id' => 'nullable|string|max:100',
             'assigned_to' => 'nullable|exists:agents,id',
             'priority' => 'required|in:P1,P2,P3,P4',
             'department' => 'required|string|max:100',
