@@ -31,6 +31,7 @@ class SupersetDashboard extends Model
         'ui_config',
         'default_filters',
         'rls_config',
+        'dataset_ids',
         'tags',
         'thumbnail_url',
     ];
@@ -46,6 +47,7 @@ class SupersetDashboard extends Model
         'ui_config' => 'array',
         'default_filters' => 'array',
         'rls_config' => 'array',
+        'dataset_ids' => 'array',
         'order' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

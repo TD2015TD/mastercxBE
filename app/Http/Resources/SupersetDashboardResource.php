@@ -42,6 +42,7 @@ class SupersetDashboardResource extends JsonResource
             'ui_config' => $this->ui_config,
             'default_filters' => $this->default_filters,
             'rls_config' => $this->rls_config,
+            'dataset_ids' => $this->dataset_ids,
 
             // Tags as array
             'tags' => $this->getTagsArray(),
