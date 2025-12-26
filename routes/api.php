@@ -135,6 +135,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/customers/{customerId}/notes/{noteId}', [CustomerController::class, 'deleteNote'])->name('api.customers.notes.delete');
         
         // Ticket Management
+        Route::post('/tickets/reserve-number', [TicketController::class, 'reserveTicketNumber']);
         Route::apiResource('tickets', TicketController::class);
         Route::get('/tickets/{id}/history', [TicketController::class, 'history']);
         Route::put('/tickets/{id}/assign', [TicketController::class, 'assign']);

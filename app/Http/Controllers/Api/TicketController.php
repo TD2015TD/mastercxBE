@@ -722,7 +722,8 @@ class TicketController extends Controller
     /**
      * Reserve a ticket number based on case_id and phone_number to guarantee uniqueness.
      * This endpoint is called when the form is loaded with case_id and phone_number.
-     * Each call generates a NEW unique ticket number - subsequent calls return new numbers.
+     * If a ticket with the same case_id already exists, return that ticket's info for redirect.
+     * Otherwise, generate a NEW unique ticket number.
      */
     public function reserveTicketNumber(Request $request)
     {
@@ -740,9 +741,25 @@ class TicketController extends Controller
         }
 
         try {
+            $caseId = $request->case_id;
             $channel = $request->channel ?? 'phone';
 
-            // Always generate a new ticket number for each call
+            // Check if a ticket with this case_id already exists
+            $existingTicket = Ticket::where('case_id', $caseId)->first();
+
+            if ($existingTicket) {
+                // Return existing ticket info so frontend can redirect
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'ticket_number' => $existingTicket->ticket_number,
+                        'ticket_id' => $existingTicket->id,
+                        'exists' => true,
+                    ],
+                ]);
+            }
+
+            // No existing ticket - generate a new ticket number
             // The uniqueness is guaranteed by the sequence generation mechanism
             $sequenceName = $channel === 'walk-in' ? 'walkIn' : $channel;
             $ticketNumber = $this->generateTicketNumber($sequenceName);
@@ -751,6 +768,7 @@ class TicketController extends Controller
                 'success' => true,
                 'data' => [
                     'ticket_number' => $ticketNumber,
+                    'exists' => false,
                 ],
             ]);
         } catch (\Exception $e) {
