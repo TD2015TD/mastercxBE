@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jwt.verify' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
             'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,
+            'jwt.auto.refresh' => \App\Http\Middleware\AutoRefreshJwtToken::class,
             'citizen.session' => \App\Http\Middleware\ValidateCitizenSession::class,
         ]);
     })

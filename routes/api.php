@@ -83,8 +83,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/categories/tree/view', [CategoryController::class, 'tree']);
     Route::get('/categories/department-level/filter', [CategoryController::class, 'byDepartmentLevel']);
 
-    // Protected routes
-    Route::middleware('jwt.verify')->group(function () {
+    // Protected routes (with auto-refresh for call center agents)
+    Route::middleware(['jwt.verify', 'jwt.auto.refresh'])->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/refresh', [AuthController::class, 'refresh']);

@@ -236,6 +236,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Auto Refresh Threshold
+    |--------------------------------------------------------------------------
+    |
+    | Specify the threshold (in seconds) for auto-refreshing JWT tokens.
+    | When a token's remaining lifetime is less than this value, it will be
+    | automatically refreshed on the next request. This ensures sessions
+    | remain active for call center agents as long as they're actively using
+    | the system.
+    |
+    | Default: 1800 seconds (30 minutes)
+    | This means tokens will auto-refresh when they have less than 30 minutes
+    | remaining before expiration.
+    |
+    */
+
+    'auto_refresh_threshold' => env('JWT_AUTO_REFRESH_THRESHOLD', 1800),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cookies encryption
     |--------------------------------------------------------------------------
     |
