@@ -12,12 +12,18 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Add username column as nullable first
         Schema::table('users', function (Blueprint $table) {
-            $table->string('username')->unique()->after('name');
+            $table->string('username')->nullable()->after('name');
         });
 
         // Set default username = email for existing users
         DB::statement('UPDATE users SET username = email WHERE username IS NULL');
+
+        // Make username NOT NULL and unique after populating data
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('username')->nullable(false)->unique()->change();
+        });
     }
 
     /**
