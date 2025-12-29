@@ -8,10 +8,14 @@ use App\Models\Agent;
 use App\Models\TicketHistory;
 use App\Models\TicketNumberSequence;
 use App\Models\TicketAttachment;
+use App\Models\User;
+use App\Notifications\TicketCreatedNotification;
+use App\Events\TicketNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class TicketController extends Controller
@@ -201,6 +205,9 @@ class TicketController extends Controller
             DB::commit();
 
             $ticket->load(['customer', 'assignedAgent.user', 'creator']);
+
+            // Dispatch notifications asynchronously (after commit to ensure ticket exists)
+            $this->dispatchTicketNotifications($ticket, 'created');
 
             return response()->json([
                 'success' => true,
@@ -418,8 +425,11 @@ class TicketController extends Controller
                     'new_agent_id' => $newAssignee->id
                 ]
             );
-            
+
             $ticket->load(['assignedAgent.user']);
+
+            // Dispatch assignment notifications asynchronously
+            $this->dispatchTicketNotifications($ticket, 'assigned');
 
             return response()->json([
                 'success' => true,
@@ -1133,6 +1143,62 @@ class TicketController extends Controller
             'P4' => 'Low',
             default => 'Medium',
         };
+    }
+
+    /**
+     * Dispatch ticket notifications asynchronously.
+     * Notifications are queued to prevent blocking ticket creation.
+     *
+     * @param Ticket $ticket
+     * @param string $eventType (created, assigned, escalated, etc.)
+     * @return void
+     */
+    private function dispatchTicketNotifications(Ticket $ticket, string $eventType = 'created'): void
+    {
+        try {
+            // 1. Broadcast real-time event to WebSocket channels
+            event(new TicketNotification([
+                'ticket_id' => $ticket->id,
+                'ticket_number' => $ticket->ticket_number,
+                'event_type' => $eventType,
+                'priority' => $ticket->priority,
+                'status' => $ticket->status,
+                'assigned_to' => $ticket->assigned_to,
+                'subject' => $ticket->subject,
+                'timestamp' => now()->toISOString(),
+                'message' => "Ticket #{$ticket->ticket_number} {$eventType}",
+            ]));
+
+            // 2. Send database notification to assigned agent (queued)
+            if ($ticket->assigned_to && $ticket->assignedAgent && $ticket->assignedAgent->user) {
+                $ticket->assignedAgent->user->notify(
+                    new TicketCreatedNotification($ticket, $eventType)
+                );
+            }
+
+            // 3. Notify supervisors/admins for high-priority tickets (queued)
+            if (in_array($ticket->priority, ['P1', 'P2'])) {
+                $supervisors = User::whereHas('role', function($query) {
+                    $query->whereIn('slug', ['super_admin', 'admin', 'supervisor']);
+                })->get();
+
+                Notification::send($supervisors, new TicketCreatedNotification($ticket, $eventType));
+            }
+
+            \Log::info("Notifications dispatched for ticket #{$ticket->ticket_number}", [
+                'ticket_id' => $ticket->id,
+                'event_type' => $eventType,
+                'assigned_to' => $ticket->assigned_to,
+                'priority' => $ticket->priority,
+            ]);
+        } catch (\Exception $e) {
+            // Log error but don't fail ticket creation
+            \Log::error('Failed to dispatch ticket notifications: ' . $e->getMessage(), [
+                'ticket_id' => $ticket->id,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
