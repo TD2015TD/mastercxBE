@@ -28,6 +28,7 @@ class UserSeeder extends Seeder
         $users = [
             [
                 'name' => 'Super Administrator',
+                'username' => 'superadmin@jkdm.gov.my',
                 'email' => 'superadmin@jkdm.gov.my',
                 'password' => Hash::make('SuperAdmin@123'),
                 'role_id' => $superAdminRole?->id,
@@ -38,6 +39,7 @@ class UserSeeder extends Seeder
             ],
             [
                 'name' => 'System Admin',
+                'username' => 'admin@jkdm.gov.my',
                 'email' => 'admin@jkdm.gov.my',
                 'password' => Hash::make('Admin@123'),
                 'role_id' => $adminRole?->id,
@@ -50,7 +52,7 @@ class UserSeeder extends Seeder
 
         // Only insert users that don't exist
         foreach ($users as $user) {
-            if (!DB::table('users')->where('email', $user['email'])->exists()) {
+            if (!DB::table('users')->where('username', $user['username'])->exists()) {
                 DB::table('users')->insert($user);
             }
         }

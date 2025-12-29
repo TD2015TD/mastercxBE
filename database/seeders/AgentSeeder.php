@@ -28,6 +28,7 @@ class AgentSeeder extends Seeder
             [
                 'user' => [
                     'name' => 'Siti Nurhaliza',
+                    'username' => 'siti.nurhaliza@jkdm.gov.my',
                     'email' => 'siti.nurhaliza@jkdm.gov.my',
                     'password' => Hash::make('Super@123'),
                     'role_id' => $supervisorRole->id,
@@ -50,6 +51,7 @@ class AgentSeeder extends Seeder
             [
                 'user' => [
                     'name' => 'Ahmad Rahman',
+                    'username' => 'ahmad.rahman@jkdm.gov.my',
                     'email' => 'ahmad.rahman@jkdm.gov.my',
                     'password' => Hash::make('Agent@123'),
                     'role_id' => $agentRole->id,
@@ -72,6 +74,7 @@ class AgentSeeder extends Seeder
             [
                 'user' => [
                     'name' => 'Raj Kumar',
+                    'username' => 'raj.kumar@jkdm.gov.my',
                     'email' => 'raj.kumar@jkdm.gov.my',
                     'password' => Hash::make('Agent@123'),
                     'role_id' => $agentRole->id,

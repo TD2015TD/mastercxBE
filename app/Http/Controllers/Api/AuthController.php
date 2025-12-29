@@ -14,19 +14,19 @@ use OpenApi\Attributes as OA;
 class AuthController extends Controller
 {
     /**
-     * Authenticate user via email/password or Ignite Mitel and return JWT token
+     * Authenticate user via username/password or Ignite Mitel and return JWT token
      */
     #[OA\Post(
         path: "/api/v1/auth/login",
         summary: "User login",
-        description: "Authenticate user with email/password or Ignite token and return JWT access token",
+        description: "Authenticate user with username/password or Ignite token and return JWT access token",
         tags: ["Authentication"],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ["email", "password"],
+                required: ["username", "password"],
                 properties: [
-                    new OA\Property(property: "email", type: "string", format: "email", example: "superadmin@jkm.gov.my"),
+                    new OA\Property(property: "username", type: "string", example: "superadmin@jkm.gov.my"),
                     new OA\Property(property: "password", type: "string", format: "password", example: "password"),
                 ]
             )
@@ -93,15 +93,15 @@ class AuthController extends Controller
     )]
     public function login(Request $request)
     {
-        // Check if it's email/password login or Ignite token login
-        if ($request->has('email') && $request->has('password')) {
-            $response = $this->emailPasswordLogin($request);
+        // Check if it's username/password login or Ignite token login
+        if ($request->has('username') && $request->has('password')) {
+            $response = $this->usernamePasswordLogin($request);
         } elseif ($request->has('ignite_token')) {
             $response = $this->igniteTokenLogin($request);
         } else {
             return response()->json([
                 'success' => false,
-                'message' => 'Please provide either email/password or ignite_token'
+                'message' => 'Please provide either username/password or ignite_token'
             ], 422);
         }
 
@@ -137,12 +137,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Email/Password authentication
+     * Username/Password authentication
      */
-    private function emailPasswordLogin(Request $request)
+    private function usernamePasswordLogin(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string',
+            'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -153,7 +153,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('username', 'password');
 
         try {
             // Use AuthenticationService to handle both database and LDAP authentication

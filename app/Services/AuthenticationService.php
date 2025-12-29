@@ -36,8 +36,8 @@ class AuthenticationService
      */
     protected function authenticateDatabase($credentials)
     {
-        // Find user by email only (users table doesn't have username column)
-        $user = User::where('email', $credentials['email'])->first();
+        // Find user by username
+        $user = User::where('username', $credentials['username'])->first();
 
         if (!$user) {
             return [
@@ -127,7 +127,7 @@ class AuthenticationService
             ldap_close($ldapConn);
 
             // Find or create user in local database
-            $user = $this->syncLdapUser($credentials['email']);
+            $user = $this->syncLdapUser($credentials['username']);
 
             if (!$user) {
                 return [
@@ -204,10 +204,10 @@ class AuthenticationService
     /**
      * Sync LDAP user to local database
      */
-    protected function syncLdapUser($email)
+    protected function syncLdapUser($username)
     {
-        // Find user by email only (users table doesn't have username column)
-        $user = User::where('email', $email)->first();
+        // Find user by username
+        $user = User::where('username', $username)->first();
 
         // If user doesn't exist, create a new one (if registration is allowed)
         if (!$user) {
@@ -222,8 +222,9 @@ class AuthenticationService
             }
 
             $user = User::create([
-                'email' => $email,
-                'name' => $email,
+                'username' => $username,
+                'email' => $username, // Default email to username
+                'name' => $username,
                 'password' => Hash::make(bin2hex(random_bytes(16))), // Random password (won't be used)
                 'role_id' => 2, // Default to Agent role
             ]);
