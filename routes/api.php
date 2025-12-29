@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controlle
 use App\Http\Controllers\Api\SystemConfigurationController;
 use App\Http\Controllers\Api\SupersetController;
 use App\Http\Controllers\Api\SupersetDashboardController;
+use App\Http\Controllers\MitelConfigurationController;
 
 Route::prefix('v1')->group(function () {
     // Public routes
@@ -82,6 +83,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/categories/tree/view', [CategoryController::class, 'tree']);
     Route::get('/categories/department-level/filter', [CategoryController::class, 'byDepartmentLevel']);
+
+    // Mitel Configuration (public - for frontend to fetch config)
+    Route::get('/mitel-config', [MitelConfigurationController::class, 'index']);
 
     // Protected routes (with auto-refresh for call center agents)
     Route::middleware(['jwt.verify', 'jwt.auto.refresh'])->group(function () {
@@ -340,6 +344,12 @@ Route::prefix('v1')->group(function () {
             // Queue Monitoring
             Route::get('/queues', [MitelQueueController::class, 'index']);
             Route::get('/queues/{queueId}/statistics', [MitelQueueController::class, 'getStatistics']);
+        });
+
+        // Mitel Configuration Management (Admin only)
+        Route::prefix('mitel-config')->group(function () {
+            Route::get('/{key}', [MitelConfigurationController::class, 'show']);
+            Route::put('/{key}', [MitelConfigurationController::class, 'update']);
         });
         
         // Mitel Webhook - Receives real-time events from Mitel system
