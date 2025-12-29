@@ -728,7 +728,8 @@ class TicketController extends Controller
     public function reserveTicketNumber(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'case_id' => 'required|string|max:100',
+            'case_id' => 'nullable|string|max:100',
+            'conversation_id' => 'nullable|string|max:100',
             'phone_number' => 'required|string|max:50',
             'channel' => 'nullable|in:phone,email,chat,web,walk-in',
         ]);
@@ -740,37 +741,64 @@ class TicketController extends Controller
             ], 422);
         }
 
+        // At least one identifier (case_id or conversation_id) must be provided
+        if (!$request->case_id && !$request->conversation_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Either case_id or conversation_id must be provided',
+            ], 422);
+        }
+
         try {
             $caseId = $request->case_id;
+            $conversationId = $request->conversation_id;
             $channel = $request->channel ?? 'phone';
 
-            // Check if a ticket with this case_id already exists
-            $existingTicket = Ticket::where('case_id', $caseId)->first();
+            // Use database transaction with row locking to prevent race conditions
+            return DB::transaction(function () use ($caseId, $conversationId, $channel) {
+                // Check if a ticket with this case_id OR conversation_id already exists
+                // Using OR logic - finds ticket if EITHER identifier matches
+                // Use lockForUpdate to prevent race conditions during simultaneous calls
+                $existingTicket = Ticket::where(function($query) use ($caseId, $conversationId) {
+                    if ($caseId) {
+                        $query->where('case_id', $caseId);
+                    }
+                    if ($conversationId) {
+                        if ($caseId) {
+                            $query->orWhere('conversation_id', $conversationId);
+                        } else {
+                            $query->where('conversation_id', $conversationId);
+                        }
+                    }
+                })
+                ->lockForUpdate()
+                ->first();
 
-            if ($existingTicket) {
-                // Return existing ticket info so frontend can redirect
+                if ($existingTicket) {
+                    // Return existing ticket info so frontend can redirect
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'ticket_number' => $existingTicket->ticket_number,
+                            'ticket_id' => $existingTicket->id,
+                            'exists' => true,
+                        ],
+                    ]);
+                }
+
+                // No existing ticket - generate a new ticket number
+                // The uniqueness is guaranteed by the sequence generation mechanism
+                $sequenceName = $channel === 'walk-in' ? 'walkIn' : $channel;
+                $ticketNumber = $this->generateTicketNumber($sequenceName);
+
                 return response()->json([
                     'success' => true,
                     'data' => [
-                        'ticket_number' => $existingTicket->ticket_number,
-                        'ticket_id' => $existingTicket->id,
-                        'exists' => true,
+                        'ticket_number' => $ticketNumber,
+                        'exists' => false,
                     ],
                 ]);
-            }
-
-            // No existing ticket - generate a new ticket number
-            // The uniqueness is guaranteed by the sequence generation mechanism
-            $sequenceName = $channel === 'walk-in' ? 'walkIn' : $channel;
-            $ticketNumber = $this->generateTicketNumber($sequenceName);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'ticket_number' => $ticketNumber,
-                    'exists' => false,
-                ],
-            ]);
+            });
         } catch (\Exception $e) {
             \Log::error('Error reserving ticket number: ' . $e->getMessage());
 
@@ -986,6 +1014,125 @@ class TicketController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Create ticket from email message.
+     * This is an internal method used by the email processing service.
+     */
+    public function createFromEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email_message_id' => 'required|exists:email_messages,id',
+            'customer_id' => 'required|exists:customers,id',
+            'subject' => 'required|string|max:255',
+            'description' => 'required|string',
+            'priority' => 'nullable|in:P1,P2,P3,P4',
+            'department' => 'nullable|string|max:100',
+            'assigned_to' => 'nullable|exists:agents,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $data = $validator->validated();
+
+            // Set defaults for email-originated tickets
+            $data['priority'] = $data['priority'] ?? 'P3';
+            $data['department'] = $data['department'] ?? 'Support';
+            $data['category'] = 'Email Request';
+            $data['channel'] = 'email';
+            $data['source'] = 'IMAP';
+            $data['urgency'] = $this->mapPriorityToUrgency($data['priority']);
+            $data['impact'] = 'Medium';
+            $data['status'] = 'Open';
+
+            // Generate ticket number
+            $data['ticket_number'] = $this->generateTicketNumber('email');
+
+            // Auto-assign if not provided
+            if (!isset($data['assigned_to']) || !$data['assigned_to']) {
+                $data['assigned_to'] = $this->autoAssignAgent($data['department']);
+            }
+
+            $ticket = Ticket::create($data);
+
+            // Update email message with ticket ID
+            $emailMessage = \App\Models\EmailMessage::find($request->email_message_id);
+            if ($emailMessage) {
+                $emailMessage->ticket_id = $ticket->id;
+                $emailMessage->markAsProcessed();
+            }
+
+            // Log ticket creation
+            $ticket->logHistory(
+                'created',
+                null,
+                null,
+                null,
+                "Ticket created from email message",
+                [
+                    'email_message_id' => $request->email_message_id,
+                    'from_email' => $emailMessage->from_email ?? 'Unknown',
+                ]
+            );
+
+            // Log assignment if assigned
+            if ($ticket->assigned_to) {
+                $agent = Agent::with('user')->find($ticket->assigned_to);
+                $ticket->logHistory(
+                    'assigned',
+                    'assigned_to',
+                    null,
+                    $agent->user->name ?? 'Unknown',
+                    "Ticket assigned to " . ($agent->user->name ?? 'agent'),
+                    ['agent_id' => $ticket->assigned_to]
+                );
+            }
+
+            // Calculate SLA
+            $ticket->calculateSla();
+            $ticket->save();
+
+            DB::commit();
+
+            $ticket->load(['customer', 'assignedAgent.user', 'creator']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ticket created from email successfully',
+                'data' => $ticket,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create ticket from email',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Map priority to urgency level.
+     */
+    private function mapPriorityToUrgency(string $priority): string
+    {
+        return match($priority) {
+            'P1' => 'Critical',
+            'P2' => 'High',
+            'P3' => 'Medium',
+            'P4' => 'Low',
+            default => 'Medium',
+        };
     }
 
     /**

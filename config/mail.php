@@ -115,4 +115,24 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | IMAP Configuration (for incoming emails)
+    |--------------------------------------------------------------------------
+    |
+    | Configure IMAP settings to receive incoming emails and automatically
+    | create tickets from them. The email processor will connect to this
+    | IMAP server and check for new messages.
+    |
+    */
+
+    'imap' => [
+        'host' => env('IMAP_HOST', 'imap.gmail.com'),
+        'port' => env('IMAP_PORT', 993),
+        'encryption' => env('IMAP_ENCRYPTION', 'ssl'), // ssl or tls
+        'username' => env('IMAP_USERNAME'),
+        'password' => env('IMAP_PASSWORD'),
+        'folder' => env('IMAP_FOLDER', 'INBOX'),
+    ],
+
 ];

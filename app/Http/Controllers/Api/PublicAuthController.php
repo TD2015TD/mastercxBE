@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CitizenAuthSession;
 use App\Models\Customer;
 use App\Mail\CitizenOtpMail;
+use App\Services\DynamicMailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
@@ -82,8 +83,8 @@ class PublicAuthController extends Controller
                 'otp_expires_at' => $expiresAt,
             ]);
 
-            // Send OTP email
-            Mail::to($email)->send(new CitizenOtpMail($otpCode, $phoneNumber));
+            // Send OTP email using database SMTP configuration if available
+            DynamicMailService::send($email, new CitizenOtpMail($otpCode, $phoneNumber));
 
             Log::info('OTP requested', [
                 'phone' => substr($phoneNumber, 0, 3) . '***' . substr($phoneNumber, -2),

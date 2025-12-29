@@ -24,16 +24,35 @@ class Kernel extends ConsoleKernel
                 \Illuminate\Support\Facades\Log::error('SLA Monitor failed');
             });
 
+        // Email Processing - Run every minute to check for new emails
+        $schedule->command('email:process --once')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->onSuccess(function () {
+                \Illuminate\Support\Facades\Log::debug('Email processing check completed');
+            })
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::error('Email processing failed');
+            });
+
         // Alternative schedules (comment/uncomment as needed):
-        
+
         // More frequent monitoring (every 5 minutes) for high-traffic systems:
         // $schedule->command('sla:monitor')->everyFiveMinutes()->withoutOverlapping();
-        
+
         // Less frequent monitoring (every 30 minutes) for lower-traffic systems:
         // $schedule->command('sla:monitor')->everyThirtyMinutes()->withoutOverlapping();
-        
+
         // Run only during business hours (8 AM to 6 PM):
         // $schedule->command('sla:monitor')->everyFifteenMinutes()->between('8:00', '18:00')->withoutOverlapping();
+
+        // Email processing alternatives:
+        // Less frequent email checks (every 5 minutes):
+        // $schedule->command('email:process --once')->everyFiveMinutes()->withoutOverlapping();
+
+        // Email processing during business hours only:
+        // $schedule->command('email:process --once')->everyMinute()->between('8:00', '18:00')->withoutOverlapping();
     }
 
     /**

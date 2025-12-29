@@ -225,14 +225,32 @@ Route::prefix('v1')->group(function () {
             Route::post('/configurations/test-ldap', [SystemConfigurationController::class, 'testLdapConnection']);
             Route::post('/configurations/clear-cache', [SystemConfigurationController::class, 'clearCache']);
         });
+
+        // Email Configuration Management
+        Route::prefix('email-configurations')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'store']);
+            Route::get('/active-imap', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'getActiveImap']);
+            Route::get('/{id}', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'destroy']);
+            Route::post('/{id}/test-smtp', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'testSmtp']);
+            Route::post('/{id}/test-imap', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'testImap']);
+            Route::post('/{id}/set-default', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'setDefault']);
+            Route::post('/{id}/toggle-active', [\App\Http\Controllers\Api\EmailConfigurationController::class, 'toggleActive']);
+        });
         
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::post('/notifications/email', [NotificationController::class, 'createEmailNotification']);
         Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
         Route::delete('/notifications', [NotificationController::class, 'clearAll']);
+
+        // Email Ticket Management
+        Route::post('/tickets/from-email', [TicketController::class, 'createFromEmail']);
         
         // Menu Management
         Route::get('/menus', [MenuController::class, 'index']); // Get menus for authenticated user

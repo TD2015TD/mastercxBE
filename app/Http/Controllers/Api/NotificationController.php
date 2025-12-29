@@ -155,7 +155,7 @@ class NotificationController extends Controller
     {
         $type = $data['type'] ?? 'general';
         $level = $data['level'] ?? 'info';
-        
+
         $titles = [
             'sla_alert' => [
                 'warning' => 'SLA Warning',
@@ -177,8 +177,78 @@ class NotificationController extends Controller
             'ticket_escalated' => [
                 'default' => 'Ticket Escalated',
             ],
+            'email_ticket_created' => [
+                'default' => 'New Email Ticket',
+            ],
+            'email_ticket_reply' => [
+                'default' => 'Email Reply Received',
+            ],
         ];
-        
+
         return $titles[$type][$level] ?? $titles[$type]['default'] ?? 'Notification';
+    }
+
+    /**
+     * Create notification for email ticket.
+     * This is used by the email processing service.
+     */
+    public function createEmailNotification(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+            'ticket_id' => 'required|exists:tickets,id',
+            'ticket_number' => 'required|string',
+            'type' => 'required|in:email_ticket_created,email_ticket_reply',
+            'message' => 'required|string',
+            'priority' => 'nullable|string',
+            'department' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $user = \App\Models\User::find($request->user_id);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Create database notification
+            $notification = $user->notifications()->create([
+                'id' => \Illuminate\Support\Str::uuid(),
+                'type' => 'App\\Notifications\\EmailTicketNotification',
+                'data' => [
+                    'type' => $request->type,
+                    'level' => 'info',
+                    'message' => $request->message,
+                    'ticket_id' => $request->ticket_id,
+                    'ticket_number' => $request->ticket_number,
+                    'priority' => $request->priority,
+                    'department' => $request->department,
+                    'url' => "/tickets/{$request->ticket_id}",
+                ],
+                'read_at' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email notification created successfully',
+                'data' => $notification
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create notification',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
