@@ -1,0 +1,42 @@
+[Unit]
+Description=Laravel WebSocket Server (Reverb/Soketi)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+
+# Set working directory to your Laravel application
+WorkingDirectory=/var/www/jkdm-crm/crm-api
+
+# Environment variables
+Environment="PHP_VERSION=8.2"
+Environment="PATH=/usr/bin:/usr/local/bin"
+Environment="LARAVEL_WEBSOCKETS_PORT=6001"
+
+# Command to run WebSocket server
+# If using Laravel Reverb:
+ExecStart=/usr/bin/php artisan reverb:start --host=0.0.0.0 --port=6001
+
+# Alternative: If using Soketi (uncomment below and comment above)
+# ExecStart=/usr/local/bin/soketi start --config=/var/www/jkdm-crm/crm-api/soketi.config.json
+
+# Restart on failure
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Process management
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

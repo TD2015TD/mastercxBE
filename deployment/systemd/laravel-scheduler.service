@@ -1,0 +1,37 @@
+[Unit]
+Description=Laravel Scheduler
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=60
+
+# Set working directory to your Laravel application
+WorkingDirectory=/var/www/jkdm-crm/crm-api
+
+# Environment variables
+Environment="PHP_VERSION=8.2"
+Environment="PATH=/usr/bin:/usr/local/bin"
+
+# Run scheduler every minute
+# This replaces the need for cron
+ExecStart=/bin/bash -c 'while true; do /usr/bin/php artisan schedule:run --verbose --no-interaction; sleep 60; done'
+
+# Restart on failure
+KillMode=process
+KillSignal=SIGTERM
+
+# Process management
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

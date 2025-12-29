@@ -1,0 +1,41 @@
+[Unit]
+Description=Laravel Queue Worker - Default Queue
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=3
+
+# Set working directory to your Laravel application
+WorkingDirectory=/var/www/jkdm-crm/crm-api
+
+# Environment variables
+Environment="PHP_VERSION=8.2"
+Environment="PATH=/usr/bin:/usr/local/bin"
+
+# Command to run the queue worker
+# --queue=default: Process default queue
+# --sleep=3: Sleep 3 seconds when no jobs available
+# --tries=3: Retry failed jobs up to 3 times
+# --max-time=3600: Restart worker after 1 hour
+ExecStart=/usr/bin/php artisan queue:work --queue=default --sleep=3 --tries=3 --max-time=3600 --timeout=90
+
+# Restart on failure
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Process management
+TimeoutStopSec=60
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

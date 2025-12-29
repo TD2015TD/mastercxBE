@@ -1,0 +1,38 @@
+[Unit]
+Description=Laravel Email Processor (IMAP)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=10
+
+# Set working directory to your Laravel application
+WorkingDirectory=/var/www/jkdm-crm/crm-api
+
+# Environment variables
+Environment="PHP_VERSION=8.2"
+Environment="PATH=/usr/bin:/usr/local/bin"
+
+# Command to run the email processor
+# --interval=60: Check for emails every 60 seconds
+ExecStart=/usr/bin/php artisan email:process --interval=60
+
+# Restart on failure
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Process management
+TimeoutStopSec=60
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
