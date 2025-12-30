@@ -221,26 +221,32 @@ class TicketNumberSequenceController extends Controller
 
     /**
      * Preview what the next ticket number will look like.
+     * Uses pessimistic locking to prevent race conditions during simultaneous calls.
      */
     public function preview(string $id)
     {
-        $sequence = TicketNumberSequence::find($id);
+        return \DB::transaction(function () use ($id) {
+            // Lock the row for update to prevent race conditions
+            $sequence = TicketNumberSequence::where('id', $id)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$sequence) {
+            if (!$sequence) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ticket number sequence not found',
+                ], 404);
+            }
+
             return response()->json([
-                'success' => false,
-                'message' => 'Ticket number sequence not found',
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'current_number' => $sequence->current_number,
-                'next_number' => $sequence->current_number + 1,
-                'sample_output' => $sequence->generateSample(),
-                'pattern' => $sequence->pattern,
-            ],
-        ]);
+                'success' => true,
+                'data' => [
+                    'current_number' => $sequence->current_number,
+                    'next_number' => $sequence->current_number + 1,
+                    'sample_output' => $sequence->generateSample(),
+                    'pattern' => $sequence->pattern,
+                ],
+            ]);
+        });
     }
 }

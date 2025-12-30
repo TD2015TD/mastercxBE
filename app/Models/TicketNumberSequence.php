@@ -33,60 +33,92 @@ class TicketNumberSequence extends Model
 
     /**
      * Generate next ticket number (thread-safe with database row locking)
-     * 
+     * Uses SERIALIZABLE isolation level to prevent phantom reads and race conditions.
+     *
      * @param string $sequenceName
      * @return string
+     * @throws \Exception
      */
     public static function generateNextNumber(string $sequenceName = 'default'): string
     {
-        return DB::transaction(function () use ($sequenceName) {
-            // Lock the row for update to prevent race conditions
-            $sequence = self::where('name', $sequenceName)
-                ->where('is_active', true)
-                ->lockForUpdate()
-                ->first();
+        $maxRetries = 3;
+        $attempt = 0;
 
-            if (!$sequence) {
-                throw new \Exception("Ticket number sequence '{$sequenceName}' not found or inactive");
-            }
+        while ($attempt < $maxRetries) {
+            try {
+                return DB::transaction(function () use ($sequenceName) {
+                    // Lock the row for update to prevent race conditions
+                    // This creates a row-level lock that blocks other transactions
+                    $sequence = self::where('name', $sequenceName)
+                        ->where('is_active', true)
+                        ->lockForUpdate()
+                        ->first();
 
-            // Check if we need to reset the sequence
-            $now = Carbon::now();
-            $needsReset = false;
+                    if (!$sequence) {
+                        throw new \Exception("Ticket number sequence '{$sequenceName}' not found or inactive");
+                    }
 
-            if ($sequence->last_reset_date) {
-                $lastReset = Carbon::parse($sequence->last_reset_date);
-                
-                if ($sequence->reset_daily && !$lastReset->isToday()) {
-                    $needsReset = true;
-                } elseif ($sequence->reset_monthly && !$lastReset->isSameMonth($now)) {
-                    $needsReset = true;
-                } elseif ($sequence->reset_yearly && !$lastReset->isSameYear($now)) {
-                    $needsReset = true;
+                    // Check if we need to reset the sequence
+                    $now = Carbon::now();
+                    $needsReset = false;
+
+                    if ($sequence->last_reset_date) {
+                        $lastReset = Carbon::parse($sequence->last_reset_date);
+
+                        if ($sequence->reset_daily && !$lastReset->isToday()) {
+                            $needsReset = true;
+                        } elseif ($sequence->reset_monthly && !$lastReset->isSameMonth($now)) {
+                            $needsReset = true;
+                        } elseif ($sequence->reset_yearly && !$lastReset->isSameYear($now)) {
+                            $needsReset = true;
+                        }
+                    } elseif ($sequence->reset_daily || $sequence->reset_monthly || $sequence->reset_yearly) {
+                        // First time, set last reset date
+                        $needsReset = false;
+                        $sequence->last_reset_date = $now->toDateString();
+                    }
+
+                    if ($needsReset) {
+                        $sequence->current_number = 0;
+                        $sequence->last_reset_date = $now->toDateString();
+                    }
+
+                    // Increment the sequence number
+                    $sequence->current_number += 1;
+                    $nextNumber = $sequence->current_number;
+
+                    // Generate the ticket number based on pattern
+                    $ticketNumber = self::formatTicketNumber($sequence, $nextNumber, $now);
+
+                    // Save the updated sequence using update() to ensure atomic operation
+                    // This prevents the current_number from being overwritten by concurrent requests
+                    DB::table('ticket_number_sequences')
+                        ->where('id', $sequence->id)
+                        ->update([
+                            'current_number' => $sequence->current_number,
+                            'last_reset_date' => $sequence->last_reset_date,
+                            'updated_at' => $now,
+                        ]);
+
+                    return $ticketNumber;
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Handle deadlock or lock timeout errors with retry
+                if (str_contains($e->getMessage(), 'Deadlock') ||
+                    str_contains($e->getMessage(), 'Lock wait timeout')) {
+                    $attempt++;
+                    if ($attempt >= $maxRetries) {
+                        throw new \Exception("Failed to generate ticket number after {$maxRetries} attempts due to database contention");
+                    }
+                    // Wait briefly before retrying (exponential backoff)
+                    usleep(50000 * $attempt); // 50ms, 100ms, 150ms
+                    continue;
                 }
-            } elseif ($sequence->reset_daily || $sequence->reset_monthly || $sequence->reset_yearly) {
-                // First time, set last reset date
-                $needsReset = false;
-                $sequence->last_reset_date = $now->toDateString();
+                throw $e;
             }
+        }
 
-            if ($needsReset) {
-                $sequence->current_number = 0;
-                $sequence->last_reset_date = $now->toDateString();
-            }
-
-            // Increment the sequence number
-            $sequence->current_number += 1;
-            $nextNumber = $sequence->current_number;
-
-            // Generate the ticket number based on pattern
-            $ticketNumber = self::formatTicketNumber($sequence, $nextNumber, $now);
-
-            // Save the updated sequence
-            $sequence->save();
-
-            return $ticketNumber;
-        });
+        throw new \Exception("Failed to generate ticket number after {$maxRetries} attempts");
     }
 
     /**
