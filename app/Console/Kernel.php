@@ -53,6 +53,33 @@ class Kernel extends ConsoleKernel
 
         // Email processing during business hours only:
         // $schedule->command('email:process --once')->everyMinute()->between('8:00', '18:00')->withoutOverlapping();
+
+        // Mitel Data Sync - Sync all active connections based on config
+        $syncSchedule = config('mitel.sync_schedule', '*/30 * * * *');
+        $schedule->command('mitel:sync --all')
+            ->cron($syncSchedule)
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->onSuccess(function () {
+                \Illuminate\Support\Facades\Log::info('Mitel data sync completed successfully');
+            })
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::error('Mitel data sync failed');
+            });
+
+        // Alternative Mitel sync schedules (comment/uncomment as needed):
+
+        // More frequent sync (every 15 minutes):
+        // $schedule->command('mitel:sync --all')->everyFifteenMinutes()->withoutOverlapping();
+
+        // Hourly sync:
+        // $schedule->command('mitel:sync --all')->hourly()->withoutOverlapping();
+
+        // Daily sync at specific time:
+        // $schedule->command('mitel:sync --all')->dailyAt('02:00')->withoutOverlapping();
+
+        // Business hours only (8 AM to 6 PM):
+        // $schedule->command('mitel:sync --all')->cron($syncSchedule)->between('8:00', '18:00')->withoutOverlapping();
     }
 
     /**

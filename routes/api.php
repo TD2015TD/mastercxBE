@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\SystemConfigurationController;
 use App\Http\Controllers\Api\SupersetController;
 use App\Http\Controllers\Api\SupersetDashboardController;
 use App\Http\Controllers\MitelConfigurationController;
+use App\Http\Controllers\MitelConnectionController;
 
 Route::prefix('v1')->group(function () {
     // Public routes
@@ -350,6 +351,19 @@ Route::prefix('v1')->group(function () {
         Route::prefix('mitel-config')->group(function () {
             Route::get('/{key}', [MitelConfigurationController::class, 'show']);
             Route::put('/{key}', [MitelConfigurationController::class, 'update']);
+        });
+
+        // Mitel Connection Management (Admin only)
+        Route::prefix('mitel-connections')->group(function () {
+            Route::get('/', [MitelConnectionController::class, 'index']);
+            Route::get('/{id}', [MitelConnectionController::class, 'show']);
+            Route::post('/', [MitelConnectionController::class, 'store']);
+            Route::put('/{id}', [MitelConnectionController::class, 'update']);
+            Route::delete('/{id}', [MitelConnectionController::class, 'destroy']);
+            Route::post('/{id}/test', [MitelConnectionController::class, 'test']);
+            Route::post('/{id}/sync', [MitelConnectionController::class, 'sync']);
+            Route::get('/{id}/logs', [MitelConnectionController::class, 'logs']);
+            Route::get('/{id}/stats', [MitelConnectionController::class, 'stats']);
         });
         
         // Mitel Webhook - Receives real-time events from Mitel system
