@@ -178,17 +178,30 @@ class MitelDataSyncService
                             $inserted++;
                         }
                     } catch (\Illuminate\Database\QueryException $e) {
-                        // If table doesn't exist, try to insert without checking for duplicates
-                        if (str_contains($e->getMessage(), 'does not exist')) {
+                        // If table doesn't exist, log warning and skip
+                        if (str_contains($e->getMessage(), 'does not exist') || str_contains($e->getMessage(), 'relation') && str_contains($e->getMessage(), 'does not exist')) {
                             Log::warning("Table {$mapping['target_table']} does not exist. Please create migrations for Mitel data tables.");
                             $failed++;
-                        } else {
-                            throw $e;
+                            continue;
                         }
+                        
+                        // For other query errors (like duplicate keys), try to log details
+                        Log::error("Query error for table {$mapping['target_table']}: " . $e->getMessage());
+                        throw $e;
                     }
                 } else {
-                    DB::table($mapping['target_table'])->insert($data);
-                    $inserted++;
+                    try {
+                        DB::table($mapping['target_table'])->insert($data);
+                        $inserted++;
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        if (str_contains($e->getMessage(), 'does not exist') || str_contains($e->getMessage(), 'relation') && str_contains($e->getMessage(), 'does not exist')) {
+                            Log::warning("Table {$mapping['target_table']} does not exist. Please create migrations for Mitel data tables.");
+                            $failed++;
+                            continue;
+                        }
+                        Log::error("Insert error for table {$mapping['target_table']}: " . $e->getMessage());
+                        throw $e;
+                    }
                 }
 
             } catch (\Exception $e) {
