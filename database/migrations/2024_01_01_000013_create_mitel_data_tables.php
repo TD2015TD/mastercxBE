@@ -14,16 +14,16 @@ return new class extends Migration
         // Data: Agent Performance By Period
         Schema::create('mitel_data_agent_performance', function (Blueprint $table) {
             $table->string('id', 50)->primary();
-            $table->string('agent_id', 50)->index();
-            $table->timestamp('period_date')->index();
+            $table->string('agent_id', 50)->nullable()->index();
+            $table->timestamp('period_date')->nullable()->index();
             $table->string('day_of_week_id', 50)->nullable()->index();
             $table->string('time_interval_id', 50)->nullable()->index();
-            $table->integer('acd_count')->default(0);
-            $table->integer('acd_duration')->default(0);
-            $table->integer('shift_duration')->default(0);
-            $table->integer('idle_duration')->default(0);
-            $table->integer('make_busy_count')->default(0);
-            $table->integer('make_busy_duration')->default(0);
+            $table->integer('acd_count')->nullable()->default(0);
+            $table->integer('acd_duration')->nullable()->default(0);
+            $table->integer('shift_duration')->nullable()->default(0);
+            $table->integer('idle_duration')->nullable()->default(0);
+            $table->integer('make_busy_count')->nullable()->default(0);
+            $table->integer('make_busy_duration')->nullable()->default(0);
             $table->timestamp('synced_at')->nullable();
             
             $table->index(['agent_id', 'period_date']);
@@ -35,15 +35,15 @@ return new class extends Migration
         // Data: Queue Performance By Period
         Schema::create('mitel_data_queue_performance', function (Blueprint $table) {
             $table->string('id', 50)->primary();
-            $table->string('queue_id', 50)->index();
-            $table->timestamp('period_date')->index();
+            $table->string('queue_id', 50)->nullable()->index();
+            $table->timestamp('period_date')->nullable()->index();
             $table->string('day_of_week_id', 50)->nullable()->index();
             $table->string('time_interval_id', 50)->nullable()->index();
-            $table->integer('acd_count')->default(0);
-            $table->integer('acd_duration')->default(0);
-            $table->integer('abandon_count')->default(0);
-            $table->integer('service_level')->default(0);
-            $table->integer('max_waiting_calls')->default(0);
+            $table->integer('acd_count')->nullable()->default(0);
+            $table->integer('acd_duration')->nullable()->default(0);
+            $table->integer('abandon_count')->nullable()->default(0);
+            $table->integer('service_level')->nullable()->default(0);
+            $table->integer('max_waiting_calls')->nullable()->default(0);
             $table->timestamp('synced_at')->nullable();
             
             $table->index(['queue_id', 'period_date']);
@@ -59,9 +59,9 @@ return new class extends Migration
             $table->string('queue_id', 50)->nullable()->index();
             $table->string('dnis_id', 50)->nullable()->index();
             $table->string('ani_id', 50)->nullable()->index();
-            $table->timestamp('call_date')->index();
-            $table->integer('duration')->default(0);
-            $table->integer('time_to_answer')->default(0);
+            $table->timestamp('call_date')->nullable()->index();
+            $table->integer('duration')->nullable()->default(0);
+            $table->integer('time_to_answer')->nullable()->default(0);
             $table->string('digits_dialed', 50)->nullable();
             $table->string('call_id', 100)->nullable()->index();
             $table->timestamp('synced_at')->nullable();
@@ -79,8 +79,8 @@ return new class extends Migration
             $table->string('id', 50)->primary();
             $table->string('agent_id', 50)->nullable()->index();
             $table->string('account_code_id', 50)->nullable()->index();
-            $table->timestamp('call_date')->index();
-            $table->integer('duration')->default(0);
+            $table->timestamp('call_date')->nullable()->index();
+            $table->integer('duration')->nullable()->default(0);
             $table->string('digits_dialed', 50)->nullable();
             $table->string('call_id', 100)->nullable()->index();
             $table->timestamp('synced_at')->nullable();
@@ -93,8 +93,8 @@ return new class extends Migration
         // Data: Agent Trace Events
         Schema::create('mitel_data_agent_trace_events', function (Blueprint $table) {
             $table->string('id', 50)->primary();
-            $table->string('agent_id', 50)->index();
-            $table->timestamp('event_start_date')->index();
+            $table->string('agent_id', 50)->nullable()->index();
+            $table->timestamp('event_start_date')->nullable()->index();
             $table->timestamp('event_end_date')->nullable()->index();
             $table->string('acd_event_id', 50)->nullable();
             $table->string('make_busy_id', 50)->nullable()->index();
@@ -110,10 +110,10 @@ return new class extends Migration
         // Data: Agent Events
         Schema::create('mitel_data_agent_events', function (Blueprint $table) {
             $table->string('id', 50)->primary();
-            $table->string('agent_id', 50)->index();
-            $table->timestamp('event_date')->index();
+            $table->string('agent_id', 50)->nullable()->index();
+            $table->timestamp('event_date')->nullable()->index();
             $table->string('event_type', 100)->nullable();
-            $table->integer('duration')->default(0);
+            $table->integer('duration')->nullable()->default(0);
             $table->timestamp('synced_at')->nullable();
             
             $table->index(['agent_id', 'event_date']);
