@@ -163,18 +163,28 @@ class MitelDataSyncService
                 
                 // Insert or update in local database
                 if ($uniqueKey && isset($data[$uniqueKey])) {
-                    $existing = DB::table($mapping['target_table'])
-                        ->where($uniqueKey, $data[$uniqueKey])
-                        ->first();
-
-                    if ($existing) {
-                        DB::table($mapping['target_table'])
+                    try {
+                        $existing = DB::table($mapping['target_table'])
                             ->where($uniqueKey, $data[$uniqueKey])
-                            ->update($data);
-                        $updated++;
-                    } else {
-                        DB::table($mapping['target_table'])->insert($data);
-                        $inserted++;
+                            ->first();
+
+                        if ($existing) {
+                            DB::table($mapping['target_table'])
+                                ->where($uniqueKey, $data[$uniqueKey])
+                                ->update($data);
+                            $updated++;
+                        } else {
+                            DB::table($mapping['target_table'])->insert($data);
+                            $inserted++;
+                        }
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        // If table doesn't exist, try to insert without checking for duplicates
+                        if (str_contains($e->getMessage(), 'does not exist')) {
+                            Log::warning("Table {$mapping['target_table']} does not exist. Please create migrations for Mitel data tables.");
+                            $failed++;
+                        } else {
+                            throw $e;
+                        }
                     }
                 } else {
                     DB::table($mapping['target_table'])->insert($data);
