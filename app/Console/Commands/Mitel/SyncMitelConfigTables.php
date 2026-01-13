@@ -137,19 +137,13 @@ class SyncMitelConfigTables extends Command
         $fullSync = ($syncType === 'full');
         
         try {
-            // Configure database connection dynamically
+            // Configure database connection dynamically using connection's built-in method
             config([
-                'database.connections.sqlsrv_mitel_dynamic' => [
-                    'driver' => 'sqlsrv',
-                    'host' => $connection->host,
-                    'port' => $connection->port,
-                    'database' => $connection->database,
-                    'username' => $connection->username,
-                    'password' => decrypt($connection->password),
-                    'charset' => 'utf8',
-                    'prefix' => '',
-                ]
+                'database.connections.sqlsrv_mitel_dynamic' => $connection->getConnectionConfig()
             ]);
+
+            // Test the connection
+            DB::connection('sqlsrv_mitel_dynamic')->getPdo();
 
             if (in_array('anis', $tables)) {
                 $this->syncANIs($fullSync);
