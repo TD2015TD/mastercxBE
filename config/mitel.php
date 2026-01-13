@@ -33,7 +33,7 @@ return [
      */
     'sync_tables' => [
         // Priority 1: Core lookup tables (required for tblData foreign keys)
-        'tblLookup_DayOfWeek',
+        'tblLookup_Weekday',
         'tblLookup_TimeInterval',
         'tblLookup_CallCosting_CallType',
         'tblLookup_AgentTraceEvents',
@@ -49,7 +49,7 @@ return [
         'tblConfig_Trunk',
         'tblConfig_AccountCode',
         'tblConfig_ANI',
-        'tblConfig_MakeBusy',
+        'tblConfig_MakeBusyReasonCode',
         
         // Priority 3: High-value tblData tables
         'tblData_AgentPerformanceByPeriod',
@@ -92,13 +92,13 @@ return [
     'table_mappings' => [
         
         // Lookup Tables
-        'tblLookup_DayOfWeek' => [
-            'source_table' => 'tblLookup_DayOfWeek',
+        'tblLookup_Weekday' => [
+            'source_table' => 'tblLookup_Weekday',
             'target_table' => 'mitel_lookup_day_of_week',
             'unique_key' => 'Pkey',
             'column_map' => [
                 'Pkey' => 'id',
-                'DayName' => 'day_name',
+                'Weekday' => 'day_name',
             ],
         ],
 
@@ -188,8 +188,8 @@ return [
             ],
         ],
 
-        'tblConfig_MakeBusy' => [
-            'source_table' => 'tblConfig_MakeBusy',
+        'tblConfig_MakeBusyReasonCode' => [
+            'source_table' => 'tblConfig_MakeBusyReasonCode',
             'target_table' => 'mitel_config_make_busy',
             'unique_key' => 'Pkey',
             'timestamp_column' => 'ModifiedOn',
