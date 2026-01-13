@@ -121,6 +121,8 @@ class MitelDataSyncService
             return compact('fetched', 'inserted', 'updated', 'failed');
         }
 
+        Log::info("Syncing table: {$tableName}", ['mapping' => $mapping]);
+
         // Fetch data from Mitel database
         $query = DB::connection('mitel_dynamic')
             ->table($mapping['source_table']);
@@ -140,8 +142,10 @@ class MitelDataSyncService
             }
         }
 
+        Log::info("Executing query for {$tableName}");
         $records = $query->get();
         $fetched = $records->count();
+        Log::info("Fetched {$fetched} records from {$tableName}");
 
         Log::info("Fetched {$fetched} records from {$tableName}");
 
