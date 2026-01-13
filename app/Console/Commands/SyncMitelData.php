@@ -154,6 +154,20 @@ class SyncMitelData extends Command
         $tables = $this->option('tables');
         $syncType = $this->option('type');
 
+        // Handle comma-separated tables
+        if (!empty($tables)) {
+            $expandedTables = [];
+            foreach ($tables as $table) {
+                if (str_contains($table, ',')) {
+                    // Split comma-separated tables
+                    $expandedTables = array_merge($expandedTables, array_map('trim', explode(',', $table)));
+                } else {
+                    $expandedTables[] = $table;
+                }
+            }
+            $tables = $expandedTables;
+        }
+
         $this->line("Connection: {$connection->name}");
         $this->line("Database: {$connection->database}@{$connection->host}");
         $this->line("Sync Type: {$syncType}");
