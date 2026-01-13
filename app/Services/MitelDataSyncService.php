@@ -178,29 +178,20 @@ class MitelDataSyncService
                             $inserted++;
                         }
                     } catch (\Illuminate\Database\QueryException $e) {
-                        // If table doesn't exist, log warning and skip
-                        if (str_contains($e->getMessage(), 'does not exist') || str_contains($e->getMessage(), 'relation') && str_contains($e->getMessage(), 'does not exist')) {
-                            Log::warning("Table {$mapping['target_table']} does not exist. Please create migrations for Mitel data tables.");
-                            $failed++;
-                            continue;
-                        }
-                        
-                        // For other query errors (like duplicate keys), try to log details
-                        Log::error("Query error for table {$mapping['target_table']}: " . $e->getMessage());
-                        throw $e;
+                        // Log the actual error to understand what's happening
+                        $errorMsg = $e->getMessage();
+                        Log::error("Query error for table {$mapping['target_table']}: " . $errorMsg);
+                        $failed++;
+                        continue;
                     }
                 } else {
                     try {
                         DB::table($mapping['target_table'])->insert($data);
                         $inserted++;
                     } catch (\Illuminate\Database\QueryException $e) {
-                        if (str_contains($e->getMessage(), 'does not exist') || str_contains($e->getMessage(), 'relation') && str_contains($e->getMessage(), 'does not exist')) {
-                            Log::warning("Table {$mapping['target_table']} does not exist. Please create migrations for Mitel data tables.");
-                            $failed++;
-                            continue;
-                        }
                         Log::error("Insert error for table {$mapping['target_table']}: " . $e->getMessage());
-                        throw $e;
+                        $failed++;
+                        continue;
                     }
                 }
 
