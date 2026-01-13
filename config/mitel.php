@@ -158,6 +158,94 @@ return [
             ],
         ],
 
+        'tblConfig_AccountCode' => [
+            'source_table' => 'tblConfig_AccountCode',
+            'target_table' => 'mitel_config_account_codes',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'account_code_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'AccountCode' => 'account_code',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
+        'tblConfig_ANI' => [
+            'source_table' => 'tblConfig_ANI',
+            'target_table' => 'mitel_config_ani',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'ani_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'PhoneNumber' => 'phone_number',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
+        'tblConfig_MakeBusy' => [
+            'source_table' => 'tblConfig_MakeBusy',
+            'target_table' => 'mitel_config_make_busy',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'make_busy_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'ReasonCode' => 'reason_code',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
+        'tblConfig_AgentGroup' => [
+            'source_table' => 'tblConfig_AgentGroup',
+            'target_table' => 'mitel_config_agent_groups',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'agent_group_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
+        'tblConfig_Extension' => [
+            'source_table' => 'tblConfig_Extension',
+            'target_table' => 'mitel_config_extensions',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'extension_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'Extension' => 'extension_number',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
+        'tblConfig_Trunk' => [
+            'source_table' => 'tblConfig_Trunk',
+            'target_table' => 'mitel_config_trunks',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'ModifiedOn',
+            'column_map' => [
+                'Pkey' => 'trunk_id',
+                'Name' => 'name',
+                'Reporting' => 'reporting_id',
+                'CreatedOn' => 'created_at',
+                'ModifiedOn' => 'updated_at',
+            ],
+        ],
+
         // tblData Tables
         'tblData_AgentPerformanceByPeriod' => [
             'source_table' => 'tblData_AgentPerformanceByPeriod',
@@ -230,6 +318,36 @@ return [
                 'FKAcdEvent' => 'acd_event_id',
                 'FKMakeBusy' => 'make_busy_id',
                 'FKQueue' => 'queue_id',
+            ],
+        ],
+
+        'tblData_OutboundTrace' => [
+            'source_table' => 'tblData_OutboundTrace',
+            'target_table' => 'mitel_data_outbound_trace',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'MidnightStartDate',
+            'column_map' => [
+                'Pkey' => 'id',
+                'FKAgent' => 'agent_id',
+                'FKAccountCode' => 'account_code_id',
+                'MidnightStartDate' => 'call_date',
+                'Duration' => 'duration',
+                'DigitsDialed' => 'digits_dialed',
+                'CallId' => 'call_id',
+            ],
+        ],
+
+        'tblData_AgentEvents' => [
+            'source_table' => 'tblData_AgentEvents',
+            'target_table' => 'mitel_data_agent_events',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'MidnightStartDate',
+            'column_map' => [
+                'Pkey' => 'id',
+                'FKAgent' => 'agent_id',
+                'MidnightStartDate' => 'event_date',
+                'EventType' => 'event_type',
+                'Duration' => 'duration',
             ],
         ],
 
