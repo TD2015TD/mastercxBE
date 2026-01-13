@@ -150,15 +150,26 @@ class MitelDataSyncService
             try {
                 $data = $this->transformRecord($record, $mapping);
                 
-                // Insert or update in local database
+                // Get the target unique key (after column mapping transformation)
+                $uniqueKey = null;
                 if (isset($mapping['unique_key'])) {
+                    // If unique_key is a source column, find its target column name
+                    if (isset($mapping['column_map'][$mapping['unique_key']])) {
+                        $uniqueKey = $mapping['column_map'][$mapping['unique_key']];
+                    } else {
+                        $uniqueKey = $mapping['unique_key'];
+                    }
+                }
+                
+                // Insert or update in local database
+                if ($uniqueKey && isset($data[$uniqueKey])) {
                     $existing = DB::table($mapping['target_table'])
-                        ->where($mapping['unique_key'], $data[$mapping['unique_key']])
+                        ->where($uniqueKey, $data[$uniqueKey])
                         ->first();
 
                     if ($existing) {
                         DB::table($mapping['target_table'])
-                            ->where($mapping['unique_key'], $data[$mapping['unique_key']])
+                            ->where($uniqueKey, $data[$uniqueKey])
                             ->update($data);
                         $updated++;
                     } else {
