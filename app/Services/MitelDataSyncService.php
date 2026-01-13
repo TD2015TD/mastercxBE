@@ -217,21 +217,36 @@ class MitelDataSyncService
     {
         $data = [];
         
+        // Convert record to array for easier handling
+        $recordArray = (array) $record;
+        
+        // Create case-insensitive lookup
+        $recordLookup = array_change_key_case($recordArray, CASE_LOWER);
+        
         // Apply column mappings
         if (isset($mapping['column_map'])) {
             foreach ($mapping['column_map'] as $source => $target) {
-                $data[$target] = $record->{$source} ?? null;
+                // Try case-insensitive lookup
+                $sourceKey = strtolower($source);
+                
+                if (isset($recordLookup[$sourceKey])) {
+                    $data[$target] = $recordLookup[$sourceKey];
+                } elseif (isset($recordArray[$source])) {
+                    $data[$target] = $recordArray[$source];
+                } else {
+                    $data[$target] = null;
+                }
             }
         } else {
             // Direct mapping if no column map specified
-            $data = (array) $record;
+            $data = $recordArray;
         }
 
         // Apply transformations
         if (isset($mapping['transformations'])) {
             foreach ($mapping['transformations'] as $column => $transformer) {
-                if (is_callable($transformer)) {
-                    $data[$column] = $transformer($data[$column] ?? null);
+                if (is_callable($transformer) && isset($data[$column])) {
+                    $data[$column] = $transformer($data[$column]);
                 }
             }
         }
