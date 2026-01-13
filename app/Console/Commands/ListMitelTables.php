@@ -55,15 +55,38 @@ class ListMitelTables extends Command
             $this->info("Found " . count($tables) . " tables:");
             $this->newLine();
             
-            // Group by prefix
-            $grouped = [];
+            // Get row counts for each table
+            $this->info("Checking row counts...");
+            $tableData = [];
             foreach ($tables as $table) {
                 $fullName = $table->TABLE_SCHEMA . '.' . $table->TABLE_NAME;
-                $grouped[$fullName] = $table->TABLE_NAME;
+                try {
+                    $count = DB::connection('mitel_dynamic')
+                        ->table($fullName)
+                        ->count();
+                    $tableData[] = [
+                        'name' => $table->TABLE_NAME,
+                        'rows' => number_format($count)
+                    ];
+                } catch (\Exception $e) {
+                    $tableData[] = [
+                        'name' => $table->TABLE_NAME,
+                        'rows' => 'Error'
+                    ];
+                }
             }
             
-            // Display tables
-            $this->table(['Table Name'], array_map(fn($t) => [$t], array_values($grouped)));
+            // Sort by row count descending
+            usort($tableData, function($a, $b) {
+                $aRows = str_replace(',', '', $a['rows']);
+                $bRows = str_replace(',', '', $b['rows']);
+                if ($aRows === 'Error') return 1;
+                if ($bRows === 'Error') return -1;
+                return (int)$bRows <=> (int)$aRows;
+            });
+            
+            // Display top 50 tables with data
+            $this->table(['Table Name', 'Row Count'], array_slice($tableData, 0, 50));
             
             // Show tables matching config patterns
             $configTables = config('mitel.sync_tables', []);
