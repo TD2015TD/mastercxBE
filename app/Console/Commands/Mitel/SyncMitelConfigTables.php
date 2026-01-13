@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands\Mitel;
 
+use App\Models\MitelConnection;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -12,32 +13,144 @@ class SyncMitelConfigTables extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'mitel:sync-config
-                          {--table=* : Specific tables to sync (anis, dnis, phone_groups)}
-                          {--full : Full sync (delete and reimport all records)}';
+                          {connection? : The name of the Mitel connection to sync}
+                          {--tables=* : Specific tables to sync (anis, dnis, phone_groups)}
+                          {--type=full : Sync type: full or incremental}
+                          {--all : Sync all active connections}';
 
     /**
      * The console command description.
      */
     protected $description = 'Sync Mitel configuration tables (ANI, DNIS, Phone Number Groups) from SQL Server to PostgreSQL';
-
-    private $sqlServerConnection = 'sqlsrv_mitel';
     
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $this->info('Starting Mitel Configuration Sync...');
+        $this->info('Starting Mitel configuration synchronization...');
         
-        $tables = $this->option('table');
-        $fullSync = $this->option('full');
+        // Sync all active connections
+        if ($this->option('all')) {
+            return $this->syncAllConnections();
+        }
+
+        // Sync specific connection
+        $connectionName = $this->argument('connection');
         
-        // Default: sync all tables
+        if (!$connectionName) {
+            // Show available connections
+            $connections = MitelConnection::active()->get();
+            
+            if ($connections->isEmpty()) {
+                $this->error('No active Mitel connections found.');
+                $this->info('Please create a connection first using the admin interface or database.');
+                return 1;
+            }
+
+            $connectionName = $this->choice(
+                'Select a connection to sync',
+                $connections->pluck('name')->toArray()
+            );
+        }
+
+        $connection = MitelConnection::where('name', $connectionName)
+            ->active()
+            ->first();
+
+        if (!$connection) {
+            $this->error("Connection '{$connectionName}' not found or is not active.");
+            return 1;
+        }
+
+        return $this->syncConnection($connection);
+    }
+
+    /**
+     * Sync all active connections.
+     */
+    protected function syncAllConnections(): int
+    {
+        $connections = MitelConnection::active()->get();
+
+        if ($connections->isEmpty()) {
+            $this->error('No active Mitel connections found.');
+            return 1;
+        }
+
+        $this->info("Found {$connections->count()} active connection(s) to sync.");
+
+        $successCount = 0;
+        $failCount = 0;
+
+        foreach ($connections as $connection) {
+            $this->newLine();
+            $this->info("Syncing connection: {$connection->name}");
+            
+            $result = $this->syncConnection($connection);
+            
+            if ($result === 0) {
+                $successCount++;
+            } else {
+                $failCount++;
+            }
+        }
+
+        $this->newLine();
+        $this->info("Config sync completed: {$successCount} successful, {$failCount} failed");
+
+        return $failCount > 0 ? 1 : 0;
+    }
+
+    /**
+     * Sync a specific connection.
+     */
+    protected function syncConnection(MitelConnection $connection): int
+    {
+        $tables = $this->option('tables');
+        $syncType = $this->option('type');
+
+        // Handle comma-separated tables
+        if (!empty($tables)) {
+            $expandedTables = [];
+            foreach ($tables as $table) {
+                if (str_contains($table, ',')) {
+                    $expandedTables = array_merge($expandedTables, array_map('trim', explode(',', $table)));
+                } else {
+                    $expandedTables[] = $table;
+                }
+            }
+            $tables = $expandedTables;
+        }
+
+        // Default: sync all config tables
         if (empty($tables)) {
             $tables = ['anis', 'dnis', 'phone_groups'];
         }
+
+        $this->line("Connection: {$connection->name}");
+        $this->line("Database: {$connection->database}@{$connection->host}");
+        $this->line("Sync Type: {$syncType}");
+        $this->line("Tables: " . implode(', ', $tables));
+        $this->newLine();
+
+        $fullSync = ($syncType === 'full');
         
         try {
+            // Configure database connection dynamically
+            config([
+                'database.connections.sqlsrv_mitel_dynamic' => [
+                    'driver' => 'sqlsrv',
+                    'host' => $connection->host,
+                    'port' => $connection->port,
+                    'database' => $connection->database,
+                    'username' => $connection->username,
+                    'password' => decrypt($connection->password),
+                    'charset' => 'utf8',
+                    'prefix' => '',
+                ]
+            ]);
+
             if (in_array('anis', $tables)) {
                 $this->syncANIs($fullSync);
             }
@@ -50,13 +163,18 @@ class SyncMitelConfigTables extends Command
                 $this->syncPhoneNumberGroups($fullSync);
             }
             
-            $this->info('✓ Mitel Configuration Sync completed successfully!');
-            return Command::SUCCESS;
+            $this->newLine();
+            $this->info('✓ Configuration sync completed successfully!');
+            return 0;
             
         } catch (Exception $e) {
             $this->error('✗ Sync failed: ' . $e->getMessage());
-            $this->error($e->getTraceAsString());
-            return Command::FAILURE;
+            
+            if ($this->output->isVerbose()) {
+                $this->line($e->getTraceAsString());
+            }
+            
+            return 1;
         }
     }
     
@@ -69,7 +187,7 @@ class SyncMitelConfigTables extends Command
             $this->warn('  - Truncated existing ANI records');
         }
         
-        $anis = DB::connection($this->sqlServerConnection)
+        $anis = DB::connection('sqlsrv_mitel_dynamic')
             ->table('tblConfig_ANI')
             ->select([
                 'Pkey as pkey',
@@ -140,7 +258,7 @@ class SyncMitelConfigTables extends Command
             $this->warn('  - Truncated existing DNIS records');
         }
         
-        $dnisList = DB::connection($this->sqlServerConnection)
+        $dnisList = DB::connection('sqlsrv_mitel_dynamic')
             ->table('tblConfig_DNIS')
             ->select([
                 'Pkey as pkey',
@@ -217,7 +335,7 @@ class SyncMitelConfigTables extends Command
             $this->warn('  - Truncated existing Phone Number Group records');
         }
         
-        $groups = DB::connection($this->sqlServerConnection)
+        $groups = DB::connection('sqlsrv_mitel_dynamic')
             ->table('tblConfig_CA_PhoneNumberGroup')
             ->select([
                 'Pkey as pkey',
