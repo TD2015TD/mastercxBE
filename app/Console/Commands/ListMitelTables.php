@@ -94,8 +94,9 @@ class ListMitelTables extends Command
             $this->info("Tables configured in config/mitel.php: " . count($configTables));
             
             $missing = [];
+            $tableNames = array_column($tableData, 'name');
             foreach ($configTables as $configTable) {
-                if (!in_array($configTable, array_values($grouped))) {
+                if (!in_array($configTable, $tableNames)) {
                     $missing[] = $configTable;
                 }
             }
