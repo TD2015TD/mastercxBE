@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // Config: Account Code
         Schema::create('mitel_config_account_codes', function (Blueprint $table) {
-            $table->bigInteger('account_code_id')->primary();
+            $table->uuid('account_code_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('account_code', 100)->nullable();
@@ -28,7 +28,7 @@ return new class extends Migration
 
         // Config: ANI (Automatic Number Identification)
         Schema::create('mitel_config_ani', function (Blueprint $table) {
-            $table->bigInteger('ani_id')->primary();
+            $table->uuid('ani_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('phone_number', 50)->nullable();
@@ -43,7 +43,7 @@ return new class extends Migration
 
         // Config: Make Busy
         Schema::create('mitel_config_make_busy', function (Blueprint $table) {
-            $table->bigInteger('make_busy_id')->primary();
+            $table->uuid('make_busy_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('reason_code', 100)->nullable();
@@ -58,7 +58,7 @@ return new class extends Migration
 
         // Config: Agent Group
         Schema::create('mitel_config_agent_groups', function (Blueprint $table) {
-            $table->bigInteger('agent_group_id')->primary();
+            $table->uuid('agent_group_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->timestamp('created_at')->nullable();
@@ -71,7 +71,7 @@ return new class extends Migration
 
         // Config: Extension
         Schema::create('mitel_config_extensions', function (Blueprint $table) {
-            $table->bigInteger('extension_id')->primary();
+            $table->uuid('extension_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('extension_number', 50)->nullable();
@@ -86,7 +86,7 @@ return new class extends Migration
 
         // Config: Trunk
         Schema::create('mitel_config_trunks', function (Blueprint $table) {
-            $table->bigInteger('trunk_id')->primary();
+            $table->uuid('trunk_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->timestamp('created_at')->nullable();

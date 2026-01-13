@@ -13,7 +13,7 @@ return new class extends Migration
     {
         // Lookup: Day of Week
         Schema::create('mitel_lookup_day_of_week', function (Blueprint $table) {
-            $table->bigInteger('id')->primary();
+            $table->uuid('id')->primary();
             $table->string('day_name', 50);
             $table->timestamp('synced_at')->nullable();
             $table->timestamp('updated_at')->nullable();
@@ -23,7 +23,7 @@ return new class extends Migration
 
         // Lookup: Time Interval
         Schema::create('mitel_lookup_time_interval', function (Blueprint $table) {
-            $table->bigInteger('id')->primary();
+            $table->uuid('id')->primary();
             $table->string('interval_name', 100);
             $table->timestamp('synced_at')->nullable();
             $table->timestamp('updated_at')->nullable();
@@ -33,7 +33,7 @@ return new class extends Migration
 
         // Config: Agents
         Schema::create('mitel_config_agents', function (Blueprint $table) {
-            $table->bigInteger('agent_id')->primary();
+            $table->uuid('agent_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('dialable', 100)->nullable();
@@ -47,7 +47,7 @@ return new class extends Migration
 
         // Config: Queues
         Schema::create('mitel_config_queues', function (Blueprint $table) {
-            $table->bigInteger('queue_id')->primary();
+            $table->uuid('queue_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->timestamp('created_at')->nullable();
@@ -60,7 +60,7 @@ return new class extends Migration
 
         // Config: DNIS
         Schema::create('mitel_config_dnis', function (Blueprint $table) {
-            $table->bigInteger('dnis_id')->primary();
+            $table->uuid('dnis_id')->primary();
             $table->string('name', 255);
             $table->string('reporting_id', 100)->nullable();
             $table->string('phone_number', 50)->nullable();
