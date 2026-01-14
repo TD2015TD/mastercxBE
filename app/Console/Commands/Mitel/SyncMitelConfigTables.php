@@ -14,14 +14,14 @@ class SyncMitelConfigTables extends Command
      */
     protected $signature = 'mitel:sync-config
                           {connection? : The name of the Mitel connection to sync}
-                          {--tables=* : Specific tables to sync (anis, dnis, phone_groups)}
+                          {--tables=* : Specific tables to sync (anis, dnis, phone_groups, agents)}
                           {--type=full : Sync type: full or incremental}
                           {--all : Sync all active connections}';
 
     /**
      * The console command description.
      */
-    protected $description = 'Sync Mitel configuration tables (ANI, DNIS, Phone Number Groups) from SQL Server to PostgreSQL';
+    protected $description = 'Sync Mitel configuration tables (ANI, DNIS, Phone Number Groups, Agents) from SQL Server to PostgreSQL';
     
     /**
      * Execute the console command.
@@ -125,7 +125,7 @@ class SyncMitelConfigTables extends Command
 
         // Default: sync all config tables
         if (empty($tables)) {
-            $tables = ['anis', 'dnis', 'phone_groups'];
+            $tables = ['anis', 'dnis', 'phone_groups', 'agents'];
         }
 
         $this->line("Connection: {$connection->name}");
@@ -155,6 +155,10 @@ class SyncMitelConfigTables extends Command
             
             if (in_array('phone_groups', $tables)) {
                 $this->syncPhoneNumberGroups($fullSync);
+            }
+            
+            if (in_array('agents', $tables)) {
+                $this->syncAgents($fullSync);
             }
             
             $this->newLine();
@@ -381,5 +385,88 @@ class SyncMitelConfigTables extends Command
         $bar->finish();
         $this->newLine();
         $this->info("  ✓ Phone Number Groups synced: {$inserted} inserted, {$updated} updated");
+    }
+    
+    private function syncAgents($fullSync = false)
+    {
+        $this->info('Syncing Agents...');
+        
+        if ($fullSync) {
+            DB::table('mitel_config_agents')->truncate();
+            $this->warn('  - Truncated existing Agent records');
+        }
+        
+        $agents = DB::connection('sqlsrv_mitel_dynamic')
+            ->table('tblConfig_Agent')
+            ->select([
+                'Pkey as pkey',
+                'FKEmployee as fk_employee',
+                'FKMasterAgent as fk_master_agent',
+                'FirstName as first_name',
+                'LastName as last_name',
+                'Reporting as reporting',
+                'Auto_Programmed as auto_programmed',
+                'isActive as is_active',
+                'ExistsOnPBX as exists_on_pbx',
+                'Last_Modified as last_modified',
+                'FKSite as fk_site',
+                'FKNode as fk_node',
+                'FKFailOver as fk_fail_over',
+                'CreatedOn as created_on',
+                'CreatedBy as created_by',
+                'ModifiedOn as modified_on',
+                'ModifiedBy as modified_by',
+                'CreatedByClientId as created_by_client_id',
+                'ModifiedByClientId as modified_by_client_id',
+            ])
+            ->get();
+        
+        $bar = $this->output->createProgressBar($agents->count());
+        $bar->start();
+        
+        $inserted = 0;
+        $updated = 0;
+        
+        foreach ($agents as $agent) {
+            $data = [
+                'pkey' => $agent->pkey,
+                'fk_employee' => $agent->fk_employee,
+                'fk_master_agent' => $agent->fk_master_agent,
+                'first_name' => $agent->first_name ?? '',
+                'last_name' => $agent->last_name ?? '',
+                'reporting' => $agent->reporting,
+                'auto_programmed' => $agent->auto_programmed ?? false,
+                'is_active' => $agent->is_active ?? true,
+                'exists_on_pbx' => $agent->exists_on_pbx ?? true,
+                'last_modified' => $agent->last_modified,
+                'fk_site' => $agent->fk_site,
+                'fk_node' => $agent->fk_node,
+                'fk_fail_over' => $agent->fk_fail_over,
+                'created_on' => $agent->created_on,
+                'created_by' => $agent->created_by,
+                'modified_on' => $agent->modified_on,
+                'modified_by' => $agent->modified_by,
+                'created_by_client_id' => $agent->created_by_client_id,
+                'modified_by_client_id' => $agent->modified_by_client_id,
+                'synced_at' => now(),
+                'updated_at' => now(),
+            ];
+            
+            $exists = DB::table('mitel_config_agents')->where('pkey', $agent->pkey)->exists();
+            
+            if ($exists) {
+                DB::table('mitel_config_agents')->where('pkey', $agent->pkey)->update($data);
+                $updated++;
+            } else {
+                DB::table('mitel_config_agents')->insert($data);
+                $inserted++;
+            }
+            
+            $bar->advance();
+        }
+        
+        $bar->finish();
+        $this->newLine();
+        $this->info("  ✓ Agents synced: {$inserted} inserted, {$updated} updated");
     }
 }
