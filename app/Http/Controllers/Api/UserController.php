@@ -84,9 +84,10 @@ class UserController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ["name", "email", "password", "role_id"],
+                required: ["name", "username", "email", "password", "role_id"],
                 properties: [
                     new OA\Property(property: "name", type: "string", example: "John Doe"),
+                    new OA\Property(property: "username", type: "string", example: "johndoe"),
                     new OA\Property(property: "email", type: "string", format: "email", example: "john.doe@example.com"),
                     new OA\Property(property: "password", type: "string", format: "password", example: "password123"),
                     new OA\Property(property: "role_id", type: "integer", example: 2),
@@ -120,6 +121,7 @@ class UserController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
@@ -149,6 +151,7 @@ class UserController extends Controller
             // Create user
             $user = User::create([
                 'name' => $request->name,
+                'username' => $request->username,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role_id' => $request->role_id,
@@ -255,6 +258,7 @@ class UserController extends Controller
             content: new OA\JsonContent(
                 properties: [
                     new OA\Property(property: "name", type: "string", example: "John Doe Updated"),
+                    new OA\Property(property: "username", type: "string", example: "johndoe_updated"),
                     new OA\Property(property: "email", type: "string", format: "email", example: "john.updated@example.com"),
                     new OA\Property(property: "password", type: "string", format: "password", description: "Leave empty to keep current password"),
                     new OA\Property(property: "role_id", type: "integer", example: 2),
@@ -299,6 +303,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
+            'username' => 'sometimes|required|string|max:255|unique:users,username,' . $id,
             'email' => 'sometimes|required|email|unique:users,email,' . $id,
             'password' => 'nullable|string|min:8',
             'role_id' => 'sometimes|required|exists:roles,id',
@@ -328,6 +333,7 @@ class UserController extends Controller
             // Update user basic info
             $userData = [];
             if ($request->has('name')) $userData['name'] = $request->name;
+            if ($request->has('username')) $userData['username'] = $request->username;
             if ($request->has('email')) $userData['email'] = $request->email;
             if ($request->filled('password')) $userData['password'] = Hash::make($request->password);
             if ($request->has('role_id')) $userData['role_id'] = $request->role_id;
