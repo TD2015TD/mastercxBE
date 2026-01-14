@@ -452,10 +452,14 @@ class SyncMitelConfigTables extends Command
                 'updated_at' => now(),
             ];
             
-            $exists = DB::table('mitel_config_agents')->where('pkey', $agent->pkey)->exists();
+            $exists = DB::table('mitel_config_agents')
+                ->whereRaw('pkey::text = ?', [$agent->pkey])
+                ->exists();
             
             if ($exists) {
-                DB::table('mitel_config_agents')->where('pkey', $agent->pkey)->update($data);
+                DB::table('mitel_config_agents')
+                    ->whereRaw('pkey::text = ?', [$agent->pkey])
+                    ->update($data);
                 $updated++;
             } else {
                 DB::table('mitel_config_agents')->insert($data);
