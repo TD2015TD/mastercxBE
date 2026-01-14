@@ -14,9 +14,9 @@ return new class extends Migration
         // Agent Configuration
         if (!Schema::hasTable('mitel_config_agents')) {
             Schema::create('mitel_config_agents', function (Blueprint $table) {
-                $table->uuid('pkey')->primary();
-                $table->uuid('fk_employee')->nullable(); // Link to CRM agents.employee_id
-                $table->uuid('fk_master_agent')->nullable();
+                $table->string('pkey', 36)->primary();
+                $table->string('fk_employee', 36)->nullable(); // Link to CRM agents.employee_id
+                $table->string('fk_master_agent', 36)->nullable();
                 $table->string('first_name', 100);
                 $table->string('last_name', 100);
                 $table->string('reporting', 50)->nullable();
@@ -24,17 +24,17 @@ return new class extends Migration
                 $table->boolean('is_active')->default(true);
                 $table->boolean('exists_on_pbx')->default(true);
                 $table->timestamp('last_modified')->nullable();
-                $table->uuid('fk_site')->nullable();
-                $table->uuid('fk_node')->nullable();
-                $table->uuid('fk_fail_over')->nullable();
+                $table->string('fk_site', 36)->nullable();
+                $table->string('fk_node', 36)->nullable();
+                $table->string('fk_fail_over', 36)->nullable();
                 
                 // Audit fields
                 $table->timestamp('created_on')->useCurrent();
                 $table->string('created_by', 255)->nullable();
                 $table->timestamp('modified_on')->useCurrent();
                 $table->string('modified_by', 255)->nullable();
-                $table->uuid('created_by_client_id')->nullable();
-                $table->uuid('modified_by_client_id')->nullable();
+                $table->string('created_by_client_id', 36)->nullable();
+                $table->string('modified_by_client_id', 36)->nullable();
                 
                 // Sync tracking
                 $table->timestamp('synced_at')->nullable();

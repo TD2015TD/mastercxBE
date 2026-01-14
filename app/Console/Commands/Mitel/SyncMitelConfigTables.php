@@ -453,12 +453,12 @@ class SyncMitelConfigTables extends Command
             ];
             
             $exists = DB::table('mitel_config_agents')
-                ->whereRaw('pkey::text = ?', [$agent->pkey])
+                ->where('pkey', $agent->pkey)
                 ->exists();
             
             if ($exists) {
                 DB::table('mitel_config_agents')
-                    ->whereRaw('pkey::text = ?', [$agent->pkey])
+                    ->where('pkey', $agent->pkey)
                     ->update($data);
                 $updated++;
             } else {
