@@ -93,12 +93,23 @@ class AuthController extends Controller
     )]
     public function login(Request $request)
     {
+        Log::info('Login attempt initiated', [
+            'has_username' => $request->has('username'),
+            'has_password' => $request->has('password'),
+            'has_ignite_token' => $request->has('ignite_token'),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent()
+        ]);
+
         // Check if it's username/password login or Ignite token login
         if ($request->has('username') && $request->has('password')) {
             $response = $this->usernamePasswordLogin($request);
         } elseif ($request->has('ignite_token')) {
             $response = $this->igniteTokenLogin($request);
         } else {
+            Log::warning('Login attempt with missing credentials', [
+                'ip_address' => $request->ip()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Please provide either username/password or ignite_token'
@@ -115,6 +126,10 @@ class AuthController extends Controller
                     $mitelToken = $mitelService->authenticate($user->agent->agent_username);
 
                     $user->MitelToken = $mitelToken;
+                    Log::info('MitelToken retrieved successfully', [
+                        'user_id' => $user->id,
+                        'agent_username' => $user->agent->agent_username
+                    ]);
                     return response()->json([
                         'success' => true,
                         'data' => [
@@ -124,6 +139,12 @@ class AuthController extends Controller
                         ]
                     ]);
                 } catch (\Exception $e) {
+                    Log::error('Failed to retrieve MitelToken', [
+                        'user_id' => $user->id,
+                        'agent_username' => $user->agent->agent_username,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
                     return response()->json([
                         'success' => false,
                         'message' => 'Failed to retrieve MitelToken',
@@ -141,12 +162,21 @@ class AuthController extends Controller
      */
     private function usernamePasswordLogin(Request $request)
     {
+        Log::info('Username/password login attempt', [
+            'username' => $request->input('username'),
+            'ip_address' => $request->ip()
+        ]);
+
         $validator = Validator::make($request->all(), [
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
 
         if ($validator->fails()) {
+            Log::warning('Login validation failed', [
+                'username' => $request->input('username'),
+                'errors' => $validator->errors()->toArray()
+            ]);
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
@@ -161,6 +191,11 @@ class AuthController extends Controller
             $authResult = $authService->authenticate($credentials);
 
             if (!$authResult['success']) {
+                Log::warning('Authentication failed', [
+                    'username' => $credentials['username'],
+                    'reason' => $authResult['message'],
+                    'ip_address' => $request->ip()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => $authResult['message']
@@ -174,6 +209,15 @@ class AuthController extends Controller
 
             $user->load('agent');
 
+            Log::info('Login successful', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+                'has_agent' => $user->agent !== null,
+                'ip_address' => $request->ip()
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -186,6 +230,13 @@ class AuthController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Login exception occurred', [
+                'username' => $credentials['username'],
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Authentication failed',

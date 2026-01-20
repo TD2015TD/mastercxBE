@@ -14,21 +14,36 @@ class AuthenticationService
      */
     public function authenticate($credentials)
     {
+        Log::info('AuthenticationService: Starting authentication', [
+            'username' => $credentials['username'] ?? 'not_provided'
+        ]);
+
         try {
             // Try to get auth method from system configuration
             // Default to 'database' if table doesn't exist or config not found
             $authMethod = SystemConfiguration::get('auth.method', 'database');
+            Log::info('AuthenticationService: Auth method determined', ['method' => $authMethod]);
         } catch (\Exception $e) {
             // If system_configurations table doesn't exist yet, default to database auth
-            Log::info('SystemConfiguration table not available, defaulting to database authentication');
+            Log::info('SystemConfiguration table not available, defaulting to database authentication', [
+                'error' => $e->getMessage()
+            ]);
             $authMethod = 'database';
         }
 
-        return match ($authMethod) {
+        $result = match ($authMethod) {
             'ldap' => $this->authenticateLdap($credentials),
             'database' => $this->authenticateDatabase($credentials),
             default => $this->authenticateDatabase($credentials),
         };
+
+        Log::info('AuthenticationService: Authentication result', [
+            'username' => $credentials['username'] ?? 'not_provided',
+            'success' => $result['success'],
+            'message' => $result['message'] ?? 'N/A'
+        ]);
+
+        return $result;
     }
 
     /**
@@ -36,17 +51,34 @@ class AuthenticationService
      */
     protected function authenticateDatabase($credentials)
     {
+        Log::debug('AuthenticationService: Database authentication started', [
+            'username' => $credentials['username']
+        ]);
+
         // Find user by username
         $user = User::where('username', $credentials['username'])->first();
 
         if (!$user) {
+            Log::warning('AuthenticationService: User not found in database', [
+                'username' => $credentials['username']
+            ]);
             return [
                 'success' => false,
                 'message' => 'User not found',
             ];
         }
 
+        Log::debug('AuthenticationService: User found, checking password', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'has_password_hash' => !empty($user->password)
+        ]);
+
         if (!Hash::check($credentials['password'], $user->password)) {
+            Log::warning('AuthenticationService: Invalid password', [
+                'user_id' => $user->id,
+                'username' => $user->username
+            ]);
             return [
                 'success' => false,
                 'message' => 'Invalid credentials',
@@ -54,11 +86,22 @@ class AuthenticationService
         }
 
         if ($user->deleted_at) {
+            Log::warning('AuthenticationService: User account is deactivated', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'deleted_at' => $user->deleted_at
+            ]);
             return [
                 'success' => false,
                 'message' => 'User account is deactivated',
             ];
         }
+
+        Log::info('AuthenticationService: Database authentication successful', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+            'email' => $user->email
+        ]);
 
         return [
             'success' => true,
