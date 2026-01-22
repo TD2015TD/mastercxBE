@@ -1,15 +1,25 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Foundation\Inspiring;
+
+/*
+|--------------------------------------------------------------------------
+| Console Routes
+|--------------------------------------------------------------------------
+*/
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-app(Schedule::class)->call(function () {
-    //
-})->name('noop'); // keeps file from being empty
+/*
+|--------------------------------------------------------------------------
+| Scheduled Tasks (Laravel 11)
+|--------------------------------------------------------------------------
+*/
 
 // SLA Monitor – every 15 minutes
 app(Schedule::class)
