@@ -51,7 +51,7 @@ return [
         'tblConfig_ANI',
         'tblConfig_MakeBusyReasonCode',
         
-        // Priority 3: High-value tblData tables
+        // Priority 3: High-value tblData tables and views
         'tblData_AgentPerformanceByPeriod',
         'tblData_QueuePerformanceByPeriod',
         'tblData_AgentEvents',
@@ -59,6 +59,7 @@ return [
         'tblData_OutboundTrace',
         'tblData_AgentTraceEvents',
         'tblData_CA_Trace',
+        'AgentInboundCallDetails', // View: Enhanced inbound call details for reporting
         
         // Priority 4: Queue and device analytics
         'tblData_QueueByANIByDNIS',
@@ -348,6 +349,51 @@ return [
                 'MidnightStartDate' => 'event_date',
                 'EventType' => 'event_type',
                 'Duration' => 'duration',
+            ],
+        ],
+
+        // View: AgentInboundCallDetails - Comprehensive inbound call reporting data
+        'AgentInboundCallDetails' => [
+            'source_table' => 'AgentInboundCallDetails',
+            'target_table' => 'mitel_agent_inbound_call_details',
+            'unique_key' => 'ExtensionID', // Using ExtensionID as unique identifier (appears to be unique per call)
+            'timestamp_column' => 'MidnightStartDateTime',
+            'column_map' => [
+                'AgentID' => 'agent_id',
+                'AgentReporting' => 'agent_reporting',
+                'AgentFirstName' => 'agent_first_name',
+                'AgentLastName' => 'agent_last_name',
+                'ExtensionID' => 'extension_id',
+                'ExtensionReporting' => 'extension_reporting',
+                'ExtensionName' => 'extension_name',
+                'TrunkID' => 'trunk_id',
+                'TrunkReporting' => 'trunk_reporting',
+                'TrunkName' => 'trunk_name',
+                'QueueID' => 'queue_id',
+                'QueueReporting' => 'queue_reporting',
+                'QueueName' => 'queue_name',
+                'AgentGroupID' => 'agent_group_id',
+                'AgentGroupReporting' => 'agent_group_reporting',
+                'AgentGroupName' => 'agent_group_name',
+                'DnisID' => 'dnis_id',
+                'DnisReporting' => 'dnis_reporting',
+                'DnisName' => 'dnis_name',
+                'AccountCodeID' => 'account_code_id',
+                'AccountCodeReporting' => 'account_code_reporting',
+                'AccountCodeName' => 'account_code_name',
+                'ANIID' => 'ani_id',
+                'ANIReporting' => 'ani_reporting',
+                'ANIName' => 'ani_name',
+                'MidnightStartDateTime' => 'midnight_start_datetime',
+                'DateOfCall' => 'date_of_call',
+                'CallStartTime' => 'call_start_time',
+                'CallType' => 'call_type',
+                'CallTypeNumber' => 'call_type_number',
+                'Duration' => 'duration',
+                'TimeToAnswer' => 'time_to_answer',
+                'DigitsDialed' => 'digits_dialed',
+                'TransferConferenceNumber' => 'transfer_conference_number',
+                'TransferConference' => 'transfer_conference',
             ],
         ],
 
