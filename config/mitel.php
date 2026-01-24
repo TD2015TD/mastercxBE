@@ -142,7 +142,7 @@ return [
                 a.CreatedByClientId,
                 a.ModifiedByClientId,
                 -- Employee fields (all ISNULL to handle LEFT JOIN nulls)
-                ISNULL(e.ReportingId, '') AS EmployeeReporting,
+                ISNULL(e.Reporting, '') AS EmployeeReporting,
                 ISNULL(e.FirstName, '') AS EmployeeFirstName,
                 ISNULL(e.LastName, '') AS EmployeeLastName,
                 ISNULL(e.MiddleName, '') AS MiddleName,
