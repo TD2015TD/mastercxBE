@@ -124,29 +124,48 @@ class MitelDataSyncService
         Log::info("Syncing table: {$tableName}", ['mapping' => $mapping]);
 
         // Fetch data from Mitel database
-        $query = DB::connection('mitel_dynamic')
-            ->table($mapping['source_table']);
-
-        // Add incremental sync logic if needed
-        if ($syncType === 'incremental' && isset($mapping['timestamp_column'])) {
-            $lastSync = $this->connection->last_sync_at;
-            if ($lastSync) {
-                $query->where($mapping['timestamp_column'], '>', $lastSync);
+        // Check if there's a custom query (for JOINs)
+        if (isset($mapping['custom_query'])) {
+            Log::info("Using custom query for {$tableName}");
+            
+            // Build parameters for custom query
+            $params = [];
+            if ($syncType === 'incremental' && isset($mapping['timestamp_column'])) {
+                $lastSync = $this->connection->last_sync_at ?? '1900-01-01';
+                $params[] = $lastSync;
+            } else {
+                // For full sync, use a very old date
+                $params[] = '1900-01-01';
             }
-        }
+            
+            $records = DB::connection('mitel_dynamic')
+                ->select($mapping['custom_query'], $params);
+            $fetched = count($records);
+        } else {
+            // Standard table query
+            $query = DB::connection('mitel_dynamic')
+                ->table($mapping['source_table']);
 
-        // Add any filters from configuration
-        if (isset($mapping['filters'])) {
-            foreach ($mapping['filters'] as $column => $value) {
-                $query->where($column, $value);
+            // Add incremental sync logic if needed
+            if ($syncType === 'incremental' && isset($mapping['timestamp_column'])) {
+                $lastSync = $this->connection->last_sync_at;
+                if ($lastSync) {
+                    $query->where($mapping['timestamp_column'], '>', $lastSync);
+                }
             }
+
+            // Add any filters from configuration
+            if (isset($mapping['filters'])) {
+                foreach ($mapping['filters'] as $column => $value) {
+                    $query->where($column, $value);
+                }
+            }
+
+            Log::info("Executing query for {$tableName}");
+            $records = $query->get();
+            $fetched = $records->count();
         }
-
-        Log::info("Executing query for {$tableName}");
-        $records = $query->get();
-        $fetched = $records->count();
-        Log::info("Fetched {$fetched} records from {$tableName}");
-
+        
         Log::info("Fetched {$fetched} records from {$tableName}");
 
         // Process each record
