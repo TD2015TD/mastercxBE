@@ -131,16 +131,22 @@ class MitelDataSyncService
             // Build parameters for custom query
             $params = [];
             if ($syncType === 'incremental' && isset($mapping['timestamp_column'])) {
-                $lastSync = $this->connection->last_sync_at ?? '1900-01-01';
-                $params[] = $lastSync;
+                $lastSync = $this->connection->last_sync_at;
+                if ($lastSync) {
+                    $params[] = $lastSync->format('Y-m-d H:i:s');
+                } else {
+                    $params[] = '1900-01-01 00:00:00';
+                }
             } else {
                 // For full sync, use a very old date
-                $params[] = '1900-01-01';
+                $params[] = '1900-01-01 00:00:00';
             }
             
+            Log::info("Executing custom query with params", ['params' => $params]);
             $records = DB::connection('mitel_dynamic')
                 ->select($mapping['custom_query'], $params);
             $fetched = count($records);
+            Log::info("Custom query returned {$fetched} records");
         } else {
             // Standard table query
             $query = DB::connection('mitel_dynamic')
