@@ -177,6 +177,11 @@ class MitelDataSyncService
         // Log first record columns for AgentPerformanceByPeriodStats
         if ($fetched > 0 && $tableName === 'AgentPerformanceByPeriodStats') {
             $firstRecord = (array) $records[0];
+            dump([
+                'SOURCE_COLUMNS' => array_keys($firstRecord),
+                'IntervalStartTime_value' => $firstRecord['IntervalStartTime'] ?? 'MISSING_KEY',
+                'HourMinute_value' => $firstRecord['HourMinute'] ?? 'MISSING_KEY',
+            ]);
             Log::error("DEBUG: AgentPerformanceByPeriodStats source columns:", [
                 'columns' => array_keys($firstRecord),
                 'IntervalStartTime' => $firstRecord['IntervalStartTime'] ?? 'MISSING',
@@ -192,6 +197,13 @@ class MitelDataSyncService
                 
                 // Log first record for AgentPerformanceByPeriodStats to debug
                 if ($recordCount === 0 && $tableName === 'AgentPerformanceByPeriodStats') {
+                    dump([
+                        'TRANSFORMED_DATA' => [
+                            'agent_id' => $data['agent_id'] ?? 'MISSING_KEY',
+                            'interval_start_time' => $data['interval_start_time'] ?? 'MISSING_KEY',
+                            'hour_minute' => $data['hour_minute'] ?? 'MISSING_KEY',
+                        ]
+                    ]);
                     Log::error("DEBUG: First AgentPerformanceByPeriodStats record transformed:", [
                         'agent_id' => $data['agent_id'] ?? 'MISSING',
                         'interval_start_time' => $data['interval_start_time'] ?? 'MISSING',
