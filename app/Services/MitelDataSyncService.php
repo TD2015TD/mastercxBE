@@ -373,8 +373,9 @@ class MitelDataSyncService
         // Apply transformations
         if (isset($mapping['transformations'])) {
             foreach ($mapping['transformations'] as $column => $transformer) {
-                if (is_callable($transformer) && isset($data[$column])) {
-                    $data[$column] = $transformer($data[$column]);
+                if (is_callable($transformer)) {
+                    // Pass full data array to transformer so it can access multiple columns
+                    $data[$column] = $transformer($data);
                 }
             }
         }
