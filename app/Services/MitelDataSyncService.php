@@ -177,10 +177,10 @@ class MitelDataSyncService
         // Log first record columns for AgentPerformanceByPeriodStats
         if ($fetched > 0 && $tableName === 'AgentPerformanceByPeriodStats') {
             $firstRecord = (array) $records[0];
-            Log::info("AgentPerformanceByPeriodStats source columns:", [
+            Log::error("DEBUG: AgentPerformanceByPeriodStats source columns:", [
                 'columns' => array_keys($firstRecord),
-                'IntervalStartTime' => $firstRecord['IntervalStartTime'] ?? 'missing',
-                'HourMinute' => $firstRecord['HourMinute'] ?? 'missing',
+                'IntervalStartTime' => $firstRecord['IntervalStartTime'] ?? 'MISSING',
+                'HourMinute' => $firstRecord['HourMinute'] ?? 'MISSING',
             ]);
         }
 
@@ -192,10 +192,10 @@ class MitelDataSyncService
                 
                 // Log first record for AgentPerformanceByPeriodStats to debug
                 if ($recordCount === 0 && $tableName === 'AgentPerformanceByPeriodStats') {
-                    Log::info("First AgentPerformanceByPeriodStats record transformed:", [
-                        'agent_id' => $data['agent_id'] ?? 'missing',
-                        'interval_start_time' => $data['interval_start_time'] ?? 'missing',
-                        'hour_minute' => $data['hour_minute'] ?? 'missing',
+                    Log::error("DEBUG: First AgentPerformanceByPeriodStats record transformed:", [
+                        'agent_id' => $data['agent_id'] ?? 'MISSING',
+                        'interval_start_time' => $data['interval_start_time'] ?? 'MISSING',
+                        'hour_minute' => $data['hour_minute'] ?? 'MISSING',
                     ]);
                 }
                 $recordCount++;
