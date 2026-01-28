@@ -198,10 +198,12 @@ class MitelDataSyncService
                 // Log first record for AgentPerformanceByPeriodStats to debug
                 if ($recordCount === 0 && $tableName === 'AgentPerformanceByPeriodStats') {
                     dump([
-                        'TRANSFORMED_DATA' => [
-                            'agent_id' => $data['agent_id'] ?? 'MISSING_KEY',
-                            'interval_start_time' => $data['interval_start_time'] ?? 'MISSING_KEY',
-                            'hour_minute' => $data['hour_minute'] ?? 'MISSING_KEY',
+                        'TRANSFORMED_DATA_v2' => [
+                            'agent_id' => $data['agent_id'] ?? 'MISSING',
+                            'midnight_start_date' => $data['midnight_start_date'] ?? 'MISSING',
+                            'interval_start_time_raw' => $data['interval_start_time_raw'] ?? 'MISSING',
+                            'interval_start_time' => $data['interval_start_time'] ?? 'MISSING',
+                            'employee_reporting' => $data['employee_reporting'] ?? 'MISSING',
                         ]
                     ]);
                     Log::error("DEBUG: First AgentPerformanceByPeriodStats record transformed:", [
