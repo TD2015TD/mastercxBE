@@ -179,37 +179,61 @@ class MitelDataSyncService
             try {
                 $data = $this->transformRecord($record, $mapping);
                 
-                // Get the target unique key (after column mapping transformation)
-                $uniqueKey = null;
+                // Get the target unique key(s) (after column mapping transformation)
+                $uniqueKeys = [];
                 if (isset($mapping['unique_key'])) {
-                    // If unique_key is a source column, find its target column name
-                    if (isset($mapping['column_map'][$mapping['unique_key']])) {
-                        $uniqueKey = $mapping['column_map'][$mapping['unique_key']];
-                    } else {
-                        $uniqueKey = $mapping['unique_key'];
+                    $sourceKeys = is_array($mapping['unique_key']) ? $mapping['unique_key'] : [$mapping['unique_key']];
+                    
+                    foreach ($sourceKeys as $sourceKey) {
+                        // If unique_key is a source column, find its target column name
+                        if (isset($mapping['column_map'][$sourceKey])) {
+                            $uniqueKeys[] = $mapping['column_map'][$sourceKey];
+                        } else {
+                            $uniqueKeys[] = $sourceKey;
+                        }
                     }
                 }
                 
                 // Insert or update in local database
-                if ($uniqueKey && isset($data[$uniqueKey])) {
-                    try {
-                        $existing = DB::table($mapping['target_table'])
-                            ->where($uniqueKey, $data[$uniqueKey])
-                            ->first();
-
-                        if ($existing) {
-                            DB::table($mapping['target_table'])
-                                ->where($uniqueKey, $data[$uniqueKey])
-                                ->update($data);
-                            $updated++;
-                        } else {
-                            DB::table($mapping['target_table'])->insert($data);
-                            $inserted++;
+                if (!empty($uniqueKeys)) {
+                    // Check if all unique key values exist in data
+                    $hasAllKeys = true;
+                    foreach ($uniqueKeys as $key) {
+                        if (!isset($data[$key])) {
+                            $hasAllKeys = false;
+                            break;
                         }
-                    } catch (\Illuminate\Database\QueryException $e) {
-                        // Log the actual error to understand what's happening
-                        $errorMsg = $e->getMessage();
-                        Log::error("Query error for table {$mapping['target_table']}: " . $errorMsg);
+                    }
+                    
+                    if ($hasAllKeys) {
+                        try {
+                            // Build where clause for composite or single keys
+                            $query = DB::table($mapping['target_table']);
+                            foreach ($uniqueKeys as $key) {
+                                $query->where($key, $data[$key]);
+                            }
+                            $existing = $query->first();
+
+                            if ($existing) {
+                                $updateQuery = DB::table($mapping['target_table']);
+                                foreach ($uniqueKeys as $key) {
+                                    $updateQuery->where($key, $data[$key]);
+                                }
+                                $updateQuery->update($data);
+                                $updated++;
+                            } else {
+                                DB::table($mapping['target_table'])->insert($data);
+                                $inserted++;
+                            }
+                        } catch (\Illuminate\Database\QueryException $e) {
+                            // Log the actual error to understand what's happening
+                            $errorMsg = $e->getMessage();
+                            Log::error("Query error for table {$mapping['target_table']}: " . $errorMsg);
+                            $failed++;
+                            continue;
+                        }
+                    } else {
+                        Log::warning("Missing unique key values for table {$mapping['target_table']}");
                         $failed++;
                         continue;
                     }
