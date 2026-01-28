@@ -298,21 +298,38 @@ class MitelDataSyncService
         // Convert record to array for easier handling
         $recordArray = (array) $record;
         
-        // Create case-insensitive lookup
-        $recordLookup = array_change_key_case($recordArray, CASE_LOWER);
+        // Debug: Log first record columns for AgentPerformanceByPeriodStats
+        static $logged = false;
+        if (!$logged && isset($mapping['source_table']) && $mapping['source_table'] === 'AgentPerformanceByPeriodStats') {
+            Log::debug('AgentPerformanceByPeriodStats columns available:', array_keys($recordArray));
+            if (isset($recordArray['IntervalStartTime'])) {
+                Log::debug('IntervalStartTime value:', ['value' => $recordArray['IntervalStartTime'], 'type' => gettype($recordArray['IntervalStartTime'])]);
+            }
+            if (isset($recordArray['HourMinute'])) {
+                Log::debug('HourMinute value:', ['value' => $recordArray['HourMinute'], 'type' => gettype($recordArray['HourMinute'])]);
+            }
+            $logged = true;
+        }
         
         // Apply column mappings
         if (isset($mapping['column_map'])) {
             foreach ($mapping['column_map'] as $source => $target) {
-                // Try case-insensitive lookup
-                $sourceKey = strtolower($source);
-                
-                if (isset($recordLookup[$sourceKey])) {
-                    $data[$target] = $recordLookup[$sourceKey];
-                } elseif (isset($recordArray[$source])) {
+                // Try exact match first (case-sensitive)
+                if (array_key_exists($source, $recordArray)) {
                     $data[$target] = $recordArray[$source];
                 } else {
-                    $data[$target] = null;
+                    // Fall back to case-insensitive search only if exact match not found
+                    $found = false;
+                    foreach ($recordArray as $key => $value) {
+                        if (strcasecmp($key, $source) === 0) {
+                            $data[$target] = $value;
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) {
+                        $data[$target] = null;
+                    }
                 }
             }
         } else {

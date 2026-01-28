@@ -250,21 +250,26 @@ return [
             'unique_key' => ['AgentID', 'IntervalStartTime'],
             'timestamp_column' => 'IntervalStartTime',
             'column_map' => [
+                // Key columns first (must be exact for composite key matching)
+                'AgentID' => 'agent_id',
+                'IntervalStartTime' => 'interval_start_time',
+                'EmployeeReporting' => 'employee_reporting',
+                'EmployeeID' => 'employee_id',
+                
+                // Agent identification
                 'AgentFirstName' => 'agent_first_name',
                 'AgentLastName' => 'agent_last_name',
                 'AgentReporting' => 'agent_reporting',
                 'AgentPlatform' => 'agent_platform',
-                'AgentID' => 'agent_id',
                 'AgentFirstNameR' => 'agent_first_name_r',
                 'AgentLastNameR' => 'agent_last_name_r',
                 'AgentReportingR' => 'agent_reporting_r',
+                
+                // Time/Date fields
                 'DayNameOfWeek' => 'day_name_of_week',
                 'HourMinute' => 'hour_minute',
-                'IntervalStartTime' => 'interval_start_time',
-                'EmployeeReporting' => 'employee_reporting',
                 'DOW' => 'dow',
                 'IntervalNumber' => 'interval_number',
-                'EmployeeID' => 'employee_id',
                 'ACD_Offered_Internal' => 'acd_offered_internal',
                 'ACD_Answered_Internal' => 'acd_answered_internal',
                 'ACD_Duration_Internal' => 'acd_duration_internal',
