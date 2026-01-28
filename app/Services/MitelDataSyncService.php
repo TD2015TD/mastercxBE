@@ -174,10 +174,31 @@ class MitelDataSyncService
         
         Log::info("Fetched {$fetched} records from {$tableName}");
 
+        // Log first record columns for AgentPerformanceByPeriodStats
+        if ($fetched > 0 && $tableName === 'AgentPerformanceByPeriodStats') {
+            $firstRecord = (array) $records[0];
+            Log::info("AgentPerformanceByPeriodStats source columns:", [
+                'columns' => array_keys($firstRecord),
+                'IntervalStartTime' => $firstRecord['IntervalStartTime'] ?? 'missing',
+                'HourMinute' => $firstRecord['HourMinute'] ?? 'missing',
+            ]);
+        }
+
         // Process each record
+        $recordCount = 0;
         foreach ($records as $record) {
             try {
                 $data = $this->transformRecord($record, $mapping);
+                
+                // Log first record for AgentPerformanceByPeriodStats to debug
+                if ($recordCount === 0 && $tableName === 'AgentPerformanceByPeriodStats') {
+                    Log::info("First AgentPerformanceByPeriodStats record transformed:", [
+                        'agent_id' => $data['agent_id'] ?? 'missing',
+                        'interval_start_time' => $data['interval_start_time'] ?? 'missing',
+                        'hour_minute' => $data['hour_minute'] ?? 'missing',
+                    ]);
+                }
+                $recordCount++;
                 
                 // Get the target unique key(s) (after column mapping transformation)
                 $uniqueKeys = [];
