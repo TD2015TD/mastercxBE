@@ -297,11 +297,10 @@ return [
                 'AgentExternalOutboundCount' => 'agent_outbound_external_count',
                 'AgentExternalOutboundDuration' => 'agent_outbound_external_duration',
                 
-                // Other metrics
-                'AgentTransferIn' => 'agent_transfer_in',
-                'AgentTransferOut' => 'agent_transfer_out',
-                'AgentConference' => 'agent_conference',
-                'AgentAbandonCount' => 'agent_abandon_count',
+                // Transfer and conference - match migration exactly
+                'AgentTransferCount' => 'agent_transfer_count',
+                'AgentConferenceCount' => 'agent_conference_count',
+                'AgentAbandonCount' => 'agent_abandoned_count', // Note: "abandoned" not "abandon"
             ],
             'transformations' => [
                 // Combine MidnightStartDate + IntervalStartTime_raw to create full timestamp
