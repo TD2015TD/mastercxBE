@@ -379,6 +379,18 @@ class MitelDataSyncService
             }
         }
 
+        // Set NOT NULL integer columns to 0 if missing/null (migration default)
+        $notNullIntColumns = [
+            'agent_transfer_count',
+            'agent_conference_count',
+            'agent_abandoned_count',
+        ];
+        foreach ($notNullIntColumns as $col) {
+            if (!isset($data[$col]) || $data[$col] === null) {
+                $data[$col] = 0;
+            }
+        }
+
         // Clean up helper columns that were only needed for transformations
         if (isset($mapping['cleanup_columns'])) {
             foreach ($mapping['cleanup_columns'] as $helperColumn) {
