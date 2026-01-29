@@ -247,61 +247,98 @@ return [
         'AgentPerformanceByPeriodStats' => [
             'source_table' => 'AgentPerformanceByPeriodStats',
             'target_table' => 'mitel_agent_performance_by_period',
-            'unique_key' => ['AgentID', 'IntervalStartTime'],
+            'unique_key' => ['agent_id', 'interval_start_time'], // Use TRANSFORMED column names
             'timestamp_column' => 'IntervalStartTime',
             'column_map' => [
                 // Key columns first (must be exact for composite key matching)
                 'AgentID' => 'agent_id',
-                'IntervalStartTime' => 'interval_start_time',
                 'EmployeeReporting' => 'employee_reporting',
                 'EmployeeID' => 'employee_id',
+                
+                // Date/Time fields - need special handling
+                'MidnightStartDate' => 'midnight_start_date', // Date part
+                'IntervalStartTime' => 'interval_start_time_raw', // Time part only from SQL Server
                 
                 // Agent identification
                 'AgentFirstName' => 'agent_first_name',
                 'AgentLastName' => 'agent_last_name',
                 'AgentReporting' => 'agent_reporting',
-                'AgentPlatform' => 'agent_platform',
-                'AgentFirstNameR' => 'agent_first_name_r',
-                'AgentLastNameR' => 'agent_last_name_r',
-                'AgentReportingR' => 'agent_reporting_r',
+                'AgentMediaServerName' => 'agent_platform',
+                'EmployeeFirstName' => 'agent_first_name_r',
+                'EmployeeLastName' => 'agent_last_name_r',
                 
                 // Time/Date fields
-                'DayNameOfWeek' => 'day_name_of_week',
-                'HourMinute' => 'hour_minute',
-                'DOW' => 'dow',
-                'IntervalNumber' => 'interval_number',
-                'ACD_Offered_Internal' => 'acd_offered_internal',
-                'ACD_Answered_Internal' => 'acd_answered_internal',
-                'ACD_Duration_Internal' => 'acd_duration_internal',
-                'ACD_ACW_Internal' => 'acd_acw_internal',
-                'ACD_Offered_External' => 'acd_offered_external',
-                'ACD_Answered_External' => 'acd_answered_external',
-                'ACD_Duration_External' => 'acd_duration_external',
-                'ACD_ACW_External' => 'acd_acw_external',
-                'NonACD_Offered_Internal' => 'non_acd_offered_internal',
-                'NonACD_Answered_Internal' => 'non_acd_answered_internal',
-                'NonACD_Duration_Internal' => 'non_acd_duration_internal',
-                'NonACD_ACW_Internal' => 'non_acd_acw_internal',
-                'NonACD_Offered_External' => 'non_acd_offered_external',
-                'NonACD_Answered_External' => 'non_acd_answered_external',
-                'NonACD_Duration_External' => 'non_acd_duration_external',
-                'NonACD_ACW_External' => 'non_acd_acw_external',
-                'Outbound_Offered_Internal' => 'outbound_offered_internal',
-                'Outbound_Answered_Internal' => 'outbound_answered_internal',
-                'Outbound_Duration_Internal' => 'outbound_duration_internal',
-                'Outbound_ACW_Internal' => 'outbound_acw_internal',
-                'Outbound_Offered_External' => 'outbound_offered_external',
-                'Outbound_Answered_External' => 'outbound_answered_external',
-                'Outbound_Duration_External' => 'outbound_duration_external',
-                'Outbound_ACW_External' => 'outbound_acw_external',
-                'Total_ACD_Offered_Internal' => 'total_acd_offered_internal',
-                'Total_ACD_Answered_Internal' => 'total_acd_answered_internal',
-                'Total_ACD_Duration_Internal' => 'total_acd_duration_internal',
-                'Total_ACD_ACW_Internal' => 'total_acd_acw_internal',
-                'Total_ACD_Offered_External' => 'total_acd_offered_external',
-                'Total_ACD_Answered_External' => 'total_acd_answered_external',
-                'Total_ACD_Duration_External' => 'total_acd_duration_external',
-                'Total_ACD_ACW_External' => 'total_acd_acw_external',
+                'DayOfWeekName' => 'day_name_of_week',
+                'Position' => 'position',
+                'DayOfWeekID' => 'dow',
+                'TimeIntervalID' => 'interval_number',
+                
+                // ACD metrics - now using actual column names from view
+                'AgentShortACD' => 'acd_short',
+                'AgentACDCount' => 'acd_count',
+                'AgentACDDuration' => 'acd_duration',
+                'AgentACDTimeToAnswer' => 'acd_time_to_answer',
+                
+                // ACD Internal/External
+                'AgentInternalACDCount' => 'acd_offered_internal',
+                'AgentInternalACDDuration' => 'acd_duration_internal',
+                'AgentExternalACDCount' => 'acd_offered_external',
+                'AgentExternalACDDuration' => 'acd_duration_external',
+                
+                // Non-ACD metrics
+                'AgentShortNonACD' => 'non_acd_short',
+                'AgentNonACDCount' => 'non_acd_count',
+                'AgentNonACDDuration' => 'non_acd_duration',
+                'AgentNonACDTimeToAnswer' => 'non_acd_time_to_answer',
+                
+                // Non-ACD Internal/External
+                'AgentInternalNonACDCount' => 'non_acd_offered_internal',
+                'AgentInternalNonACDDuration' => 'non_acd_duration_internal',
+                'AgentExternalNonACDCount' => 'non_acd_offered_external',
+                'AgentExternalNonACDDuration' => 'non_acd_duration_external',
+                
+                // Outbound metrics
+                'AgentShortOutbound' => 'outbound_short',
+                'AgentOutboundCount' => 'outbound_count',
+                'AgentOutboundDuration' => 'outbound_duration',
+                
+                // Outbound Internal/External
+                'AgentInternalOutboundCount' => 'outbound_offered_internal',
+                'AgentInternalOutboundDuration' => 'outbound_duration_internal',
+                'AgentExternalOutboundCount' => 'outbound_offered_external',
+                'AgentExternalOutboundDuration' => 'outbound_duration_external',
+                
+                // Other metrics
+                'AgentAbandonCount' => 'abandon_count',
+                'AgentTimeToAbandon' => 'time_to_abandon',
+                'AgentRequeueCount' => 'requeue_count',
+                'AgentTransferIn' => 'transfer_in',
+                'AgentTransferOut' => 'transfer_out',
+                'AgentConference' => 'conference_count',
+                'AgentAccountCodes' => 'account_codes',
+                'AgentAccountCodesOutbound' => 'account_codes_outbound',
+                'AgentACDCountWithAccountCode' => 'acd_count_with_account_code',
+            ],
+            'transformations' => [
+                // Combine MidnightStartDate + IntervalStartTime_raw to create full timestamp
+                'interval_start_time' => function ($data) {
+                    if (isset($data['midnight_start_date']) && isset($data['interval_start_time_raw'])) {
+                        $date = $data['midnight_start_date'];
+                        $time = trim($data['interval_start_time_raw']); // Trim whitespace from nchar(5)
+                        
+                        // Convert date to string if it's a DateTime object
+                        if ($date instanceof \DateTime) {
+                            $date = $date->format('Y-m-d');
+                        } elseif (is_object($date) && method_exists($date, '__toString')) {
+                            $date = (string) $date;
+                            $date = substr($date, 0, 10); // Get just date part YYYY-MM-DD
+                        }
+                        
+                        // Combine date and time into PostgreSQL timestamp format
+                        return $date . ' ' . $time . ':00'; // Add seconds
+                    }
+                    return null;
+                },
             ],
         ],
 
