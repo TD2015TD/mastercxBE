@@ -252,72 +252,56 @@ return [
             'column_map' => [
                 // Key columns first (must be exact for composite key matching)
                 'AgentID' => 'agent_id',
-                'EmployeeReporting' => 'employee_reporting',
                 'EmployeeID' => 'employee_id',
+                'MidnightStartDate' => 'midnight_start_date',
                 
                 // Date/Time fields - need special handling
-                'MidnightStartDate' => 'midnight_start_date', // Date part
-                'IntervalStartTime' => 'interval_start_time_raw', // Time part only from SQL Server
+                'IntervalStartTime' => 'interval_start_time_raw', // Time part only - will be transformed
                 
                 // Agent identification
-                'AgentFirstName' => 'agent_first_name',
-                'AgentLastName' => 'agent_last_name',
                 'AgentReporting' => 'agent_reporting',
-                'AgentMediaServerName' => 'agent_platform',
-                'EmployeeFirstName' => 'agent_first_name_r',
-                'EmployeeLastName' => 'agent_last_name_r',
                 
                 // Time/Date fields
-                'DayOfWeekName' => 'day_name_of_week',
-                'Position' => 'position',
-                'DayOfWeekID' => 'dow',
+                'DayOfWeekName' => 'day_of_week_name',
                 'TimeIntervalID' => 'interval_number',
                 
-                // ACD metrics - now using actual column names from view
-                'AgentShortACD' => 'acd_short',
-                'AgentACDCount' => 'acd_count',
-                'AgentACDDuration' => 'acd_duration',
-                'AgentACDTimeToAnswer' => 'acd_time_to_answer',
+                // ACD metrics - match migration column names exactly
+                'AgentACDCount' => 'agent_acd_count',
+                'AgentACDDuration' => 'agent_acd_duration',
+                'AgentACDTimeToAnswer' => 'agent_acd_time_to_answer',
                 
                 // ACD Internal/External
-                'AgentInternalACDCount' => 'acd_offered_internal',
-                'AgentInternalACDDuration' => 'acd_duration_internal',
-                'AgentExternalACDCount' => 'acd_offered_external',
-                'AgentExternalACDDuration' => 'acd_duration_external',
+                'AgentInternalACDCount' => 'agent_acd_internal_count',
+                'AgentInternalACDDuration' => 'agent_acd_internal_duration',
+                'AgentExternalACDCount' => 'agent_acd_external_count',
+                'AgentExternalACDDuration' => 'agent_acd_external_duration',
                 
                 // Non-ACD metrics
-                'AgentShortNonACD' => 'non_acd_short',
-                'AgentNonACDCount' => 'non_acd_count',
-                'AgentNonACDDuration' => 'non_acd_duration',
-                'AgentNonACDTimeToAnswer' => 'non_acd_time_to_answer',
+                'AgentNonACDCount' => 'agent_non_acd_count',
+                'AgentNonACDDuration' => 'agent_non_acd_duration',
+                'AgentNonACDTimeToAnswer' => 'agent_non_acd_time_to_answer',
                 
                 // Non-ACD Internal/External
-                'AgentInternalNonACDCount' => 'non_acd_offered_internal',
-                'AgentInternalNonACDDuration' => 'non_acd_duration_internal',
-                'AgentExternalNonACDCount' => 'non_acd_offered_external',
-                'AgentExternalNonACDDuration' => 'non_acd_duration_external',
+                'AgentInternalNonACDCount' => 'agent_non_acd_internal_count',
+                'AgentInternalNonACDDuration' => 'agent_non_acd_internal_duration',
+                'AgentExternalNonACDCount' => 'agent_non_acd_external_count',
+                'AgentExternalNonACDDuration' => 'agent_non_acd_external_duration',
                 
                 // Outbound metrics
-                'AgentShortOutbound' => 'outbound_short',
-                'AgentOutboundCount' => 'outbound_count',
-                'AgentOutboundDuration' => 'outbound_duration',
+                'AgentOutboundCount' => 'agent_outbound_count',
+                'AgentOutboundDuration' => 'agent_outbound_duration',
                 
                 // Outbound Internal/External
-                'AgentInternalOutboundCount' => 'outbound_offered_internal',
-                'AgentInternalOutboundDuration' => 'outbound_duration_internal',
-                'AgentExternalOutboundCount' => 'outbound_offered_external',
-                'AgentExternalOutboundDuration' => 'outbound_duration_external',
+                'AgentInternalOutboundCount' => 'agent_outbound_internal_count',
+                'AgentInternalOutboundDuration' => 'agent_outbound_internal_duration',
+                'AgentExternalOutboundCount' => 'agent_outbound_external_count',
+                'AgentExternalOutboundDuration' => 'agent_outbound_external_duration',
                 
                 // Other metrics
-                'AgentAbandonCount' => 'abandon_count',
-                'AgentTimeToAbandon' => 'time_to_abandon',
-                'AgentRequeueCount' => 'requeue_count',
-                'AgentTransferIn' => 'transfer_in',
-                'AgentTransferOut' => 'transfer_out',
-                'AgentConference' => 'conference_count',
-                'AgentAccountCodes' => 'account_codes',
-                'AgentAccountCodesOutbound' => 'account_codes_outbound',
-                'AgentACDCountWithAccountCode' => 'acd_count_with_account_code',
+                'AgentTransferIn' => 'agent_transfer_in',
+                'AgentTransferOut' => 'agent_transfer_out',
+                'AgentConference' => 'agent_conference',
+                'AgentAbandonCount' => 'agent_abandon_count',
             ],
             'transformations' => [
                 // Combine MidnightStartDate + IntervalStartTime_raw to create full timestamp
@@ -343,6 +327,7 @@ return [
                     return null;
                 },
             ],
+            'cleanup_columns' => ['interval_start_time_raw'], // Remove helper column before insert
         ],
 
         'tblConfig_Queue' => [
