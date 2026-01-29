@@ -323,19 +323,22 @@ return [
                 // Combine MidnightStartDate + IntervalStartTime_raw to create full timestamp
                 'interval_start_time' => function ($data) {
                     if (isset($data['midnight_start_date']) && isset($data['interval_start_time_raw'])) {
-                        $date = $data['midnight_start_date'];
+                        $dateValue = $data['midnight_start_date'];
                         $time = trim($data['interval_start_time_raw']); // Trim whitespace from nchar(5)
                         
-                        // Convert date to string if it's a DateTime object
-                        if ($date instanceof \DateTime) {
-                            $date = $date->format('Y-m-d');
-                        } elseif (is_object($date) && method_exists($date, '__toString')) {
-                            $date = (string) $date;
-                            $date = substr($date, 0, 10); // Get just date part YYYY-MM-DD
+                        // Extract just date part (YYYY-MM-DD) from datetime
+                        if ($dateValue instanceof \DateTime) {
+                            $date = $dateValue->format('Y-m-d');
+                        } elseif (is_string($dateValue)) {
+                            // String like "2025-05-28 14:30:00.000" - extract first 10 chars
+                            $date = substr($dateValue, 0, 10);
+                        } else {
+                            $date = (string) $dateValue;
+                            $date = substr($date, 0, 10);
                         }
                         
                         // Combine date and time into PostgreSQL timestamp format
-                        return $date . ' ' . $time . ':00'; // Add seconds
+                        return $date . ' ' . $time . ':00'; // Result: "2025-05-28 14:30:00"
                     }
                     return null;
                 },
