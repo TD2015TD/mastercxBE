@@ -379,6 +379,13 @@ class MitelDataSyncService
             }
         }
 
+        // Clean up helper columns that were only needed for transformations
+        if (isset($mapping['cleanup_columns'])) {
+            foreach ($mapping['cleanup_columns'] as $helperColumn) {
+                unset($data[$helperColumn]);
+            }
+        }
+
         // Add timestamps
         $data['synced_at'] = now();
         $data['updated_at'] = now();
