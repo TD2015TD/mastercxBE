@@ -55,9 +55,9 @@ class Kernel extends ConsoleKernel
         // $schedule->command('email:process --once')->everyMinute()->between('8:00', '18:00')->withoutOverlapping();
 
         // Mitel Data Sync - Sync all active connections based on config
-        $syncSchedule = config('mitel.sync_schedule', '*/30 * * * *');
+        //$syncSchedule = config('mitel.sync_schedule', '*/30 * * * *');
         $schedule->command('mitel:sync --all')
-            ->cron($syncSchedule)
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground()
             ->onSuccess(function () {
