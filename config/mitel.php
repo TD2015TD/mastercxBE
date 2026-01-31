@@ -556,7 +556,15 @@ return [
         'AgentInboundCallDetails' => [
             'source_table' => 'AgentInboundCallDetails',
             'target_table' => 'mitel_agent_inbound_call_details',
-            'unique_key' => 'ExtensionID', // Using ExtensionID as unique identifier (appears to be unique per call)
+            'unique_key' => [
+                'AgentID',
+                'MidnightStartDateTime',
+                'CallStartTime',
+                'QueueID',
+                'TrunkID',
+                'DnisID',
+                'AccountCodeID',
+            ], // Composite key for uniqueness
             'timestamp_column' => 'MidnightStartDateTime',
             'column_map' => [
                 'AgentID' => 'agent_id',
@@ -601,7 +609,15 @@ return [
         'AgentOutboundCallDetails' => [
             'source_table' => 'AgentOutboundCallDetails',
             'target_table' => 'mitel_agent_outbound_call_details',
-            'unique_key' => 'ExtensionID', // Using ExtensionID as unique identifier
+            'unique_key' => [
+                'AgentID',
+                'MidnightStartDateTime',
+                'CallStartTime',
+                'QueueID',
+                'TrunkID',
+                'DnisID',
+                'AccountCodeID',
+            ], // Composite key for uniqueness
             'timestamp_column' => 'MidnightStartDateTime',
             'column_map' => [
                 'AgentID' => 'agent_id',

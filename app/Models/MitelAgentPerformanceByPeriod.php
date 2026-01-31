@@ -60,6 +60,16 @@ use Illuminate\Database\Eloquent\Model;
  * @property \DateTime $updated_at
  */
 class MitelAgentPerformanceByPeriod extends Model
+    /**
+     * Get the agent's name from CRM (via employee_id).
+     *
+     * @return string|null
+     */
+    public function getAgentNameAttribute()
+    {
+        // Use the agent() relationship (employee_id join)
+        return $this->agent ? ($this->agent->user->name ?? null) : null;
+    }
 {
     /**
      * The table associated with the model.
