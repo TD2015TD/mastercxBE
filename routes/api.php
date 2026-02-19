@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\SlaConfigurationController;
 use App\Http\Controllers\Api\SlaEngineController;
 use App\Http\Controllers\Api\EscalationController;
 use App\Http\Controllers\Api\CustomerInteractionController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LookupController;
@@ -126,6 +127,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('customers', CustomerController::class);
         Route::post('/customers/search', [CustomerController::class, 'search']);
         Route::get('/customers/{id}/statistics', [CustomerController::class, 'statistics']);
+
+        // Customer Contacts
+        Route::get('/customers/{customerId}/contacts', [ContactController::class, 'index']);
+        Route::get('/contacts/find-by-phone/{phoneNumber}', [ContactController::class, 'findByPhone']);
+        Route::apiResource('contacts', ContactController::class);
         
         // Customer Attachments
         Route::post('/customers/{customerId}/attachments', [CustomerController::class, 'uploadAttachment'])->name('api.customers.attachments.upload');
@@ -189,6 +195,11 @@ Route::prefix('v1')->group(function () {
         // Customer Interactions (Customer 360)
         Route::apiResource('customer-interactions', CustomerInteractionController::class);
         Route::get('/customer-interactions/timeline/{customerId}', [CustomerInteractionController::class, 'customerTimeline']);
+        
+        // Customer Contacts Management
+        Route::apiResource('contacts', ContactController::class);
+        Route::get('/contacts/find-by-phone/{phoneNumber}', [ContactController::class, 'findByPhone']);
+        Route::get('/customers/{customerId}/contacts', [ContactController::class, 'index']);
         
         // Reports & Metrics (for Superset/BI integration)
         Route::get('/reports', [ReportController::class, 'index']);

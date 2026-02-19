@@ -25,6 +25,7 @@ class CustomerInteraction extends Model
         'agent_id',
         'conversation_id',
         'interaction_type',
+        'interaction_type_id',
         'channel',
         'subject',
         'description',
@@ -63,6 +64,14 @@ class CustomerInteraction extends Model
     public function agent()
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    /**
+     * Get the interaction type lookup.
+     */
+    public function interactionTypeLookup()
+    {
+        return $this->belongsTo(Lookup::class, 'interaction_type_id');
     }
 
     /**

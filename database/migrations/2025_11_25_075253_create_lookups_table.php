@@ -147,6 +147,14 @@ return new class extends Migration
             ['type' => 'department', 'code' => 'GENERAL', 'name_en' => 'General', 'name_ms' => 'Am', 'description_en' => 'General inquiries and administrative matters', 'description_ms' => 'Pertanyaan am dan perkara pentadbiran', 'sort_order' => 11],
             ['type' => 'department', 'code' => 'OTHERS', 'name_en' => 'Others', 'name_ms' => 'Lain-lain', 'description_en' => 'Other inquiries', 'description_ms' => 'Pertanyaan lain', 'sort_order' => 12],
 
+            // Contact Types (for Customer Contacts)
+            ['type' => 'contact_type', 'code' => 'phone', 'name_en' => 'Phone', 'name_ms' => 'Telefon', 'description_en' => 'Phone number', 'description_ms' => 'Nombor telefon', 'icon' => 'phone', 'color' => 'blue', 'sort_order' => 1],
+            ['type' => 'contact_type', 'code' => 'email', 'name_en' => 'Email', 'name_ms' => 'E-mel', 'description_en' => 'Email address', 'description_ms' => 'Alamat e-mel', 'icon' => 'mail', 'color' => 'blue', 'sort_order' => 2],
+            ['type' => 'contact_type', 'code' => 'mobile', 'name_en' => 'Mobile', 'name_ms' => 'Mudah Alih', 'description_en' => 'Mobile phone number', 'description_ms' => 'Nombor telefon mudah alih', 'icon' => 'smartphone', 'color' => 'green', 'sort_order' => 3],
+            ['type' => 'contact_type', 'code' => 'fax', 'name_en' => 'Fax', 'name_ms' => 'Faks', 'description_en' => 'Fax number', 'description_ms' => 'Nombor faks', 'icon' => 'printer', 'color' => 'purple', 'sort_order' => 4],
+            ['type' => 'contact_type', 'code' => 'office', 'name_en' => 'Office', 'name_ms' => 'Pejabat', 'description_en' => 'Office address', 'description_ms' => 'Alamat pejabat', 'icon' => 'building', 'color' => 'orange', 'sort_order' => 5],
+            ['type' => 'contact_type', 'code' => 'whatsapp', 'name_en' => 'WhatsApp', 'name_ms' => 'WhatsApp', 'description_en' => 'WhatsApp number', 'description_ms' => 'Nombor WhatsApp', 'icon' => 'message-circle', 'color' => 'green', 'sort_order' => 6],
+
             // ID Types (Malaysian identification documents)
             ['type' => 'id_type', 'code' => 'MyKad', 'name_en' => 'MyKad', 'name_ms' => 'MyKad', 'description_en' => 'Malaysian Identity Card', 'description_ms' => 'Kad Pengenalan Malaysia', 'sort_order' => 1],
             ['type' => 'id_type', 'code' => 'MyTentera', 'name_en' => 'MyTentera', 'name_ms' => 'MyTentera', 'description_en' => 'Malaysian Armed Forces Identity Card', 'description_ms' => 'Kad Pengenalan Angkatan Tentera Malaysia', 'sort_order' => 2],

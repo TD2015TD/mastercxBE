@@ -15,7 +15,7 @@ class CustomerInteractionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = CustomerInteraction::with(['customer', 'ticket', 'agent']);
+        $query = CustomerInteraction::with(['customer', 'ticket', 'agent', 'interactionTypeLookup']);
 
         // Filter by customer
         if ($request->has('customer_id')) {
@@ -72,6 +72,7 @@ class CustomerInteractionController extends Controller
             'agent_id' => 'nullable|exists:agents,id',
             'conversation_id' => 'nullable|string|max:100',
             'interaction_type' => 'required|in:' . implode(',', CustomerInteraction::INTERACTION_TYPES),
+            'interaction_type_id' => 'nullable|exists:lookups,id',
             'channel' => 'required|in:' . implode(',', CustomerInteraction::CHANNELS),
             'subject' => 'required|string|max:500',
             'description' => 'nullable|string',
@@ -114,7 +115,7 @@ class CustomerInteractionController extends Controller
             }
         }
 
-        $interaction->load(['customer', 'ticket', 'agent']);
+        $interaction->load(['customer', 'ticket', 'agent', 'interactionTypeLookup']);
 
         return response()->json([
             'success' => true,
@@ -128,7 +129,7 @@ class CustomerInteractionController extends Controller
      */
     public function show($id)
     {
-        $interaction = CustomerInteraction::with(['customer', 'ticket', 'agent'])->findOrFail($id);
+        $interaction = CustomerInteraction::with(['customer', 'ticket', 'agent', 'interactionTypeLookup'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -146,6 +147,7 @@ class CustomerInteractionController extends Controller
         $validator = Validator::make($request->all(), [
             'ticket_id' => 'nullable|exists:tickets,id',
             'interaction_type' => 'in:call,email,chat,sms,meeting,note',
+            'interaction_type_id' => 'nullable|exists:lookups,id',
             'channel' => 'in:phone,email,chat,web,walk-in,social_media',
             'subject' => 'string|max:500',
             'description' => 'nullable|string',
@@ -163,7 +165,7 @@ class CustomerInteractionController extends Controller
         }
 
         $interaction->update($request->all());
-        $interaction->load(['customer', 'ticket', 'agent']);
+        $interaction->load(['customer', 'ticket', 'agent', 'interactionTypeLookup']);
 
         return response()->json([
             'success' => true,
@@ -194,7 +196,7 @@ class CustomerInteractionController extends Controller
         $customer = Customer::findOrFail($customerId);
 
         $interactions = CustomerInteraction::byCustomer($customerId)
-            ->with(['ticket', 'agent'])
+            ->with(['ticket', 'agent', 'interactionTypeLookup'])
             ->orderBy('interaction_at', 'desc')
             ->get();
 

@@ -13,7 +13,6 @@ class Customer extends Model
     protected $fillable = [
         'name',
         'email',
-        'phone_number',
         'id_type',
         'id_no',
         'company_name',
@@ -56,6 +55,14 @@ class Customer extends Model
     public function interactions(): HasMany
     {
         return $this->hasMany(CustomerInteraction::class);
+    }
+
+    /**
+     * Get all contacts for the customer.
+     */
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(Contact::class);
     }
 
     /**
