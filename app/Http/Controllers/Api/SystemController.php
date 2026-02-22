@@ -52,6 +52,9 @@ class SystemController extends Controller
     {
         try {
             $dbConnected = $this->checkDatabaseConnection();
+            $mitelConnected = $this->checkMitelConnection();
+            $supersetConnected = $this->checkSupersetConnection();
+
             $services = [
                 [
                     'name' => 'Database Server',
@@ -63,16 +66,16 @@ class SystemController extends Controller
                 ],
                 [
                     'name' => 'Mitel Server',
-                    'status' => 'running',
-                    'health' => 'healthy',
+                    'status' => $mitelConnected ? 'running' : 'stopped',
+                    'health' => $mitelConnected ? 'healthy' : 'failed',
                     'uptime' => $this->getSystemUptime(),
                     'port' => env('MITEL_PORT', 'N/A'),
                     'last_restart' => Cache::get('service_mitel_restart', now()->subDays(15)->toIso8601String()),
                 ],
                 [
                     'name' => 'Reporting Server',
-                    'status' => 'running',
-                    'health' => 'healthy',
+                    'status' => $supersetConnected ? 'running' : 'stopped',
+                    'health' => $supersetConnected ? 'healthy' : 'failed',
                     'uptime' => $this->getSystemUptime(),
                     'port' => env('SUPERSET_PORT', '8088'),
                     'last_restart' => Cache::get('service_reporting_restart', now()->subDays(7)->toIso8601String()),
@@ -365,6 +368,33 @@ class SystemController extends Controller
         try {
             DB::connection()->getPdo();
             return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function checkMitelConnection()
+    {
+        try {
+            $mitelService = app(MitelService::class);
+            $token = $mitelService->authenticate();
+            return !empty($token);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function checkSupersetConnection()
+    {
+        try {
+            $supersetUrl = rtrim(env('SUPERSET_URL', 'http://localhost:8088'), '/');
+            $response = Http::timeout(5)->post("{$supersetUrl}/api/v1/security/login", [
+                'username' => env('SUPERSET_USERNAME', 'admin'),
+                'password' => env('SUPERSET_PASSWORD', 'admin'),
+                'provider' => 'db',
+                'refresh' => true,
+            ]);
+            return $response->successful() && !empty($response->json()['access_token']);
         } catch (\Exception $e) {
             return false;
         }
