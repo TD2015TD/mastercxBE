@@ -51,38 +51,31 @@ class SystemController extends Controller
     public function getServiceStatus()
     {
         try {
+            $dbConnected = $this->checkDatabaseConnection();
             $services = [
                 [
-                    'name' => 'Web Server',
-                    'status' => 'running',
-                    'health' => 'healthy',
-                    'uptime' => $this->getSystemUptime(),
-                    'port' => '443',
-                    'last_restart' => Cache::get('service_web_restart', now()->subDays(15)->toIso8601String()),
-                ],
-                [
                     'name' => 'Database Server',
-                    'status' => $this->checkDatabaseConnection() ? 'running' : 'stopped',
-                    'health' => $this->checkDatabaseConnection() ? 'healthy' : 'failed',
+                    'status' => $dbConnected ? 'running' : 'stopped',
+                    'health' => $dbConnected ? 'healthy' : 'failed',
                     'uptime' => $this->getSystemUptime(),
-                    'port' => env('DB_PORT', '3306'),
+                    'port' => env('DB_PORT', '5432'),
                     'last_restart' => Cache::get('service_db_restart', now()->subDays(15)->toIso8601String()),
                 ],
                 [
-                    'name' => 'Cache Server',
-                    'status' => $this->checkCacheConnection() ? 'running' : 'stopped',
-                    'health' => $this->checkCacheConnection() ? 'healthy' : 'degraded',
-                    'uptime' => $this->getSystemUptime(),
-                    'port' => '6379',
-                    'last_restart' => Cache::get('service_cache_restart', now()->subDays(7)->toIso8601String()),
-                ],
-                [
-                    'name' => 'Queue Worker',
+                    'name' => 'Mitel Server',
                     'status' => 'running',
                     'health' => 'healthy',
                     'uptime' => $this->getSystemUptime(),
-                    'port' => 'N/A',
-                    'last_restart' => Cache::get('service_queue_restart', now()->subDays(2)->toIso8601String()),
+                    'port' => env('MITEL_PORT', 'N/A'),
+                    'last_restart' => Cache::get('service_mitel_restart', now()->subDays(15)->toIso8601String()),
+                ],
+                [
+                    'name' => 'Reporting Server',
+                    'status' => 'running',
+                    'health' => 'healthy',
+                    'uptime' => $this->getSystemUptime(),
+                    'port' => env('SUPERSET_PORT', '8088'),
+                    'last_restart' => Cache::get('service_reporting_restart', now()->subDays(7)->toIso8601String()),
                 ],
             ];
 
