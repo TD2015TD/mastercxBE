@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
+use App\Models\MitelConnection;
 
 class SystemController extends Controller
 {
@@ -231,6 +233,88 @@ class SystemController extends Controller
                 'message' => 'Failed to restart service',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Test connectivity for a specific service
+     */
+    public function testConnectivity($service)
+    {
+        $startTime = microtime(true);
+
+        switch ($service) {
+            case 'database':
+                $connected = $this->checkDatabaseConnection();
+                $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                return response()->json([
+                    'success' => true,
+                    'service' => 'Database',
+                    'connected' => $connected,
+                    'response_time_ms' => $responseTime,
+                    'host' => env('DB_HOST'),
+                    'port' => (string) env('DB_PORT', '5432'),
+                    'database' => env('DB_DATABASE'),
+                ]);
+
+            case 'mitel':
+                try {
+                    $connection = MitelConnection::where('is_active', true)->first();
+                    if (!$connection) {
+                        return response()->json([
+                            'success' => true,
+                            'service' => 'Mitel',
+                            'connected' => false,
+                            'message' => 'No active Mitel connection configured',
+                            'response_time_ms' => null,
+                        ]);
+                    }
+                    $response = Http::timeout(5)->get("http://{$connection->host}:{$connection->port}/");
+                    $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                    return response()->json([
+                        'success' => true,
+                        'service' => 'Mitel',
+                        'connected' => $response->successful() || $response->status() < 500,
+                        'response_time_ms' => $responseTime,
+                        'host' => $connection->host,
+                        'port' => (string) $connection->port,
+                    ]);
+                } catch (\Exception $e) {
+                    $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                    return response()->json([
+                        'success' => true,
+                        'service' => 'Mitel',
+                        'connected' => false,
+                        'response_time_ms' => $responseTime,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+
+            case 'superset':
+                try {
+                    $supersetUrl = rtrim(env('SUPERSET_URL', 'http://localhost:8088'), '/');
+                    $response = Http::timeout(5)->get($supersetUrl . '/health');
+                    $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                    return response()->json([
+                        'success' => true,
+                        'service' => 'Superset',
+                        'connected' => $response->successful(),
+                        'response_time_ms' => $responseTime,
+                        'host' => $supersetUrl,
+                    ]);
+                } catch (\Exception $e) {
+                    $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                    return response()->json([
+                        'success' => true,
+                        'service' => 'Superset',
+                        'connected' => false,
+                        'response_time_ms' => $responseTime,
+                        'message' => $e->getMessage(),
+                    ]);
+                }
+
+            default:
+                return response()->json(['success' => false, 'message' => 'Unknown service'], 400);
         }
     }
 

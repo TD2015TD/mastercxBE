@@ -230,6 +230,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/alerts/{id}/acknowledge', [SystemController::class, 'acknowledgeAlert']);
             Route::post('/health-check', [SystemController::class, 'performHealthCheck']);
             Route::post('/services/{serviceName}/restart', [SystemController::class, 'restartService']);
+            Route::post('/connectivity/{service}', [SystemController::class, 'testConnectivity']);
 
             // System Configuration Management
             Route::get('/configurations', [SystemConfigurationController::class, 'index']);
