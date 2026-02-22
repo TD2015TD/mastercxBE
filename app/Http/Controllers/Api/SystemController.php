@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
-use App\Models\MitelConnection;
+use App\Services\MitelService;
 
 class SystemController extends Controller
 {
@@ -258,26 +258,17 @@ class SystemController extends Controller
                 ]);
 
             case 'mitel':
+                // Use MitelService to test authentication via OAuth2 client_credentials
                 try {
-                    $connection = MitelConnection::where('is_active', true)->first();
-                    if (!$connection) {
-                        return response()->json([
-                            'success' => true,
-                            'service' => 'Mitel',
-                            'connected' => false,
-                            'message' => 'No active Mitel connection configured',
-                            'response_time_ms' => null,
-                        ]);
-                    }
-                    $response = Http::timeout(5)->get("http://{$connection->host}:{$connection->port}/");
+                    $mitelService = app(MitelService::class);
+                    $token = $mitelService->authenticate();
                     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
                     return response()->json([
                         'success' => true,
                         'service' => 'Mitel',
-                        'connected' => $response->successful() || $response->status() < 500,
+                        'connected' => !empty($token),
                         'response_time_ms' => $responseTime,
-                        'host' => $connection->host,
-                        'port' => (string) $connection->port,
+                        'host' => config('services.mitel.base_url'),
                     ]);
                 } catch (\Exception $e) {
                     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
@@ -286,21 +277,30 @@ class SystemController extends Controller
                         'service' => 'Mitel',
                         'connected' => false,
                         'response_time_ms' => $responseTime,
+                        'host' => config('services.mitel.base_url'),
                         'message' => $e->getMessage(),
                     ]);
                 }
 
             case 'superset':
+                // Use the same login flow as SupersetController::getSupersetTokens()
                 try {
                     $supersetUrl = rtrim(env('SUPERSET_URL', 'http://localhost:8088'), '/');
-                    $response = Http::timeout(5)->get($supersetUrl . '/health');
+                    $loginResponse = Http::timeout(5)->post("{$supersetUrl}/api/v1/security/login", [
+                        'username' => env('SUPERSET_USERNAME', 'admin'),
+                        'password' => env('SUPERSET_PASSWORD', 'admin'),
+                        'provider' => 'db',
+                        'refresh' => true,
+                    ]);
                     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+                    $connected = $loginResponse->successful() && !empty($loginResponse->json()['access_token']);
                     return response()->json([
                         'success' => true,
                         'service' => 'Superset',
-                        'connected' => $response->successful(),
+                        'connected' => $connected,
                         'response_time_ms' => $responseTime,
                         'host' => $supersetUrl,
+                        'message' => $connected ? null : 'Login failed: ' . $loginResponse->body(),
                     ]);
                 } catch (\Exception $e) {
                     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
@@ -309,6 +309,7 @@ class SystemController extends Controller
                         'service' => 'Superset',
                         'connected' => false,
                         'response_time_ms' => $responseTime,
+                        'host' => rtrim(env('SUPERSET_URL', 'http://localhost:8088'), '/'),
                         'message' => $e->getMessage(),
                     ]);
                 }
