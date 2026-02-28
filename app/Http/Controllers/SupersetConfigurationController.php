@@ -35,7 +35,8 @@ class SupersetConfigurationController extends Controller
             ->map(function ($config) {
                 return [
                     'key' => $config->key,
-                    'value' => $config->value,
+                    'value' => $config->is_secret ? null : $config->value,
+                    'has_value' => $config->is_secret ? !empty($config->value) : null,
                     'description' => $config->description,
                     'is_secret' => $config->is_secret,
                 ];
