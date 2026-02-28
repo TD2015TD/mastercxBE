@@ -219,20 +219,59 @@ class KnowledgeBaseArticleController extends Controller
      */
     public function search(Request $request)
     {
-        try {
-            $query = $request->input('q', '');
-            $category = $request->input('category_code');
+        $q        = $request->input('q', '');
+        $category = $request->input('category_code');
 
-            $results = $this->articleService->search($query, $category);
+        // Try Elasticsearch first
+        try {
+            $results = $this->articleService->search($q, $category);
 
             return response()->json([
                 'success' => true,
-                'data' => $results
+                'data'    => $results,
+                'source'  => 'elasticsearch',
+            ]);
+        } catch (\Exception $esException) {
+            // ES unavailable — fall back to database LIKE search
+        }
+
+        try {
+            $dbQuery = KnowledgeBaseArticle::where('status', 'live');
+
+            if ($q !== '') {
+                $dbQuery->where(function ($builder) use ($q) {
+                    $builder->where('title', 'ilike', "%{$q}%")
+                            ->orWhere('content', 'ilike', "%{$q}%");
+                });
+            }
+
+            if ($category) {
+                $dbQuery->where('category_code', $category);
+            }
+
+            $articles = $dbQuery->get();
+
+            // Transform to the same _id/_source shape the frontend expects
+            $results = $articles->map(fn($a) => [
+                '_id'     => (string) $a->id,
+                '_source' => [
+                    'title'         => $a->title,
+                    'content'       => $a->content,
+                    'category_code' => $a->category_code,
+                    'author'        => $a->author,
+                    'published_at'  => $a->published_at,
+                ],
+            ])->values()->all();
+
+            return response()->json([
+                'success' => true,
+                'data'    => $results,
+                'source'  => 'database',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Search failed'
+                'message' => 'Search failed',
             ], 500);
         }
     }
