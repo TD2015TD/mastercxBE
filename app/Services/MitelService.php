@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\MitelConfiguration;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Exception;
@@ -23,11 +24,12 @@ class MitelService
 
     public function __construct()
     {
-        // NOTE: Configuration values would typically be loaded from Laravel's config/services.php
-        $this->baseUrl = config('services.mitel.base_url', 'https://your-micc-server/miccsdk');
-        $this->authUrl = config('services.mitel.auth_url', 'https://your-micc-server/miccsdk/connect/token');
-        $this->clientId = config('services.mitel.client_id', 'your-client-id');
-        $this->clientSecret = config('services.mitel.client_secret', 'your-client-secret');
+        $mitelBaseUrl = rtrim(MitelConfiguration::getValue('MITEL_BASE_URL', 'https://micc.telediant.com.my'), '/');
+
+        $this->baseUrl = $mitelBaseUrl . '/miccsdk';
+        $this->authUrl = $mitelBaseUrl . '/AuthorizationServer/Token';
+        $this->clientId = MitelConfiguration::getValue('MITEL_CLIENT_ID', 'CXCRM');
+        $this->clientSecret = MitelConfiguration::getValue('MITEL_CLIENT_SECRET', '');
         $this->timeout = config('services.mitel.timeout', 30);
 
         $this->log('INFO', 'MitelService initialized', [
