@@ -85,20 +85,12 @@ linked_tickets AS (
         -- Primary: Direct call_id match (only when call_id is not empty)
         (mc.call_id != '' AND mc.call_id = t.call_id)
         OR
-        -- Fallback: Phone number (digits_dialed) + time range match
+        -- Fallback: Time range match
         (
-            t.created_at BETWEEN mc.call_start_time - INTERVAL '10 minutes' 
+            t.created_at BETWEEN mc.call_start_time - INTERVAL '10 minutes'
                              AND mc.call_start_time + INTERVAL '10 minutes'
             AND mc.digits_dialed IS NOT NULL
             AND mc.digits_dialed != ''
-            AND (
-                -- Match via customer phone in customers table using digits_dialed
-                EXISTS (
-                    SELECT 1 FROM customers c 
-                    WHERE c.id = t.customer_id 
-                    AND c.phone_number = REGEXP_REPLACE(mc.digits_dialed, '[^0-9]', '', 'g')
-                )
-            )
         )
     )
     WHERE t.deleted_at IS NULL OR t.id IS NULL

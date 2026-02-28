@@ -104,26 +104,10 @@ ticket_escalations AS (
         -- Primary: Direct call_id match (only when call_id is not empty)
         (mct.call_id != '' AND mct.call_id = t.call_id)
         OR
-        -- Fallback: Phone number (digits_dialed) + time range match
+        -- Fallback: Time range match
         (
-            t.created_at BETWEEN mct.call_start_time - INTERVAL '10 minutes' 
+            t.created_at BETWEEN mct.call_start_time - INTERVAL '10 minutes'
                              AND mct.call_start_time + INTERVAL '10 minutes'
-            AND (\
-                -- Match via customer phone in customers table (need to extract phone from call)
-                EXISTS (
-                    SELECT 1 FROM mitel_data_inbound_trace mit
-                    JOIN customers c ON c.id = t.customer_id
-                    WHERE mit.call_id = mct.call_id
-                    AND c.phone_number = REGEXP_REPLACE(mit.digits_dialed, '[^0-9]', '', 'g')
-                )
-                OR
-                EXISTS (
-                    SELECT 1 FROM mitel_data_outbound_trace mot
-                    JOIN customers c ON c.id = t.customer_id
-                    WHERE mot.call_id = mct.call_id
-                    AND c.phone_number = REGEXP_REPLACE(mot.digits_dialed, '[^0-9]', '', 'g')
-                )
-            )
         )
     )
     WHERE (t.created_at >= CURRENT_DATE - INTERVAL '90 days' OR t.id IS NULL)
