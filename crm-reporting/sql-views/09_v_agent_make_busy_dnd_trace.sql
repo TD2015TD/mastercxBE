@@ -18,7 +18,7 @@ CREATE VIEW v_agent_make_busy_dnd_trace AS
 SELECT
     -- === AGENT INFORMATION ===
     mca.reporting as agent_reporting_id,
-    u.name as full_name
+    u.name as full_name,
     mate.agent_id as mitel_agent_id,
     a.agent_code as crm_agent_code,
     a.department as agent_department,
