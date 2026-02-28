@@ -20,6 +20,9 @@ class CreateSqlViews extends Migration
 
         $files = File::files($path);
 
+        // Sort files alphabetically so numbered views execute in the correct order
+        usort($files, fn($a, $b) => strcmp($a->getFilename(), $b->getFilename()));
+
         foreach ($files as $file) {
             if ($file->getExtension() !== 'sql') {
                 continue;
@@ -32,7 +35,17 @@ class CreateSqlViews extends Migration
             }
 
             // Some SQL files may contain DELIMITER statements or comments; execute as-is.
-            DB::unprepared($sql);
+            try {
+                DB::unprepared($sql);
+            } catch (\Exception $e) {
+                // Re-throw with filename context but without full SQL in message
+                $shortMsg = explode("\n", $e->getMessage())[0];
+                throw new \RuntimeException(
+                    "SQL view migration failed on file [{$file->getFilename()}]: {$shortMsg}",
+                    0,
+                    $e
+                );
+            }
         }
     }
 
