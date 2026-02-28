@@ -89,8 +89,8 @@ linked_tickets AS (
         (
             t.created_at BETWEEN mc.call_start_time - INTERVAL '10 minutes'
                              AND mc.call_start_time + INTERVAL '10 minutes'
-            AND mc.digits_dialed IS NOT NULL
-            AND mc.digits_dialed != ''
+            AND mc.disconnect_reason IS NOT NULL
+            AND mc.disconnect_reason != ''
         )
     )
     WHERE t.deleted_at IS NULL OR t.id IS NULL
