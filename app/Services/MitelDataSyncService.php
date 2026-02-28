@@ -28,6 +28,12 @@ class MitelDataSyncService
             return false;
         }
 
+        if (!extension_loaded('pdo_sqlsrv') && !extension_loaded('sqlsrv')) {
+            Log::error("SQL Server driver not installed — cannot sync connection {$this->connection->name}");
+            $this->connection->updateSyncStatus('failed', 'SQL Server driver (pdo_sqlsrv) not installed on this server.');
+            return false;
+        }
+
         try {
             // Update connection status
             $this->connection->updateSyncStatus('running', 'Sync started');
@@ -418,9 +424,17 @@ class MitelDataSyncService
      */
     public function testConnection(): array
     {
+        // Check that the SQL Server PDO driver is installed
+        if (!extension_loaded('pdo_sqlsrv') && !extension_loaded('sqlsrv')) {
+            return [
+                'success' => false,
+                'message' => 'SQL Server driver not installed on this server. Please install the pdo_sqlsrv PHP extension to enable SQL Server connectivity.',
+            ];
+        }
+
         try {
             $this->configureDynamicConnection();
-            
+
             $result = DB::connection('mitel_dynamic')
                 ->select('SELECT @@VERSION as version');
 
@@ -431,9 +445,20 @@ class MitelDataSyncService
             ];
 
         } catch (\Exception $e) {
+            $message = $e->getMessage();
+
+            // Give friendlier messages for common errors
+            if (str_contains($message, 'could not find driver')) {
+                $message = 'SQL Server driver not installed. Please install the pdo_sqlsrv PHP extension.';
+            } elseif (str_contains($message, 'Connection refused') || str_contains($message, 'timeout')) {
+                $message = 'Cannot reach SQL Server at ' . $this->connection->host . ':' . $this->connection->port . '. Check host/port and firewall rules.';
+            } elseif (str_contains($message, 'Login failed')) {
+                $message = 'SQL Server login failed. Check username and password.';
+            }
+
             return [
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => $message,
             ];
         }
     }

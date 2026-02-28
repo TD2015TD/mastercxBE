@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\SystemConfigurationController;
 use App\Http\Controllers\Api\SupersetController;
 use App\Http\Controllers\Api\SupersetDashboardController;
 use App\Http\Controllers\MitelConfigurationController;
+use App\Http\Controllers\SupersetConfigurationController;
 use App\Http\Controllers\MitelConnectionController;
 
 Route::prefix('v1')->group(function () {
@@ -87,7 +88,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/categories/department-level/filter', [CategoryController::class, 'byDepartmentLevel']);
 
     // Mitel Configuration (public - for frontend to fetch config)
-    Route::get('/mitel-config', [MitelConfigurationController::class, 'index']);
+    Route::get("/mitel-config", [MitelConfigurationController::class, "index"]);
+
+    // Superset Configuration (public - frontend fetches URL)
+    Route::get("/superset-config", [SupersetConfigurationController::class, "index"]);
 
     // Protected routes (with auto-refresh for call center agents)
     Route::middleware(['jwt.verify', 'jwt.auto.refresh'])->group(function () {
@@ -363,6 +367,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('mitel-config')->group(function () {
             Route::get('/{key}', [MitelConfigurationController::class, 'show']);
             Route::put('/{key}', [MitelConfigurationController::class, 'update']);
+        });
+
+        // Superset Configuration Management (Admin only)
+        Route::prefix('superset-config')->group(function () {
+            Route::get('/', [SupersetConfigurationController::class, 'adminIndex']);
+            Route::put('/{key}', [SupersetConfigurationController::class, 'update']);
         });
 
         // Mitel Connection Management (Admin only)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\SupersetDashboard;
+use App\Models\SupersetConfiguration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -16,9 +17,9 @@ class SupersetController extends Controller
     private function getSupersetConfig()
     {
         return [
-            'url' => env('SUPERSET_URL', 'http://localhost:8088'),
-            'username' => env('SUPERSET_USERNAME', 'admin'),
-            'password' => env('SUPERSET_PASSWORD', 'admin'),
+            'url' => SupersetConfiguration::getValue('SUPERSET_URL', env('SUPERSET_URL', 'http://localhost:8088')),
+            'username' => SupersetConfiguration::getValue('SUPERSET_USERNAME', env('SUPERSET_USERNAME', 'admin')),
+            'password' => SupersetConfiguration::getValue('SUPERSET_PASSWORD', env('SUPERSET_PASSWORD', 'admin')),
         ];
     }
 
