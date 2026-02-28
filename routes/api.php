@@ -371,7 +371,7 @@ Route::prefix('v1')->group(function () {
 
         // Superset Configuration Management (Admin only)
         Route::prefix('superset-config')->group(function () {
-            Route::get('/', [SupersetConfigurationController::class, 'adminIndex']);
+            Route::get('/admin', [SupersetConfigurationController::class, 'adminIndex']);
             Route::put('/{key}', [SupersetConfigurationController::class, 'update']);
         });
 
