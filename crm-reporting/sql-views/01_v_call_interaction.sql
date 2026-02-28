@@ -157,21 +157,12 @@ linked_tickets AS (
         -- Primary: Direct call_id match (only when call_id is not empty)
         (ac.call_id != '' AND ac.call_id = t.call_id)
         OR
-        -- Fallback: Phone number + time range match
-        -- Match caller_number (ANI) with customer phone
+        -- Fallback: Time range match
         (
-            t.created_at BETWEEN ac.call_start_time - INTERVAL '10 minutes' 
+            t.created_at BETWEEN ac.call_start_time - INTERVAL '10 minutes'
                              AND ac.call_start_time + INTERVAL '10 minutes'
             AND ac.caller_number IS NOT NULL
             AND ac.caller_number != ''
-            AND (
-                -- Match via customer phone in customers table using ANI
-                EXISTS (
-                    SELECT 1 FROM customers c 
-                    WHERE c.id = t.customer_id 
-                    AND c.phone_number = REGEXP_REPLACE(ac.caller_number, '[^0-9]', '', 'g')
-                )
-            )
         )
     )
     WHERE t.deleted_at IS NULL OR t.id IS NULL
@@ -287,11 +278,11 @@ SELECT
     END as sla_30sec_met,
     
     -- === CUSTOMER INFORMATION ===
-    -- Linked via caller_number matching phone_number (digits only)
+    -- Linked via ticket's customer_id (phone_number removed from customers table)
     c.id as customer_id,
     c.name as customer_name,
     c.email as customer_email,
-    c.phone_number as customer_phone,
+    NULL::text as customer_phone,
     
     -- === TICKET LINKING (VIA CALL_ID OR PHONE+TIME) ===
     lt.ticket_id,
@@ -318,13 +309,8 @@ LEFT JOIN agents a ON LOWER(mca.fk_employee) = a.employee_id
 LEFT JOIN users u ON a.user_id = u.id
 -- Join tickets via CTE (supports call_id and phone+time matching)
 LEFT JOIN linked_tickets lt ON ac.id = lt.id
--- Join customers via phone_number (match caller_number, strip non-digits from both sides)
-LEFT JOIN customers c ON (
-    c.deleted_at IS NULL
-    AND REGEXP_REPLACE(c.phone_number, '[^0-9]', '', 'g') = REGEXP_REPLACE(ac.caller_number, '[^0-9]', '', 'g')
-    AND ac.caller_number IS NOT NULL
-    AND ac.caller_number != ''
-)
+-- Join customers via ticket's customer_id (phone_number no longer in customers table)
+LEFT JOIN customers c ON c.id = lt.ticket_customer_id AND c.deleted_at IS NULL
 ;
 
 -- === INDEXES FOR PERFORMANCE ===
