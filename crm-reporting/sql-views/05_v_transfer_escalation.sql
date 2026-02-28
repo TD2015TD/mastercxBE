@@ -44,20 +44,19 @@ WITH mitel_call_transfers AS (
     SELECT
         mot.call_id,
         mot.agent_id as mitel_agent_id,
-        mot.queue_id,
+        NULL::text as queue_id,  -- Outbound calls don't have queue_id
         mot.call_date as call_start_time,
         DATE(mot.call_date) as call_date,
-        
+
         0 as transfer_count,
         NULL as transfer_from,
         NULL as transfer_to,
         NULL as transfer_type,
-        
+
         COALESCE(mot.duration, 0) as call_duration,
-        CASE 
-            WHEN mot.duration > 0 AND mot.time_to_answer > 0 THEN 'answered'
-            WHEN mot.duration = 0 OR mot.time_to_answer IS NULL THEN 'abandoned'
-            ELSE 'other'
+        CASE
+            WHEN mot.duration > 0 THEN 'answered'
+            ELSE 'abandoned'
         END as call_state
         
     FROM mitel_data_outbound_trace mot
