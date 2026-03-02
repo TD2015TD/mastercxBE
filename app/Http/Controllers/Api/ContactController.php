@@ -75,12 +75,22 @@ class ContactController extends Controller
                 ->update(['is_primary' => false]);
         }
 
-        $contact = Contact::create($request->all());
+        $contact = Contact::updateOrCreate(
+            [
+                'customer_id'     => $request->customer_id,
+                'contact_type_id' => $request->contact_type_id,
+                'value'           => $request->value,
+            ],
+            [
+                'is_primary' => $request->get('is_primary', false),
+                'notes'      => $request->get('notes'),
+            ]
+        );
         $contact->load(['customer', 'contactType']);
 
         return response()->json([
             'success' => true,
-            'message' => 'Contact created successfully',
+            'message' => 'Contact saved successfully',
             'data' => $contact
         ], 201);
     }
