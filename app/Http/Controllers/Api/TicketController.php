@@ -180,11 +180,16 @@ class TicketController extends Controller
 
             // Auto-assign if not provided
             if (!isset($data['assigned_to']) || !$data['assigned_to']) {
-                $data['assigned_to'] = $this->autoAssignAgent($data['department']);
+                // Prefer the authenticated user's own agent (agents creating their own tickets)
+                if (auth()->check() && auth()->user()->agent && auth()->user()->agent->status === 'active') {
+                    $data['assigned_to'] = auth()->user()->agent->id;
+                } else {
+                    $data['assigned_to'] = $this->autoAssignAgent($data['department']);
+                }
             }
 
             $ticket = Ticket::create($data);
-            
+
             // Log ticket creation
             $ticket->logHistory(
                 'created',
