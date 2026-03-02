@@ -52,6 +52,11 @@ class TicketController extends Controller
             $query->where('assigned_to', $request->assigned_to);
         }
 
+        // Filter for unassigned tickets
+        if ($request->filled('unassigned') && $request->unassigned) {
+            $query->whereNull('assigned_to');
+        }
+
         // Filter by customer
         if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
@@ -87,11 +92,13 @@ class TicketController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // Search by ticket number or subject
+        // Search by ticket number, call_id, case_id, or subject
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('ticket_number', 'like', "%{$search}%")
+                  ->orWhere('call_id', 'like', "%{$search}%")
+                  ->orWhere('case_id', 'like', "%{$search}%")
                   ->orWhere('subject', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%");
             });
