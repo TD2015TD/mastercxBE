@@ -79,6 +79,14 @@ class TicketController extends Controller
             $query->where('conversation_id', $request->conversation_id);
         }
 
+        // Filter by date range (created_at)
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
         // Search by ticket number or subject
         if ($request->filled('search')) {
             $search = $request->search;
