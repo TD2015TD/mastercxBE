@@ -81,7 +81,7 @@ class TicketNumberSequenceSeeder extends Seeder
             // Web Portal Sequence (Daily Reset)
             [
                 'name' => 'web',
-                'prefix' => 'WEB',
+                'prefix' => 'WB',
                 'pattern' => '{PREFIX}{YY}{MM}{DD}-{SEQUENCE}',
                 'current_number' => 0,
                 'padding' => 4,
@@ -90,7 +90,7 @@ class TicketNumberSequenceSeeder extends Seeder
                 'reset_yearly' => false,
                 'last_reset_date' => Carbon::today()->toDateString(),
                 'is_active' => true,
-                'description' => 'Web portal tickets. Resets daily. Format: WEB251205-0001',
+                'description' => 'Web portal tickets. Resets daily. Format: WB251205-0001',
             ],
 
             // Walk-in Sequence (Daily Reset)
@@ -230,7 +230,7 @@ class TicketNumberSequenceSeeder extends Seeder
         $this->command->info('  ✓ phone       : Phone tickets        - PH251205-0001');
         $this->command->info('  ✓ email       : Email tickets        - EM251205-0001');
         $this->command->info('  ✓ chat        : Chat tickets         - CH251205-0001');
-        $this->command->info('  ✓ web         : Web portal tickets   - WEB251205-0001');
+        $this->command->info('  ✓ web         : Web portal tickets   - WB251205-0001');
         $this->command->info('  ✓ walkIn      : Walk-in tickets      - WI251205-0001');
         $this->command->info('  ✓ social_media: Social media tickets - SM251205-0001');
         $this->command->info('');

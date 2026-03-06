@@ -138,7 +138,7 @@ class TicketController extends Controller
             'call_id' => 'nullable|string|max:100',
             'case_id' => 'nullable|string|max:100',
             'assigned_to' => 'nullable|exists:agents,id',
-            'priority' => 'required|in:P1,P2,P3,P4',
+            'priority' => 'nullable|in:P1,P2,P3,P4',
             'department' => 'required|string|max:100',
             'category' => 'required|string|max:100',
             'sub_category' => 'nullable|string|max:100',
@@ -164,6 +164,13 @@ class TicketController extends Controller
             DB::beginTransaction();
 
             $data = $validator->validated();
+
+            // Default priority if not provided
+            $data['priority'] = $data['priority'] ?? 'P3';
+
+            // Auto-close ticket immediately upon creation
+            $data['status'] = 'Closed';
+            $data['closed_at'] = now()->toDateTimeString();
 
             // Use provided ticket number if available (from reservation), otherwise generate new one
             if (!isset($data['ticket_number']) || empty($data['ticket_number'])) {
@@ -203,6 +210,15 @@ class TicketController extends Controller
                     'category' => $ticket->category,
                     'channel' => $ticket->channel,
                 ]
+            );
+
+            // Log auto-close on creation
+            $ticket->logHistory(
+                'status_changed',
+                'status',
+                'Open',
+                'Closed',
+                'Ticket automatically closed upon creation'
             );
             
             // Log assignment if assigned
@@ -1082,7 +1098,9 @@ class TicketController extends Controller
             $data['source'] = 'IMAP';
             $data['urgency'] = $this->mapPriorityToUrgency($data['priority']);
             $data['impact'] = 'Medium';
-            $data['status'] = 'Open';
+            // Auto-close on creation
+            $data['status'] = 'Closed';
+            $data['closed_at'] = now()->toDateTimeString();
 
             // Generate ticket number
             $data['ticket_number'] = $this->generateTicketNumber('email');

@@ -78,7 +78,8 @@ class PublicTicketController extends Controller
                 'subject' => $request->subject,
                 'description' => $request->description,
                 'priority' => $this->mapPriority($request->priority),
-                'status' => 'Open',
+                'status' => 'Closed',
+                'closed_at' => now()->toDateTimeString(),
                 'channel' => 'web',
                 'department' => $department,
                 'category' => $request->category,
@@ -112,9 +113,9 @@ class PublicTicketController extends Controller
             TicketHistory::create([
                 'ticket_id' => $ticket->id,
                 'action' => 'created',
-                'description' => 'Ticket created via citizen portal',
+                'description' => 'Ticket created via citizen portal and automatically closed',
                 'old_value' => null,
-                'new_value' => 'Open',
+                'new_value' => 'Closed',
                 'changed_by' => $customer->id,
                 'changed_by_type' => 'customer',
             ]);
