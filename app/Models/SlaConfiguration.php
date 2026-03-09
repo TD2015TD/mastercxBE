@@ -13,6 +13,7 @@ class SlaConfiguration extends Model
         'department',
         'priority',
         'duration_minutes',
+        'compliance_target',
         'business_hours_only',
         'pause_on_hold',
         'pause_on_pending',
@@ -23,6 +24,7 @@ class SlaConfiguration extends Model
 
     protected $casts = [
         'duration_minutes' => 'integer',
+        'compliance_target' => 'decimal:2',
         'business_hours_only' => 'boolean',
         'pause_on_hold' => 'boolean',
         'pause_on_pending' => 'boolean',

@@ -254,10 +254,10 @@ class DashboardController extends Controller
                 ? round((($allTickets->count() - $allTickets->where('sla_breached', true)->count()) / $allTickets->count()) * 100, 2)
                 : 0,
             'by_priority' => [
-                'P1' => $this->calculatePriorityCompliance($allTickets, 'P1'),
-                'P2' => $this->calculatePriorityCompliance($allTickets, 'P2'),
-                'P3' => $this->calculatePriorityCompliance($allTickets, 'P3'),
-                'P4' => $this->calculatePriorityCompliance($allTickets, 'P4'),
+                'P1' => $this->calculatePriorityCompliance($allTickets, 'P1', $department),
+                'P2' => $this->calculatePriorityCompliance($allTickets, 'P2', $department),
+                'P3' => $this->calculatePriorityCompliance($allTickets, 'P3', $department),
+                'P4' => $this->calculatePriorityCompliance($allTickets, 'P4', $department),
             ],
             'warnings_count' => $todayTickets->where('sla_warning', true)->whereNull('sla_breached_at')->count(),
             'on_track' => $todayTickets->where('sla_warning', false)->whereNull('sla_breached_at')->count(),
@@ -508,10 +508,10 @@ class DashboardController extends Controller
                     ? round((($allTickets->count() - $allTickets->where('sla_breached', true)->count()) / $allTickets->count()) * 100, 2)
                     : 0,
                 'by_priority' => [
-                    'P1' => $this->calculatePriorityCompliance($allTickets, 'P1'),
-                    'P2' => $this->calculatePriorityCompliance($allTickets, 'P2'),
-                    'P3' => $this->calculatePriorityCompliance($allTickets, 'P3'),
-                    'P4' => $this->calculatePriorityCompliance($allTickets, 'P4'),
+                    'P1' => $this->calculatePriorityCompliance($allTickets, 'P1', $department),
+                    'P2' => $this->calculatePriorityCompliance($allTickets, 'P2', $department),
+                    'P3' => $this->calculatePriorityCompliance($allTickets, 'P3', $department),
+                    'P4' => $this->calculatePriorityCompliance($allTickets, 'P4', $department),
                 ],
                 'warnings_count' => $todayTickets->where('sla_warning', true)->whereNull('sla_breached_at')->count(),
                 'on_track' => $todayTickets->where('sla_warning', false)->whereNull('sla_breached_at')->count(),
@@ -639,45 +639,34 @@ class DashboardController extends Controller
 
     /**
      * Calculate SLA compliance for a specific priority.
+     * Target is read from sla_configurations — null when not configured.
      */
-    private function calculatePriorityCompliance($tickets, $priority)
+    private function calculatePriorityCompliance($tickets, $priority, $department)
     {
+        $config = \App\Models\SlaConfiguration::getSlaForTicket($department, $priority);
+        $target = $config?->compliance_target ?? null;
+
         $priorityTickets = $tickets->where('priority', $priority);
         $count = $priorityTickets->count();
-        
+
         if ($count === 0) {
             return [
-                'compliance' => 100,
-                'target' => $this->getTargetCompliance($priority),
+                'compliance' => null,
+                'target' => $target,
                 'count' => 0,
                 'breaches' => 0,
             ];
         }
-        
+
         $breaches = $priorityTickets->where('sla_breached', true)->count();
         $compliance = round((($count - $breaches) / $count) * 100, 1);
-        
+
         return [
             'compliance' => $compliance,
-            'target' => $this->getTargetCompliance($priority),
+            'target' => $target,
             'count' => $count,
             'breaches' => $breaches,
         ];
-    }
-
-    /**
-     * Get target compliance percentage for each priority.
-     */
-    private function getTargetCompliance($priority)
-    {
-        $targets = [
-            'P1' => 99.0,
-            'P2' => 97.0,
-            'P3' => 95.0,
-            'P4' => 90.0,
-        ];
-        
-        return $targets[$priority] ?? 95.0;
     }
 
     /**

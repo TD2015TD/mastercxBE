@@ -10,4 +10,7 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    define: {
+        'import.meta.env.VITE_SUPERSET_URL': JSON.stringify(process.env.VITE_SUPERSET_URL || 'http://localhost:8088'),
+    },
 });

@@ -17,7 +17,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Ahmad Faiz bin Abdullah',
                 'email' => 'ahmad.faiz@email.com',
-                'phone_number' => '+60123456789',
                 'id_type' => 'MyKad',
                 'id_no' => '850123-14-5678',
                 'company_name' => null,
@@ -34,7 +33,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Siti Nurhaliza binti Hassan',
                 'email' => 'siti.nur@email.com',
-                'phone_number' => '+60198765432',
                 'id_type' => 'MyKad',
                 'id_no' => '900315-08-1234',
                 'company_name' => null,
@@ -50,7 +48,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Major Arjun Kumar',
                 'email' => 'arjun.kumar@military.gov.my',
-                'phone_number' => '+60132223344',
                 'id_type' => 'MyTentera',
                 'id_no' => 'MT123456',
                 'company_name' => null,
@@ -66,7 +63,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Inspector Lim Wei Ming',
                 'email' => 'lim.weiming@police.gov.my',
-                'phone_number' => '+60145556677',
                 'id_type' => 'MyPolis',
                 'id_no' => 'MP234567',
                 'company_name' => null,
@@ -82,7 +78,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Chen Wei PR Holder',
                 'email' => 'chen.wei@email.com',
-                'phone_number' => '+60167778899',
                 'id_type' => 'MyPR',
                 'id_no' => 'PR345678',
                 'company_name' => null,
@@ -98,7 +93,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'John Smith',
                 'email' => 'john.smith@international.com',
-                'phone_number' => '+60183334455',
                 'id_type' => 'Passport',
                 'id_no' => 'A12345678',
                 'company_name' => null,
@@ -114,7 +108,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'ABC Trading Sdn Bhd',
                 'email' => 'info@abctrading.com.my',
-                'phone_number' => '+60321234567',
                 'id_type' => 'MyKad',
                 'id_no' => '750101-01-2345',
                 'company_name' => 'ABC Trading Sdn Bhd',
@@ -132,7 +125,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'XYZ Manufacturing Sdn Bhd',
                 'email' => 'operations@xyzmfg.com.my',
-                'phone_number' => '+60387654321',
                 'id_type' => 'MyKad',
                 'id_no' => '800505-10-3456',
                 'company_name' => 'XYZ Manufacturing Sdn Bhd',
@@ -150,7 +142,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Global Logistics Sdn Bhd',
                 'email' => 'contact@globallogistics.com.my',
-                'phone_number' => '+60361112222',
                 'id_type' => 'MyKad',
                 'id_no' => '820808-05-4567',
                 'company_name' => 'Global Logistics Sdn Bhd',
@@ -168,7 +159,6 @@ class CustomerSeeder extends Seeder
             [
                 'name' => 'Retail Plus Sdn Bhd',
                 'email' => 'cs@retailplus.com.my',
-                'phone_number' => '+60355556666',
                 'id_type' => 'MyKad',
                 'id_no' => '880202-14-5678',
                 'company_name' => 'Retail Plus Sdn Bhd',
