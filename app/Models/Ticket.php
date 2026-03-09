@@ -62,16 +62,6 @@ class Ticket extends Model
     ];
 
     /**
-     * SLA durations in minutes based on priority.
-     */
-    const SLA_DURATIONS = [
-        'P1' => 60,      // 1 hour
-        'P2' => 240,     // 4 hours
-        'P3' => 1440,    // 24 hours
-        'P4' => 4320,    // 72 hours
-    ];
-
-    /**
      * Get the customer that owns the ticket.
      */
     public function customer(): BelongsTo
@@ -237,21 +227,20 @@ class Ticket extends Model
     }
 
     /**
-     * Calculate and set SLA due date based on priority.
-     * Uses SLA configuration if available, otherwise uses defaults.
+     * Calculate and set SLA due date based on configured SLA policies.
+     * If no SLA configuration exists for this department + priority, SLA is not applied.
      */
     public function calculateSla()
     {
-        // Try to get SLA configuration from database
         $slaConfig = SlaConfiguration::getSlaForTicket($this->department, $this->priority);
-        
-        if ($slaConfig) {
-            $this->sla_duration_minutes = $slaConfig->duration_minutes;
-        } else {
-            // Fallback to default durations
-            $this->sla_duration_minutes = self::SLA_DURATIONS[$this->priority] ?? 1440;
+
+        if (!$slaConfig) {
+            // No SLA policy configured for this department/priority — leave SLA fields null
+            \Log::debug("No SLA config found for department={$this->department}, priority={$this->priority}. SLA not applied.");
+            return;
         }
-        
+
+        $this->sla_duration_minutes = $slaConfig->duration_minutes;
         $this->sla_due_at = Carbon::parse($this->created_at)->addMinutes($this->sla_duration_minutes);
         $this->updateSlaRemaining();
     }

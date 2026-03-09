@@ -66,21 +66,6 @@ class SlaConfiguration extends Model
     }
 
     /**
-     * Get default SLA if no specific configuration found.
-     */
-    public static function getDefaultSla($priority)
-    {
-        $defaults = [
-            'P1' => 60,      // 1 hour
-            'P2' => 240,     // 4 hours
-            'P3' => 1440,    // 24 hours
-            'P4' => 4320,    // 72 hours
-        ];
-
-        return $defaults[$priority] ?? 1440;
-    }
-
-    /**
      * Get duration in hours.
      */
     public function getDurationHoursAttribute()

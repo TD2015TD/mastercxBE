@@ -165,13 +165,10 @@ class SlaConfigurationController extends Controller
         $config = SlaConfiguration::getSlaForTicket($request->department, $request->priority);
 
         if (!$config) {
-            $defaultDuration = SlaConfiguration::getDefaultSla($request->priority);
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'duration_minutes' => $defaultDuration,
-                    'is_default' => true
-                ]
+                'data' => null,
+                'message' => 'No SLA configuration found for this department and priority.'
             ]);
         }
 
