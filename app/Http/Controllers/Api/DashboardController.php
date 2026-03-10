@@ -315,27 +315,25 @@ class DashboardController extends Controller
     {
         try {
             $department = $request->get('department');
-            
-            if (!$department) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Department is required'
-                ], 422);
+
+            $baseQuery = function ($status) use ($department) {
+                $q = Ticket::where('status', $status);
+                if ($department) {
+                    $q->where('department', $department);
+                }
+                return $q->count();
+            };
+
+            $totalQuery = Ticket::whereIn('status', ['Open', 'In Progress', 'On Hold']);
+            if ($department) {
+                $totalQuery->where('department', $department);
             }
 
             $queueStats = [
-                'waiting' => Ticket::where('department', $department)
-                    ->where('status', 'Open')
-                    ->count(),
-                'in_progress' => Ticket::where('department', $department)
-                    ->where('status', 'In Progress')
-                    ->count(),
-                'on_hold' => Ticket::where('department', $department)
-                    ->where('status', 'On Hold')
-                    ->count(),
-                'total' => Ticket::where('department', $department)
-                    ->whereIn('status', ['Open', 'In Progress', 'On Hold'])
-                    ->count(),
+                'waiting'     => $baseQuery('Open'),
+                'in_progress' => $baseQuery('In Progress'),
+                'on_hold'     => $baseQuery('On Hold'),
+                'total'       => $totalQuery->count(),
             ];
 
             return response()->json([
@@ -347,7 +345,7 @@ class DashboardController extends Controller
                 'error' => $e->getMessage(),
                 'department' => $request->get('department')
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load queue statistics',
@@ -487,24 +485,22 @@ class DashboardController extends Controller
     {
         try {
             $department = $request->get('department');
-            
-            if (!$department) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Department is required'
-                ], 422);
-            }
 
             $today = Carbon::today();
-            $allTickets = Ticket::where('department', $department)->get();
-            $todayTickets = Ticket::where('department', $department)
-                ->whereDate('created_at', $today)
-                ->get();
+
+            $allQuery = Ticket::query();
+            $todayQuery = Ticket::whereDate('created_at', $today);
+            if ($department) {
+                $allQuery->where('department', $department);
+                $todayQuery->where('department', $department);
+            }
+            $allTickets   = $allQuery->get();
+            $todayTickets = $todayQuery->get();
 
             $slaStats = [
                 'total_tickets' => $allTickets->count(),
                 'sla_breaches_today' => $todayTickets->where('sla_breached', true)->count(),
-                'compliance_rate' => $allTickets->count() > 0 
+                'compliance_rate' => $allTickets->count() > 0
                     ? round((($allTickets->count() - $allTickets->where('sla_breached', true)->count()) / $allTickets->count()) * 100, 2)
                     : 0,
                 'by_priority' => [
@@ -541,19 +537,17 @@ class DashboardController extends Controller
     {
         try {
             $department = $request->get('department');
-            
-            if (!$department) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Department is required'
-                ], 422);
-            }
 
             $today = Carbon::today();
-            $agents = Agent::where('department', $department)->with('user')->get();
-            $todayTickets = Ticket::where('department', $department)
-                ->whereDate('created_at', $today)
-                ->get();
+
+            $agentQuery  = Agent::with('user');
+            $ticketQuery = Ticket::whereDate('created_at', $today);
+            if ($department) {
+                $agentQuery->where('department', $department);
+                $ticketQuery->where('department', $department);
+            }
+            $agents       = $agentQuery->get();
+            $todayTickets = $ticketQuery->get();
 
             $agentPerformance = $agents->map(function ($agent) use ($todayTickets) {
                 $agentTickets = $todayTickets->where('assigned_to', $agent->id);
