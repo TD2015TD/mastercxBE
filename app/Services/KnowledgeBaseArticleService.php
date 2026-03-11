@@ -133,19 +133,23 @@ class KnowledgeBaseArticleService
     {
         // Store in DB
         $article = KnowledgeBaseArticle::create($data);
-        // Index in Elasticsearch
-        $params = [
-            'index' => $this->index,
-            'id'    => $article->id,
-            'body'  => [
-                'title' => $article->title,
-                'content' => $article->content,
-                'category_code' => $article->category_code,
-                'author' => $article->author,
-                'published_at' => $article->published_at,
-            ]
-        ];
-        $this->es->index($params);
+        // Index in Elasticsearch (non-fatal: article is saved even if ES is unavailable)
+        try {
+            $params = [
+                'index' => $this->index,
+                'id'    => $article->id,
+                'body'  => [
+                    'title' => $article->title,
+                    'content' => $article->content,
+                    'category_code' => $article->category_code,
+                    'author' => $article->author,
+                    'published_at' => $article->published_at,
+                ]
+            ];
+            $this->es->index($params);
+        } catch (\Exception $e) {
+            Log::warning('KB article ES indexing failed (non-fatal): ' . $e->getMessage());
+        }
         return $article;
     }
 
@@ -153,10 +157,15 @@ class KnowledgeBaseArticleService
     {
         $article = KnowledgeBaseArticle::findOrFail($id);
         $article->delete();
-        $this->es->delete([
-            'index' => $this->index,
-            'id' => $id
-        ]);
+        // Remove from Elasticsearch (non-fatal: DB record is already deleted)
+        try {
+            $this->es->delete([
+                'index' => $this->index,
+                'id' => $id
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('KB article ES delete failed (non-fatal): ' . $e->getMessage());
+        }
         return true;
     }
 
