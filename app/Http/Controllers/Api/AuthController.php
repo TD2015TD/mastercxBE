@@ -208,6 +208,10 @@ class AuthController extends Controller
             // Generate JWT token
             $token = JWTAuth::fromUser($user);
 
+            // Record last login timestamp
+            $user->last_login_at = now();
+            $user->save();
+
             $user->load('agent');
 
             Log::info('Login successful', [
@@ -287,6 +291,10 @@ class AuthController extends Controller
 
             // Generate JWT token
             $token = JWTAuth::fromUser($user);
+
+            // Record last login timestamp
+            $user->last_login_at = now();
+            $user->save();
 
             return response()->json([
                 'success' => true,

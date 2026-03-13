@@ -92,7 +92,7 @@ class TicketController extends Controller
             $query->where('created_at', '<=', $request->date_to);
         }
 
-        // Search by ticket number, call_id, case_id, or subject
+        // Search by ticket number, call_id, case_id, subject, or customer name
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
@@ -100,7 +100,10 @@ class TicketController extends Controller
                   ->orWhere('call_id', 'like', "%{$search}%")
                   ->orWhere('case_id', 'like', "%{$search}%")
                   ->orWhere('subject', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('customer', function($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -140,7 +143,7 @@ class TicketController extends Controller
             'assigned_to' => 'nullable|exists:agents,id',
             'priority' => 'nullable|in:P1,P2,P3,P4',
             'department' => 'required|string|max:100',
-            'category' => 'required|string|max:100',
+            'category' => 'nullable|string|max:100',
             'sub_category' => 'nullable|string|max:100',
             'subject' => 'required|string|max:255',
             'description' => 'required|string',
