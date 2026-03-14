@@ -74,7 +74,7 @@ class CustomerController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|unique:customers,email',
-            'phone_number' => 'required|string|max:20',
+            'phone_number' => 'nullable|string|max:20',
             'id_type' => 'nullable|in:MyKad,MyTentera,MyPolis,MyPR,Passport',
             'id_no' => 'nullable|string|unique:customers,id_no',
             'company_name' => 'nullable|string|max:255',
