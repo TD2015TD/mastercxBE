@@ -40,7 +40,6 @@ class CustomerController extends Controller
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone_number', 'like', "%{$search}%")
                   ->orWhere('id_no', 'like', "%{$search}%")
                   ->orWhere('company_name', 'like', "%{$search}%");
             });
@@ -159,7 +158,7 @@ class CustomerController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|email|unique:customers,email,' . $id,
-            'phone_number' => 'sometimes|string|max:20',
+            'phone_number' => 'nullable|string|max:20',
             'id_type' => 'sometimes|in:MyKad,MyTentera,MyPolis,MyPR,Passport',
             'id_no' => 'sometimes|string|unique:customers,id_no,' . $id,
             'company_name' => 'nullable|string|max:255',
