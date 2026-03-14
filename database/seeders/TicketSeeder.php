@@ -28,8 +28,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '001',
                 'customer_id' => $customers[0]->id,
-                'assigned_to' => $agents[0]->user_id, // Use user_id from agent
-                'created_by' => $agents[0]->user_id,
+                'assigned_to' => $agents[0]->id, // Use agent id
+                'created_by' => $agents[0]->id,
                 'priority' => 'P1',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'GENERAL',
@@ -46,8 +46,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '002',
                 'customer_id' => $customers[1]->id,
-                'assigned_to' => $agents[1]->user_id, // Use user_id from agent
-                'created_by' => $agents[1]->user_id,
+                'assigned_to' => $agents[1]->id, // Use agent id
+                'created_by' => $agents[1]->id,
                 'priority' => 'P2',
                 'department' => 'SALES TAX',
                 'category' => 'PAYMENT',
@@ -64,8 +64,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '003',
                 'customer_id' => $customers[2]->id,
-                'assigned_to' => $agents[2]->user_id, // Use user_id from agent
-                'created_by' => $agents[2]->user_id,
+                'assigned_to' => $agents[2]->id, // Use agent id
+                'created_by' => $agents[2]->id,
                 'priority' => 'P3',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'EXEMPTIONS',
@@ -82,8 +82,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '004',
                 'customer_id' => $customers[3]->id,
-                'assigned_to' => $agents[0]->user_id, // Use user_id from agent
-                'created_by' => $agents[0]->user_id,
+                'assigned_to' => $agents[0]->id, // Use agent id
+                'created_by' => $agents[0]->id,
                 'priority' => 'P1',
                 'department' => 'PREVENTIVE',
                 'category' => 'ENFORCEMENT',
@@ -100,8 +100,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '005',
                 'customer_id' => $customers[4]->id,
-                'assigned_to' => $agents[1]->user_id, // Use user_id from agent
-                'created_by' => $agents[1]->user_id,
+                'assigned_to' => $agents[1]->id, // Use agent id
+                'created_by' => $agents[1]->id,
                 'priority' => 'P4',
                 'department' => 'GENERAL',
                 'category' => 'ADMINISTRATIVE',
@@ -118,8 +118,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '006',
                 'customer_id' => $customers[5]->id,
-                'assigned_to' => $agents[2]->user_id, // Use user_id from agent
-                'created_by' => $agents[2]->user_id,
+                'assigned_to' => $agents[2]->id, // Use agent id
+                'created_by' => $agents[2]->id,
                 'priority' => 'P2',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'GENERAL',
@@ -137,8 +137,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '007',
                 'customer_id' => $customers[6]->id,
-                'assigned_to' => $agents[0]->user_id, // Use user_id from agent
-                'created_by' => $agents[0]->user_id,
+                'assigned_to' => $agents[0]->id, // Use agent id
+                'created_by' => $agents[0]->id,
                 'priority' => 'P3',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'GENERAL',
@@ -158,8 +158,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '008',
                 'customer_id' => $customers[7]->id,
-                'assigned_to' => $agents[1]->user_id, // Use user_id from agent
-                'created_by' => $agents[1]->user_id,
+                'assigned_to' => $agents[1]->id, // Use agent id
+                'created_by' => $agents[1]->id,
                 'priority' => 'P2',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'DRAWBACK',
@@ -176,8 +176,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '009',
                 'customer_id' => $customers[8]->id,
-                'assigned_to' => $agents[2]->user_id, // Use user_id from agent
-                'created_by' => $agents[2]->user_id,
+                'assigned_to' => $agents[2]->id, // Use agent id
+                'created_by' => $agents[2]->id,
                 'priority' => 'P1',
                 'department' => 'IMP/EXP & INDUSTRIES',
                 'category' => 'GENERAL',
@@ -196,8 +196,8 @@ class TicketSeeder extends Seeder
             [
                 'ticket_number' => 'TKT' . date('Ymd') . '010',
                 'customer_id' => $customers[9]->id,
-                'assigned_to' => $agents[0]->user_id, // Use user_id from agent
-                'created_by' => $agents[0]->user_id,
+                'assigned_to' => $agents[0]->id, // Use agent id
+                'created_by' => $agents[0]->id,
                 'priority' => 'P3',
                 'department' => 'TECHNICAL DIVISION',
                 'category' => 'GENERAL',
