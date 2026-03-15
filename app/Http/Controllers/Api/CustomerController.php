@@ -41,7 +41,10 @@ class CustomerController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('id_no', 'like', "%{$search}%")
-                  ->orWhere('company_name', 'like', "%{$search}%");
+                  ->orWhere('company_name', 'like', "%{$search}%")
+                  ->orWhereHas('contacts', function($cq) use ($search) {
+                      $cq->where('value', 'like', "%{$search}%");
+                  });
             });
         }
 

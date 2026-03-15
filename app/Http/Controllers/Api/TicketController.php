@@ -25,7 +25,7 @@ class TicketController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Ticket::with(['customer', 'assignedAgent.user', 'creator', 'histories' => function($q) {
+        $query = Ticket::with(['customer.contacts', 'assignedAgent.user', 'creator', 'histories' => function($q) {
             $q->with('user')->latest()->take(5);
         }]);
 
