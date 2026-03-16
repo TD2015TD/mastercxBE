@@ -239,7 +239,7 @@ class CustomerController extends Controller
     {
         $query = Customer::query();
 
-        if ($request->has('email')) {
+        if ($request->filled('email')) {
             $customer = $query->where('email', $request->email)->first();
             
             if ($customer) {
@@ -251,8 +251,8 @@ class CustomerController extends Controller
             }
         }
 
-        if ($request->has('id_no')) {
-            $customer = $query->where('id_no', $request->id_no)->first();
+        if ($request->filled('id_no')) {
+            $customer = Customer::query()->where('id_no', $request->id_no)->first();
             
             if ($customer) {
                 return response()->json([
@@ -260,6 +260,21 @@ class CustomerController extends Controller
                     'data' => $customer,
                     'found' => true,
                 ]);
+            }
+        }
+
+        if ($request->filled('phone')) {
+            $contact = \App\Models\Contact::where('value', $request->phone)->first();
+
+            if ($contact) {
+                $customer = Customer::find($contact->customer_id);
+                if ($customer) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => $customer,
+                        'found' => true,
+                    ]);
+                }
             }
         }
 
