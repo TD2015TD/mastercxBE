@@ -33,49 +33,49 @@ class TicketNumberSequenceSeeder extends Seeder
                 'description' => 'Default ticket numbering sequence for general tickets. Resets daily. Format: TKT20251205-0001',
             ],
 
-            // Phone Channel Sequence (Daily Reset)
+            // Phone Channel Sequence (Monthly Reset)
             [
                 'name' => 'phone',
-                'prefix' => 'PH',
-                'pattern' => '{PREFIX}{YY}{MM}{DD}-{SEQUENCE}',
+                'prefix' => 'TC',
+                'pattern' => '{PREFIX}-{YY}{MM}{DD}-{SEQUENCE}',
                 'current_number' => 0,
-                'padding' => 4,
-                'reset_daily' => true,
-                'reset_monthly' => false,
+                'padding' => 5,
+                'reset_daily' => false,
+                'reset_monthly' => true,
                 'reset_yearly' => false,
                 'last_reset_date' => Carbon::today()->toDateString(),
                 'is_active' => true,
-                'description' => 'Phone call tickets. Resets daily. Format: PH251205-0001',
+                'description' => 'Phone call tickets. Resets monthly. Format: TC-250316-0001',
             ],
 
-            // Email Channel Sequence (Daily Reset)
+            // Email Channel Sequence (Monthly Reset)
             [
                 'name' => 'email',
-                'prefix' => 'EM',
-                'pattern' => '{PREFIX}{YY}{MM}{DD}-{SEQUENCE}',
+                'prefix' => 'TE',
+                'pattern' => '{PREFIX}-{YY}{MM}{DD}-{SEQUENCE}',
                 'current_number' => 0,
-                'padding' => 4,
-                'reset_daily' => true,
-                'reset_monthly' => false,
+                'padding' => 5,
+                'reset_daily' => false,
+                'reset_monthly' => true,
                 'reset_yearly' => false,
                 'last_reset_date' => Carbon::today()->toDateString(),
                 'is_active' => true,
-                'description' => 'Email tickets. Resets daily. Format: EM251205-0001',
+                'description' => 'Email tickets. Resets monthly. Format: TE-250316-0001',
             ],
 
-            // Chat Channel Sequence (Daily Reset)
+            // Chat Channel Sequence (Monthly Reset)
             [
                 'name' => 'chat',
-                'prefix' => 'CH',
-                'pattern' => '{PREFIX}{YY}{MM}{DD}-{SEQUENCE}',
+                'prefix' => 'TT',
+                'pattern' => '{PREFIX}-{YY}{MM}{DD}-{SEQUENCE}',
                 'current_number' => 0,
-                'padding' => 4,
-                'reset_daily' => true,
-                'reset_monthly' => false,
+                'padding' => 5,
+                'reset_daily' => false,
+                'reset_monthly' => true,
                 'reset_yearly' => false,
                 'last_reset_date' => Carbon::today()->toDateString(),
                 'is_active' => true,
-                'description' => 'Live chat tickets. Resets daily. Format: CH251205-0001',
+                'description' => 'Live chat tickets. Resets monthly. Format: TT-250316-0001',
             ],
 
             // Web Portal Sequence (Daily Reset)
