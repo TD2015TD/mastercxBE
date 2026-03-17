@@ -101,7 +101,7 @@ return [
     |
     */
 
-    'ttl' => null,
+    'ttl' => env('JWT_TTL', 525600), // 1 year in minutes (365 * 24 * 60)
 
     /*
     |--------------------------------------------------------------------------
@@ -120,7 +120,7 @@ return [
     |
     */
 
-    'refresh_ttl' => (int) env('JWT_REFRESH_TTL', 20160),
+    'refresh_ttl' => (int) env('JWT_REFRESH_TTL', 525600), // 1 year in minutes
 
     /*
     |--------------------------------------------------------------------------
@@ -147,6 +147,7 @@ return [
     'required_claims' => [
         'iss',
         'iat',
+        'exp',
         'nbf',
         'sub',
         'jti',
