@@ -47,7 +47,8 @@ class CategoryController extends Controller
         }
 
         $perPage = $request->get('per_page', 50);
-        $categories = $query->orderBy('sort_order')->paginate($perPage);
+        $sortBy = in_array($request->get('sort_by'), ['name', 'sort_order', 'created_at']) ? $request->get('sort_by') : 'sort_order';
+        $categories = $query->orderBy($sortBy)->paginate($perPage);
 
         return response()->json($categories);
     }
