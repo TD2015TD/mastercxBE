@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class TicketController extends Controller
 {
@@ -86,10 +87,10 @@ class TicketController extends Controller
 
         // Filter by date range (created_at) — supports both date and datetime-local values
         if ($request->filled('date_from')) {
-            $query->where('created_at', '>=', $request->date_from);
+            $query->where('created_at', '>=', Carbon::parse($request->date_from)->startOfDay());
         }
         if ($request->filled('date_to')) {
-            $query->where('created_at', '<=', $request->date_to);
+            $query->where('created_at', '<=', Carbon::parse($request->date_to)->endOfDay());
         }
 
         // Search by ticket number, call_id, case_id, subject, or customer name
