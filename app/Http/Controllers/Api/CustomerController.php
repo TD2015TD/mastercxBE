@@ -160,10 +160,10 @@ class CustomerController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:customers,email,' . $id,
+            'email' => 'nullable|email|unique:customers,email,' . $id,
             'phone_number' => 'nullable|string|max:20',
             'id_type' => 'sometimes|in:MyKad,MyTentera,MyPolis,MyPR,Passport',
-            'id_no' => 'sometimes|string|unique:customers,id_no,' . $id,
+            'id_no' => 'nullable|string|unique:customers,id_no,' . $id,
             'company_name' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'city' => 'nullable|string|max:100',
