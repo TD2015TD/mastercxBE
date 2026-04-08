@@ -300,6 +300,9 @@ class Ticket extends Model
         $this->status = 'Closed';
         $this->closed_at = now();
         $this->save();
+
+        // Update customer metrics
+        $this->customer->updateMetrics();
     }
 
     /**
@@ -313,6 +316,9 @@ class Ticket extends Model
         $this->closed_at = null;
         $this->calculateSla();
         $this->save();
+
+        // Update customer metrics
+        $this->customer->updateMetrics();
     }
 
     /**

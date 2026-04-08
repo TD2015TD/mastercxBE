@@ -62,6 +62,13 @@ class CustomerController extends Controller
 
         $customers = $query->paginate($perPage);
 
+        // Add computed attributes to each customer
+        $customers->getCollection()->transform(function ($customer) {
+            $customerData = $customer->toArray();
+            $customerData['open_tickets_count'] = $customer->open_tickets_count;
+            return $customerData;
+        });
+
         return response()->json([
             'success' => true,
             'data' => $customers,
