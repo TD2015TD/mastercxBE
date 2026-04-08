@@ -92,4 +92,94 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasOne(Agent::class);
     }
+
+    /**
+     * Check if user has a specific permission.
+     *
+     * @param string $permissionSlug
+     * @return bool
+     */
+    public function hasPermission(string $permissionSlug): bool
+    {
+        if (!$this->role) {
+            return false;
+        }
+
+        return $this->role->permissions()
+            ->where('slug', $permissionSlug)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Check if user has any of the given permissions.
+     *
+     * @param array $permissions
+     * @return bool
+     */
+    public function hasAnyPermission(array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($this->hasPermission($permission)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if user has all of the given permissions.
+     *
+     * @param array $permissions
+     * @return bool
+     */
+    public function hasAllPermissions(array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if (!$this->hasPermission($permission)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get all permissions for this user through their role.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getPermissions()
+    {
+        if (!$this->role) {
+            return collect([]);
+        }
+
+        return $this->role->activePermissions()->pluck('slug');
+    }
+
+    /**
+     * Check if user is a super admin (bypass all permission checks).
+     *
+     * @return bool
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role && $this->role->slug === 'super_admin';
+    }
+
+    /**
+     * Alias for hasPermission for Laravel's built-in authorization.
+     *
+     * @param string $ability
+     * @return bool
+     */
+    public function can($ability, $arguments = []): bool
+    {
+        // Super admin can do everything
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->hasPermission($ability);
+    }
 }

@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\WebSocketController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PublicTicketController;
 use App\Http\Controllers\Api\PublicKnowledgeBaseController;
 use App\Http\Controllers\Api\KnowledgeBaseController;
@@ -99,11 +100,19 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/refresh', [AuthController::class, 'refresh']);
         
-        // User Management
-        Route::apiResource('users', UserController::class);
+        // User Management (Admin only - requires user.manage permission)
+        Route::middleware(['permission:user.manage'])->group(function () {
+            Route::get('/users', [UserController::class, 'index']);
+            Route::post('/users', [UserController::class, 'store']);
+            Route::get('/users/{id}', [UserController::class, 'show']);
+            Route::put('/users/{id}', [UserController::class, 'update']);
+            Route::delete('/users/{id}', [UserController::class, 'destroy']);
+            Route::put('/users/{id}/status', [UserController::class, 'updateStatus']);
+        });
+        
+        // User Profile (All authenticated users can update their own profile)
         Route::put('/users/profile', [UserController::class, 'updateProfile']);
         Route::post('/users/change-password', [UserController::class, 'changePassword']);
-        Route::put('/users/{id}/status', [UserController::class, 'updateStatus']);
         
         // Agent Management
         Route::apiResource('agents', AgentController::class);
@@ -284,6 +293,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/roles/{id}/menu-items', [RoleController::class, 'assignMenuItems']);
         Route::delete('/roles/{id}/menu-items', [RoleController::class, 'removeMenuItems']);
         Route::get('/roles/available/menu-items', [RoleController::class, 'getAvailableMenuItems']);
+        Route::post('/roles/{id}/permissions', [RoleController::class, 'updatePermissions']);
+        Route::get('/roles/{id}/permissions', [RoleController::class, 'getPermissions']);
+        
+        // Permission Management
+        Route::apiResource('permissions', PermissionController::class);
+        Route::get('/permissions-grouped', [PermissionController::class, 'grouped']);
+        Route::get('/permissions-matrix', [PermissionController::class, 'matrix']);
+        Route::post('/permissions/{role}/sync', [PermissionController::class, 'syncRolePermissions']);
         
         // Lookup Management (Admin only)
         Route::apiResource('admin/lookups', LookupController::class);

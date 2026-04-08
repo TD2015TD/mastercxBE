@@ -743,4 +743,82 @@ class RoleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Update role permissions.
+     */
+    public function updatePermissions(Request $request, $id): JsonResponse
+    {
+        $role = Role::find($id);
+
+        if (!$role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Role not found',
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'permissions' => 'required|array',
+            'permissions.*' => 'integer|exists:permissions,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $role->permissions()->sync($request->permissions);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Role permissions updated successfully',
+                'permissions' => $role->permissions()->get(),
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update role permissions',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get permissions for a specific role.
+     */
+    public function getPermissions($id): JsonResponse
+    {
+        $role = Role::find($id);
+
+        if (!$role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Role not found',
+            ], 404);
+        }
+
+        try {
+            $permissions = $role->permissions()->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $permissions,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch permissions',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+

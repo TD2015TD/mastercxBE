@@ -79,4 +79,21 @@ class Role extends Model
             ->orderBy('superset_dashboards.order')
             ->orderBy('superset_dashboards.title_en');
     }
+
+    /**
+     * Get the permissions assigned to this role.
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_permissions')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get active permissions for this role.
+     */
+    public function activePermissions(): BelongsToMany
+    {
+        return $this->permissions()->where('permissions.is_active', true);
+    }
 }

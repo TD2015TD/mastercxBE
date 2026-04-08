@@ -223,11 +223,15 @@ class AuthController extends Controller
                 'ip_address' => $request->ip()
             ]);
 
+            // Get user permissions
+            $permissions = $user->getPermissions();
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'user' => $user,
                     'agent' => $user->agent ? $user->agent->toArray() : null,
+                    'permissions' => $permissions,
                     'access_token' => $token,
                     'token_type' => 'bearer',
                     'expires_in' => config('jwt.ttl') * 60
@@ -296,10 +300,14 @@ class AuthController extends Controller
             $user->last_login_at = now();
             $user->save();
 
+            // Get user permissions
+            $permissions = $user->getPermissions();
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'user' => $user,
+                    'permissions' => $permissions,
                     'access_token' => $token,
                     'token_type' => 'bearer',
                     'expires_in' => config('jwt.ttl') * 60
@@ -325,11 +333,15 @@ class AuthController extends Controller
         try {
                 $user = auth()->user()->load('agent');
                 
+                // Get user permissions
+                $permissions = $user->getPermissions();
+                
                 return response()->json([
                     'success' => true,
                     'data' => [
                         'user' => $user,
                         'agent' => $user->agent ? $user->agent->toArray() : null,
+                        'permissions' => $permissions,
                     ]
                 ]);
         } catch (\Exception $e) {
