@@ -144,8 +144,8 @@ class TicketController extends Controller
             'assigned_to' => 'nullable|exists:agents,id',
             'priority' => 'nullable|in:P1,P2,P3,P4',
             'department' => 'required|string|max:100',
-            'category' => 'nullable|string|max:100',
-            'sub_category' => 'nullable|string|max:100',
+            'category' => 'required|string|max:100',
+            'sub_category' => 'required|string|max:100',
             'subject' => 'required|string|max:255',
             'description' => 'required|string',
             'urgency' => 'nullable|in:Low,Medium,High,Critical',
@@ -241,6 +241,11 @@ class TicketController extends Controller
             // Calculate SLA
             $ticket->calculateSla();
             $ticket->save();
+
+            // Update customer metrics (ticket counts)
+            if ($ticket->customer) {
+                $ticket->customer->updateMetrics();
+            }
 
             DB::commit();
 
@@ -530,6 +535,12 @@ class TicketController extends Controller
                 "Status changed from '{$oldStatus}' to '{$request->status}'",
                 $request->has('notes') ? ['notes' => $request->notes] : null
             );
+
+            // Update customer metrics when status changes to/from Resolved or Closed
+            if ($ticket->customer && 
+                (in_array($request->status, ['Resolved', 'Closed']) || in_array($oldStatus, ['Resolved', 'Closed']))) {
+                $ticket->customer->updateMetrics();
+            }
 
             return response()->json([
                 'success' => true,
