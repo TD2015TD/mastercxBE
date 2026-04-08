@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,
             'jwt.auto.refresh' => \App\Http\Middleware\AutoRefreshJwtToken::class,
             'citizen.session' => \App\Http\Middleware\ValidateCitizenSession::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
+            'permission.any' => \App\Http\Middleware\CheckAnyPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
