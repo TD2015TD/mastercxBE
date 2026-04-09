@@ -146,15 +146,15 @@ class User extends Authenticatable implements JWTSubject
     /**
      * Get all permissions for this user through their role.
      *
-     * @return \Illuminate\Support\Collection
+     * @return array
      */
     public function getPermissions()
     {
         if (!$this->role) {
-            return collect([]);
+            return [];
         }
 
-        return $this->role->activePermissions()->pluck('slug');
+        return $this->role->activePermissions()->pluck('slug')->toArray();
     }
 
     /**

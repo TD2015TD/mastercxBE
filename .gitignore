@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+/app/Http/Middleware/Cors.php
 .phpactor.json
 .phpunit.result.cache
 /.fleet
