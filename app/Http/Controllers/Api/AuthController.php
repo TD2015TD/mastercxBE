@@ -212,7 +212,7 @@ class AuthController extends Controller
             $user->last_login_at = now();
             $user->save();
 
-            $user->load('agent');
+            $user->load(['agent', 'role.permissions']);
 
             Log::info('Login successful', [
                 'user_id' => $user->id,
@@ -300,6 +300,9 @@ class AuthController extends Controller
             $user->last_login_at = now();
             $user->save();
 
+            // Load role with permissions
+            $user->load(['role.permissions']);
+
             // Get user permissions
             $permissions = $user->getPermissions();
 
@@ -331,7 +334,7 @@ class AuthController extends Controller
     public function me()
     {
         try {
-                $user = auth()->user()->load('agent');
+                $user = auth()->user()->load(['agent', 'role.permissions']);
                 
                 // Get user permissions
                 $permissions = $user->getPermissions();
