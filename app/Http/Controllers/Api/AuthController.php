@@ -131,12 +131,28 @@ class AuthController extends Controller
                         'user_id' => $user->id,
                         'agent_username' => $user->agent->agent_username
                     ]);
+                    
+                    // Get permissions from original response
+                    $originalData = $response->getData()->data;
+                    $permissions = $originalData->permissions ?? [];
+                    
+                    Log::info('Returning Mitel agent login response', [
+                        'user_id' => $user->id,
+                        'has_agent' => !!($originalData->agent ?? null),
+                        'permissions_count' => count($permissions),
+                        'permissions' => $permissions
+                    ]);
+                    
                     return response()->json([
                         'success' => true,
                         'data' => [
                             'user' => $user,
+                            'agent' => $originalData->agent ?? null,
+                            'permissions' => $permissions,
                             'MitelToken' => $mitelToken,
-                            'access_token' => $response->getData()->data->access_token,
+                            'access_token' => $originalData->access_token,
+                            'token_type' => 'bearer',
+                            'expires_in' => config('jwt.ttl') * 60
                         ]
                     ]);
                 } catch (\Exception $e) {
@@ -219,12 +235,21 @@ class AuthController extends Controller
                 'username' => $user->username,
                 'email' => $user->email,
                 'role_id' => $user->role_id,
+                'role_slug' => $user->role?->slug,
                 'has_agent' => $user->agent !== null,
                 'ip_address' => $request->ip()
             ]);
 
             // Get user permissions
             $permissions = $user->getPermissions();
+            
+            Log::info('User permissions retrieved', [
+                'user_id' => $user->id,
+                'role_id' => $user->role_id,
+                'role_slug' => $user->role?->slug,
+                'permissions_count' => count($permissions),
+                'permissions' => $permissions
+            ]);
 
             return response()->json([
                 'success' => true,

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiTel CRM Integration Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .scenario {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        .scenario h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .url {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 MiTel CRM Integration - Test Page</h1>
+        
+        <div class="info">
+            <strong>📋 Instructions:</strong> Click any button below to open the CRM ticket creation page with pre-filled data. Make sure your CRM frontend is running on <code>http://localhost:5173</code>
+        </div>
+
+        <div class="scenario">
+            <h3>📞 Scenario 1: Basic Phone Call</h3>
+            <p><strong>Use Case:</strong> Incoming call with basic customer info</p>
+            <div class="url" id="url1"></div>
+            <button onclick="openTicket1()">Open Ticket Form</button>
+            <button onclick="copyUrl('url1')">Copy URL</button>
+        </div>
+
+        <div class="scenario">
+            <h3>📧 Scenario 2: Complete Customer Profile</h3>
+            <p><strong>Use Case:</strong> Call from known customer with full details</p>
+            <div class="url" id="url2"></div>
+            <button onclick="openTicket2()">Open Ticket Form</button>
+            <button onclick="copyUrl('url2')">Copy URL</button>
+        </div>
+
+        <div class="scenario">
+            <h3>🚨 Scenario 3: High Priority Support Call</h3>
+            <p><strong>Use Case:</strong> Urgent issue requiring immediate attention</p>
+            <div class="url" id="url3"></div>
+            <button onclick="openTicket3()">Open Ticket Form</button>
+            <button onclick="copyUrl('url3')">Copy URL</button>
+        </div>
+
+        <div class="scenario">
+            <h3>💬 Scenario 4: Email Channel</h3>
+            <p><strong>Use Case:</strong> Email inquiry from customer</p>
+            <div class="url" id="url4"></div>
+            <button onclick="openTicket4()">Open Ticket Form</button>
+            <button onclick="copyUrl('url4')">Copy URL</button>
+        </div>
+
+        <div class="scenario">
+            <h3>🏢 Scenario 5: Walk-in Customer</h3>
+            <p><strong>Use Case:</strong> Customer visiting office counter</p>
+            <div class="url" id="url5"></div>
+            <button onclick="openTicket5()">Open Ticket Form</button>
+            <button onclick="copyUrl('url5')">Copy URL</button>
+        </div>
+
+        <div class="info" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
+            <strong>⚠️ Note:</strong> All URLs open in a new tab. Ensure you're logged into the CRM system first.
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:5173/ticket-management/create';
+
+        // Scenario 1: Basic Phone Call
+        function openTicket1() {
+            const params = new URLSearchParams({
+                customer_phone: '+60123456789',
+                customer_name: 'Ahmad Ali',
+                channel: 'phone',
+                call_id: 'CALL-2024-001'
+            });
+            const url = `${baseUrl}?${params.toString()}`;
+            document.getElementById('url1').textContent = url;
+            window.open(url, '_blank');
+        }
+
+        // Scenario 2: Complete Customer Profile
+        function openTicket2() {
+            const params = new URLSearchParams({
+                customer_id: '900101015678',
+                customer_name: 'Siti Aminah binti Abdullah',
+                customer_phone: '+60123456789',
+                customer_email: 'siti.aminah@example.com',
+                channel: 'phone',
+                call_id: 'CALL-2024-002',
+                agent_id: 'AGT-001',
+                queue_id: 'QUEUE-SUPPORT'
+            });
+            const url = `${baseUrl}?${params.toString()}`;
+            document.getElementById('url2').textContent = url;
+            window.open(url, '_blank');
+        }
+
+        // Scenario 3: High Priority Support Call
+        function openTicket3() {
+            const params = new URLSearchParams({
+                customer_name: 'Lee Wei Ming',
+                customer_phone: '+60198765432',
+                customer_email: 'lee.weiming@company.com',
+                channel: 'phone',
+                priority: 'P1',
+                subject: 'System Down - Urgent',
+                category: 'Technical Support',
+                call_id: 'CALL-2024-003',
+                agent_id: 'AGT-002',
+                queue_id: 'QUEUE-TECH'
+            });
+            const url = `${baseUrl}?${params.toString()}`;
+            document.getElementById('url3').textContent = url;
+            window.open(url, '_blank');
+        }
+
+        // Scenario 4: Email Channel
+        function openTicket4() {
+            const params = new URLSearchParams({
+                customer_name: 'Raj Kumar',
+                customer_email: 'raj.kumar@email.com',
+                channel: 'email',
+                subject: 'Product Inquiry - Software License',
+                priority: 'P3',
+                category: 'Sales'
+            });
+            const url = `${baseUrl}?${params.toString()}`;
+            document.getElementById('url4').textContent = url;
+            window.open(url, '_blank');
+        }
+
+        // Scenario 5: Walk-in Customer
+        function openTicket5() {
+            const params = new URLSearchParams({
+                customer_name: 'Nurul Huda',
+                customer_phone: '+60187654321',
+                customer_id: '880505145678',
+                channel: 'walk-in',
+                subject: 'Document Collection',
+                category: 'General Inquiry',
+                priority: 'P4'
+            });
+            const url = `${baseUrl}?${params.toString()}`;
+            document.getElementById('url5').textContent = url;
+            window.open(url, '_blank');
+        }
+
+        function copyUrl(elementId) {
+            const urlText = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(urlText).then(() => {
+                alert('URL copied to clipboard!');
+            });
+        }
+
+        // Generate URLs on page load
+        window.onload = function() {
+            const scenarios = [
+                { id: 'url1', func: openTicket1 },
+                { id: 'url2', func: openTicket2 },
+                { id: 'url3', func: openTicket3 },
+                { id: 'url4', func: openTicket4 },
+                { id: 'url5', func: openTicket5 }
+            ];
+
+            scenarios.forEach(scenario => {
+                // Generate URL without opening
+                const originalOpen = window.open;
+                window.open = () => {}; // Temporarily disable opening
+                scenario.func();
+                window.open = originalOpen; // Restore
+            });
+        };
+    </script>
+</body>
+</html>
