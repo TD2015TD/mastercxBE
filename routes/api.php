@@ -28,7 +28,9 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PublicTicketController;
 use App\Http\Controllers\Api\PublicKnowledgeBaseController;
+use App\Http\Controllers\Api\ChatbotEscalationController;
 use App\Http\Controllers\Api\KnowledgeBaseController;
+use App\Http\Controllers\Api\KbaseShareController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controller
@@ -62,6 +64,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/tickets/{ticketNumber}', [PublicTicketController::class, 'viewTicket']);
         Route::post('/tickets/{ticketNumber}/attachments', [PublicTicketController::class, 'uploadAttachment']);
         
+        // Chatbot escalation to Mitel queue (public — no auth required)
+        Route::post('/chatbot/escalate', [ChatbotEscalationController::class, 'escalate']);
+
         // Public Knowledge Base APIs (Elasticsearch)
         Route::prefix('knowledge-base')->group(function () {
             Route::get('/search', [PublicKnowledgeBaseController::class, 'search']);
@@ -306,6 +311,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('admin/lookups', LookupController::class);
         Route::post('/admin/lookups/bulk-upsert', [LookupController::class, 'bulkUpsert']);
         
+        // KBase document sharing (agent → customer via signed URL)
+        Route::post('/kbase/share', [KbaseShareController::class, 'share']);
+
         // Knowledge Base Management (Admin/Agent)
         Route::apiResource('knowledge-base', KnowledgeBaseController::class);
         Route::post('/knowledge-base/bulk-import', [KnowledgeBaseController::class, 'bulkImport']);

@@ -35,11 +35,12 @@ return [
     ],
 
     'mitel' => [
-        'base_url' => env('MITEL_BASE_URL', 'https://micc.telediant.com.my/miccsdk'),
-        'auth_url' => env('MITEL_AUTH_URL', 'https://micc.telediant.com.my/AuthorizationServer/Token'),
-        'client_id' => env('MITEL_CLIENT_ID', 'CXCRM'),
-        'client_secret' => env('MITEL_CLIENT_SECRET'),
-        'timeout' => env('MITEL_API_TIMEOUT', 30),
+        'base_url'         => env('MITEL_BASE_URL', 'https://micc.telediant.com.my/miccsdk'),
+        'auth_url'         => env('MITEL_AUTH_URL', 'https://micc.telediant.com.my/AuthorizationServer/Token'),
+        'client_id'        => env('MITEL_CLIENT_ID', 'CXCRM'),
+        'client_secret'    => env('MITEL_CLIENT_SECRET'),
+        'timeout'          => env('MITEL_API_TIMEOUT', 30),
+        'escalation_queue' => env('MITEL_ESCALATION_QUEUE', 'ChatbotEscalation'),
     ],
 
     'elasticsearch' => [
@@ -52,6 +53,12 @@ return [
         'url' => env('SUPERSET_URL', 'http://localhost:8088'),
         'username' => env('SUPERSET_USERNAME', ''),
         'password' => env('SUPERSET_PASSWORD', ''),
+    ],
+
+    'ai_chat' => [
+        'url'                 => env('AI_CHAT_SERVICE_URL', 'http://localhost:8000'),
+        'ws_url'              => env('AI_CHAT_SERVICE_WS_URL', 'ws://localhost:8000'),
+        'customer_widget_url' => env('AI_CHAT_CUSTOMER_WIDGET_URL', 'https://chat.telediant.com.my/customer.html'),
     ],
 
 ];
