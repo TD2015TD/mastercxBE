@@ -962,4 +962,36 @@ class MitelService
             throw $e;
         }
     }
+
+    /**
+     * Escalate a citizen chat session to the Mitel queue via the OpenMedia endpoint.
+     * Returns { Id, PositionInQueue } from Mitel.
+     *
+     * @param  string $queue   The Mitel queue name (e.g. "ChatbotEscalation")
+     * @param  array  $vars    VariableData payload: Name, IC, Topic, FaqPath, etc.
+     */
+    public function escalateToAgent(string $queue, array $vars = []): array
+    {
+        $this->log('INFO', 'Escalating chat to Mitel queue', ['queue' => $queue, 'vars' => array_keys($vars)]);
+
+        try {
+            $payload = [
+                'QueueName'    => $queue,
+                'MediaType'    => 'Chat',
+                'VariableData' => $vars,
+            ];
+
+            $response = $this->makeRequest('POST', '/api/v1/openmedia', $payload);
+
+            $this->log('INFO', 'Escalation successful', [
+                'interaction_id'   => $response['Id'] ?? null,
+                'position_in_queue' => $response['PositionInQueue'] ?? null,
+            ]);
+
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Escalation failed', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
 }

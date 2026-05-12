@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Mitel;
 use App\Http\Controllers\Controller;
 use App\Events\AgentStateChanged;
 use App\Events\ConversationUpdated;
+use App\Events\MitelInteractionUpdated;
 use App\Events\QueueStateChanged;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -155,6 +156,12 @@ class WebhookController extends Controller
 
                 case 'QueueStateChanged':
                     broadcast(new QueueStateChanged($eventData));
+                    break;
+
+                // Screen-pop: fired when Mitel routes a chat interaction to an agent.
+                // $eventData must contain ConversationId, ConversationState, Variables, IsCleared.
+                case 'MitelInteractionUpdated':
+                    broadcast(new MitelInteractionUpdated($eventData));
                     break;
 
                 default:
