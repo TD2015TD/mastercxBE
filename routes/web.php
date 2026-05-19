@@ -11,3 +11,8 @@ Route::get('/', function () {
 Route::get('/kbase/download/{article}', [KbaseShareController::class, 'download'])
     ->name('kbase.download')
     ->middleware('signed');
+
+// Signed KBase document viewer — opens inline in browser tab
+Route::get('/kbase/view/{article}', [KbaseShareController::class, 'view'])
+    ->name('kbase.view')
+    ->middleware('signed');

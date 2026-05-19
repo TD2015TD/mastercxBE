@@ -61,4 +61,8 @@ return [
         'customer_widget_url' => env('AI_CHAT_CUSTOMER_WIDGET_URL', 'https://chat.telediant.com.my/customer.html'),
     ],
 
+    'chat' => [
+        'agent_url' => env('CHAT_AGENT_BASE_URL', 'https://chat.telediant.com.my'),
+    ],
+
 ];

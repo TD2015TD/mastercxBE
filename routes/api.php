@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Mitel\CallController as MitelCallController;
 use App\Http\Controllers\Api\Mitel\QueueController as MitelQueueController;
 use App\Http\Controllers\Api\Mitel\WebhookController as MitelWebhookController;
 use App\Http\Controllers\Api\Mitel\AgentController as MitelAgentController;
+use App\Http\Controllers\Api\Mitel\OpenMediaController as MitelOpenMediaController;
 use App\Http\Controllers\Api\WebSocketController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Api\MenuController;
@@ -29,6 +30,8 @@ use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\PublicTicketController;
 use App\Http\Controllers\Api\PublicKnowledgeBaseController;
 use App\Http\Controllers\Api\ChatbotEscalationController;
+use App\Http\Controllers\Api\ChatbotController;
+use App\Http\Controllers\Api\ChatbotMessageController;
 use App\Http\Controllers\Api\KnowledgeBaseController;
 use App\Http\Controllers\Api\KbaseShareController;
 use App\Http\Controllers\Api\NotificationController;
@@ -64,8 +67,115 @@ Route::prefix('v1')->group(function () {
         Route::get('/tickets/{ticketNumber}', [PublicTicketController::class, 'viewTicket']);
         Route::post('/tickets/{ticketNumber}/attachments', [PublicTicketController::class, 'uploadAttachment']);
         
+        // Chatbot FAQ menu (public — no auth required)
+        Route::get('/chatbot/categories', [ChatbotController::class, 'categories']);
+        Route::get('/chatbot/items/{categoryId}', [ChatbotController::class, 'items']);
+        Route::get('/chatbot/answer/{faqItemId}', [ChatbotController::class, 'answer']);
+
         // Chatbot escalation to Mitel queue (public — no auth required)
         Route::post('/chatbot/escalate', [ChatbotEscalationController::class, 'escalate']);
+        Route::get('/chatbot/interaction/{interactionId}/status', [ChatbotEscalationController::class, 'getInteractionStatus']);
+        Route::get('/chatbot/session/{interactionId}', [ChatbotEscalationController::class, 'getSessionInfo']);
+        Route::get('/chatbot/sessions', [ChatbotEscalationController::class, 'listSessions']);
+
+        // Chatbot message relay — forwards customer messages into Mitel OpenMedia so they appear in Ignite
+        Route::post('/chatbot/message', [ChatbotMessageController::class, 'send']);
+
+        // Agent file upload — any file dragged from filesystem into the chat
+        Route::post('/chat/upload', function (\Illuminate\Http\Request $request) {
+            $request->validate(['file' => 'required|file|max:20480']); // 20 MB max
+            $file = $request->file('file');
+            $path = $file->store('chat-uploads', 'public');
+            $url  = \Illuminate\Support\Facades\Storage::url($path);
+            return response()->json([
+                'success'   => true,
+                'url'       => url($url),
+                'name'      => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size'      => $file->getSize(),
+            ]);
+        });
+
+        // Customer ends chat — marks Mitel interaction as Handled and closes DB session
+        Route::post('/chatbot/end/{interactionId}', [ChatbotEscalationController::class, 'endSession']);
+
+        // Agent transfers chat to another queue — creates new OpenMedia interaction with same targetUri
+        Route::post('/chatbot/transfer', [ChatbotEscalationController::class, 'transferChat']);
+
+        // Proxy the Mitel conversation state endpoint using the agent's own token.
+        // The iframe polls this to detect end vs transfer without CORS issues.
+        Route::get('/chatbot/conversation/{id}/state', [ChatbotEscalationController::class, 'conversationState']);
+
+        // Mitel OSCMS webhook — receives real-time interaction state events from Mitel.
+        // Public because Mitel cannot send a JWT token. Verified via shared secret header.
+        Route::post('/mitel-event', [MitelWebhookController::class, 'handlePublic']);
+
+        // Get a per-agent Mitel Bearer token via server-side impersonation.
+        // Only the username is required — no password (server uses client_credentials + Impersonate header).
+        // Used by agent.html to authenticate its own SignalR connection for native end/forward detection.
+        Route::post('/chatbot/agent-token', [ChatbotEscalationController::class, 'agentToken']);
+
+        // Register the CRM agent on the session at login time so the ticket is auto-assigned
+        // even if the agent iframe is destroyed before the chat ends.
+        Route::post('/chatbot/interaction/{interactionId}/register-agent', [ChatbotEscalationController::class, 'registerCrmAgent']);
+
+        // Assign the auto-created ticket to the logged-in agent after chat ends.
+        // Validates a JWT Bearer token supplied by agent.html after the agent logs in.
+        Route::post('/chatbot/interaction/{interactionId}/assign-ticket', [ChatbotEscalationController::class, 'assignTicket']);
+
+        // KBase endpoints for agent chat panel (no auth — embedded Mitel Ignite iframe)
+        Route::post('/kbase/share', [KbaseShareController::class, 'share']);
+        Route::get('/kbase/documents', function () {
+            $articles = \App\Models\KnowledgeBaseArticle::select('id', 'title', 'category_code', 'file_type', 'file_name')
+                ->orderBy('title')
+                ->limit(200)
+                ->get()
+                ->map(fn($a) => [
+                    'id'        => $a->id,
+                    'title'     => $a->title,
+                    'category'  => $a->category_code,
+                    'file_type' => $a->file_type ?? 'doc',
+                    'file_size' => '-',
+                ]);
+            return response()->json($articles);
+        });
+
+        Route::get('/kbase/articles/{id}', function (string $id) {
+            $article = \App\Models\KnowledgeBaseArticle::find($id);
+            if (!$article) {
+                return response()->json(['success' => false, 'message' => 'Not found'], 404);
+            }
+            // Build URL from the actual request host — APP_URL may be localhost in .env
+            $fileUrl = $article->file_path
+                ? request()->getSchemeAndHttpHost() . '/api/v1/public/kbase/articles/' . $article->id . '/file'
+                : null;
+            return response()->json([
+                'success'   => true,
+                'id'        => $article->id,
+                'title'     => $article->title,
+                'content'   => $article->content,
+                'file_type' => $article->file_type,
+                'file_name' => $article->file_name,
+                'file_url'  => $fileUrl,
+            ]);
+        });
+
+        Route::get('/kbase/articles/{id}/file', function (string $id) {
+            $article = \App\Models\KnowledgeBaseArticle::find($id);
+            if (!$article || !$article->file_path) {
+                abort(404, 'File not found.');
+            }
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($article->file_path)) {
+                abort(404, 'File not found.');
+            }
+            $mime     = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($article->file_path);
+            $contents = \Illuminate\Support\Facades\Storage::disk('public')->get($article->file_path);
+            $viewable = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+            $disposition = in_array($mime, $viewable) ? 'inline' : 'attachment';
+            return response($contents, 200)
+                ->header('Content-Type', $mime)
+                ->header('Content-Disposition', $disposition . '; filename="' . ($article->file_name ?? 'document') . '"');
+        });
 
         // Public Knowledge Base APIs (Elasticsearch)
         Route::prefix('knowledge-base')->group(function () {
@@ -331,6 +441,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'show']);
             Route::put('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'update']);
             Route::post('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'update']); // For multipart form data
+            Route::post('/{id}/publish', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'publish']);
             Route::delete('/{id}', [\App\Http\Controllers\Api\KnowledgeBaseArticleController::class, 'destroy']);
         });
         
@@ -386,6 +497,12 @@ Route::prefix('v1')->group(function () {
             // Queue Monitoring
             Route::get('/queues', [MitelQueueController::class, 'index']);
             Route::get('/queues/{queueId}/statistics', [MitelQueueController::class, 'getStatistics']);
+
+            // OpenMedia (external/chat interactions)
+            Route::get('/openmedia/queues', [MitelOpenMediaController::class, 'queues']);
+            Route::get('/openmedia', [MitelOpenMediaController::class, 'index']);
+            Route::get('/openmedia/{id}', [MitelOpenMediaController::class, 'show']);
+            Route::put('/openmedia/{id}', [MitelOpenMediaController::class, 'update']);
         });
 
         // Mitel Configuration Management (Admin only)

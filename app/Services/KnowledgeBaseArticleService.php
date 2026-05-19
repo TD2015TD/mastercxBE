@@ -115,15 +115,13 @@ class KnowledgeBaseArticleService
      */
     public function storeWithFile($data, $file = null)
     {
-        // Parse document if file is provided
         if ($file) {
-            $data['content'] = $this->parseDocument($file);
-
-            // Store original file
             $filePath = $file->store('knowledge-base-documents', 'public');
             $data['file_path'] = $filePath;
             $data['file_name'] = $file->getClientOriginalName();
             $data['file_type'] = $file->getClientOriginalExtension();
+            // Do not parse/extract file content — store file only
+            $data['content'] = $data['content'] ?? '';
         }
 
         return $this->store($data);
@@ -133,24 +131,28 @@ class KnowledgeBaseArticleService
     {
         // Store in DB
         $article = KnowledgeBaseArticle::create($data);
-        // Index in Elasticsearch (non-fatal: article is saved even if ES is unavailable)
+        $this->updateIndex($article);
+        return $article;
+    }
+
+    public function updateIndex(KnowledgeBaseArticle $article): void
+    {
         try {
-            $params = [
+            $this->es->index([
                 'index' => $this->index,
                 'id'    => $article->id,
                 'body'  => [
-                    'title' => $article->title,
-                    'content' => $article->content,
+                    'title'         => $article->title,
+                    'content'       => $article->content,
                     'category_code' => $article->category_code,
-                    'author' => $article->author,
-                    'published_at' => $article->published_at,
-                ]
-            ];
-            $this->es->index($params);
+                    'author'        => $article->author,
+                    'status'        => $article->status,
+                    'published_at'  => $article->published_at,
+                ],
+            ]);
         } catch (\Exception $e) {
             Log::warning('KB article ES indexing failed (non-fatal): ' . $e->getMessage());
         }
-        return $article;
     }
 
     public function delete($id)

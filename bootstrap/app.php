@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust all upstream proxies (CloudFlare, load balancers) so that
+        // $request->getScheme() reflects X-Forwarded-Proto: https
+        // instead of the raw HTTP connection nginx sees on port 80.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'jwt.verify' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
             'jwt.refresh' => \Tymon\JWTAuth\Http\Middleware\RefreshToken::class,

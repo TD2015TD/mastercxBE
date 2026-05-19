@@ -23,7 +23,7 @@ class KnowledgeBaseArticleController extends Controller
             'category_code' => 'required|string',
             'author' => 'nullable|string',
             'published_at' => 'nullable|date',
-            'file' => 'nullable|file|mimes:pdf,doc,docx',
+            'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
         ]);
 
         // If file is uploaded, parse it

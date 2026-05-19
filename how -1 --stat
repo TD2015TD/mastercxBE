@@ -1,0 +1,117 @@
+[33m9679f3b[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: pull: Fast-forward
+[33m238bf5b[m HEAD@{1}: reset: moving to HEAD
+[33m238bf5b[m HEAD@{2}: reset: moving to HEAD
+[33m238bf5b[m HEAD@{3}: reset: moving to HEAD
+[33m238bf5b[m HEAD@{4}: checkout: moving from 6b799425eb363c504424f18ed35210f49f120681 to main
+[33m6b79942[m HEAD@{5}: pull origin main: Fast-forward
+[33mbfade84[m HEAD@{6}: pull origin main: Fast-forward
+[33mf2ae1bd[m HEAD@{7}: pull origin main: Fast-forward
+[33m2c5ff82[m HEAD@{8}: pull origin main: Fast-forward
+[33m2aaa80b[m HEAD@{9}: pull origin main: Fast-forward
+[33me61e724[m[33m ([m[1;33mtag: v1.0.1[m[33m)[m HEAD@{10}: pull origin main: Fast-forward
+[33m5c0973c[m[33m ([m[1;33mtag: 1.0.0[m[33m)[m HEAD@{11}: checkout: moving from 46fcda7080b2dd3bf54614165a7f7deb04c4091f to tags/1.0.0
+[33m46fcda7[m HEAD@{12}: checkout: moving from 7b10ae720151be5fc25b5bc44b3ba0446b4ad748 to tags/1.0.0
+[33m7b10ae7[m HEAD@{13}: checkout: moving from 59779fea8067db3299f906ded417ee80e333de5b to tags/1.0.0
+[33m59779fe[m HEAD@{14}: checkout: moving from f010f39f8e8e1fedb728bd6819072928019912d2 to tags/1.0.0
+[33mf010f39[m HEAD@{15}: checkout: moving from d0f43fd9c395b91127e4c58d0d3934ca6fce7186 to tags/1.0.0
+[33md0f43fd[m HEAD@{16}: checkout: moving from 609965ee2f6f30e13df05e0cb2ea6b4b4dbee207 to tags/1.0.0
+[33m609965e[m HEAD@{17}: checkout: moving from 55d45aca4ffa6258d825d122cf97f5cea392f03e to tags/1.0.0
+[33m55d45ac[m HEAD@{18}: checkout: moving from 7e573a332e6a61cbf590727e8733c4195b5600cb to tags/1.0.0
+[33m7e573a3[m HEAD@{19}: checkout: moving from 0ef8036e38d038974006cc7bc15317e85bee3a0e to tags/1.0.0
+[33m0ef8036[m HEAD@{20}: checkout: moving from 3ceefc6071ae9578d1c40e811b3b5f44105dd860 to tags/1.0.0
+[33m3ceefc6[m HEAD@{21}: checkout: moving from 73e8e7d357a2f11ca688e3195eb5faea6e1b37e7 to tags/1.0.0
+[33m73e8e7d[m HEAD@{22}: checkout: moving from e69e212dcf93e51ad49b1685f882395bf4737e29 to tags/1.0.0
+[33me69e212[m HEAD@{23}: checkout: moving from 3d5f2a5be35215026fad1cc1ceee8e892741b7e5 to tags/1.0.0
+[33m3d5f2a5[m HEAD@{24}: checkout: moving from c145aa22cb0a8223b316017b99dd079457c02c54 to tags/1.0.0
+[33mc145aa2[m HEAD@{25}: checkout: moving from release-1.0.0 to tags/1.0.0
+[33m8a46f12[m[33m ([m[1;32mrelease-1.0.0[m[33m)[m HEAD@{26}: reset: moving to tags/1.0.0
+[33m8a46f12[m[33m ([m[1;32mrelease-1.0.0[m[33m)[m HEAD@{27}: checkout: moving from release-1.0.0 to release-1.0.0
+[33m8a46f12[m[33m ([m[1;32mrelease-1.0.0[m[33m)[m HEAD@{28}: reset: moving to tags/1.0.0
+[33m8aaeb64[m HEAD@{29}: reset: moving to tags/1.0.0
+[33mfe7d2e4[m HEAD@{30}: reset: moving to tags/1.0.0
+[33mc3568b4[m HEAD@{31}: checkout: moving from release-1.0.0 to release-1.0.0
+[33mc3568b4[m HEAD@{32}: reset: moving to tags/1.0.0
+[33mad6b90b[m HEAD@{33}: checkout: moving from release-1.0.0 to release-1.0.0
+[33mad6b90b[m HEAD@{34}: reset: moving to tags/1.0.0
+[33m39b2e4a[m HEAD@{35}: checkout: moving from release-1.0.0 to release-1.0.0
+[33m39b2e4a[m HEAD@{36}: reset: moving to tags/1.0.0
+[33m39b2e4a[m HEAD@{37}: reset: moving to tags/1.0.0
+[33m7687c31[m HEAD@{38}: reset: moving to tags/1.0.0
+[33m7687c31[m HEAD@{39}: reset: moving to tags/1.0.0
+[33m7687c31[m HEAD@{40}: reset: moving to tags/1.0.0
+[33md6ec3e8[m HEAD@{41}: reset: moving to tags/1.0.0
+[33me91676a[m HEAD@{42}: checkout: moving from release-1.0.0 to release-1.0.0
+[33me91676a[m HEAD@{43}: reset: moving to tags/1.0.0
+[33me91676a[m HEAD@{44}: checkout: moving from 307898d14a863fa4e40beaa0c212f39a9d06dd8d to release-1.0.0
+[33m307898d[m[33m ([m[1;33mtag: v1.0.0[m[33m)[m HEAD@{45}: checkout: moving from main to v1.0.0
+[33m238bf5b[m HEAD@{46}: pull: Fast-forward
+[33m813e133[m HEAD@{47}: pull: Fast-forward
+[33m2e7d64a[m HEAD@{48}: pull: Fast-forward
+[33m914210a[m HEAD@{49}: pull: Fast-forward
+[33m618c5b3[m HEAD@{50}: pull: Fast-forward
+[33m4f187aa[m HEAD@{51}: pull: Fast-forward
+[33m87a1a95[m HEAD@{52}: pull: Fast-forward
+[33m9c628d4[m HEAD@{53}: pull: Fast-forward
+[33mf1ad9cc[m HEAD@{54}: pull: Fast-forward
+[33m5f66f17[m HEAD@{55}: pull: Fast-forward
+[33m5488117[m HEAD@{56}: pull: Fast-forward
+[33ma5ccf38[m HEAD@{57}: pull: Fast-forward
+[33mdb10200[m HEAD@{58}: pull: Fast-forward
+[33m1304d73[m HEAD@{59}: pull: Fast-forward
+[33m5b6128b[m HEAD@{60}: pull: Fast-forward
+[33md2959fe[m HEAD@{61}: pull: Fast-forward
+[33mfb27786[m HEAD@{62}: pull: Fast-forward
+[33mfaabbaa[m HEAD@{63}: pull: Fast-forward
+[33m3ccdba3[m HEAD@{64}: pull: Fast-forward
+[33m529a701[m HEAD@{65}: pull: Fast-forward
+[33mc9e827e[m HEAD@{66}: pull: Fast-forward
+[33mcab07cd[m HEAD@{67}: pull: Fast-forward
+[33med2bbbe[m HEAD@{68}: pull: Fast-forward
+[33mca17a1e[m HEAD@{69}: pull: Fast-forward
+[33mdaecf1a[m HEAD@{70}: pull: Fast-forward
+[33mc23a362[m HEAD@{71}: pull: Fast-forward
+[33m7474576[m HEAD@{72}: pull: Fast-forward
+[33m8fea33f[m HEAD@{73}: pull: Fast-forward
+[33mbdec8be[m HEAD@{74}: pull: Fast-forward
+[33m6439900[m HEAD@{75}: pull: Fast-forward
+[33m8befc0b[m HEAD@{76}: pull: Fast-forward
+[33mff5bc13[m HEAD@{77}: pull: Fast-forward
+[33m0d775e8[m HEAD@{78}: pull: Fast-forward
+[33m5e3d186[m HEAD@{79}: pull: Fast-forward
+[33m80c3a06[m HEAD@{80}: pull: Fast-forward
+[33ma6a454b[m HEAD@{81}: pull: Fast-forward
+[33m2049904[m HEAD@{82}: pull: Fast-forward
+[33me96cc1d[m HEAD@{83}: pull: Fast-forward
+[33m0199626[m HEAD@{84}: pull: Fast-forward
+[33ma08cfaf[m HEAD@{85}: pull: Fast-forward
+[33mf455d49[m HEAD@{86}: pull: Fast-forward
+[33mf7f7b78[m HEAD@{87}: pull: Fast-forward
+[33m4a17381[m HEAD@{88}: pull: Fast-forward
+[33mbb5a762[m HEAD@{89}: pull: Fast-forward
+[33m79015d6[m HEAD@{90}: pull: Fast-forward
+[33m6f33172[m HEAD@{91}: pull: Fast-forward
+[33m083c040[m HEAD@{92}: pull: Fast-forward
+[33md3b4feb[m HEAD@{93}: pull: Fast-forward
+[33m5d65829[m HEAD@{94}: pull: Fast-forward
+[33mbe67f02[m HEAD@{95}: pull: Fast-forward
+[33mbe5bc18[m HEAD@{96}: pull: Fast-forward
+[33ma876fdd[m HEAD@{97}: pull: Fast-forward
+[33mccff6a2[m HEAD@{98}: pull: Fast-forward
+[33m35675b8[m HEAD@{99}: pull: Fast-forward
+[33m0144de5[m HEAD@{100}: pull: Fast-forward
+[33m776b064[m HEAD@{101}: pull: Fast-forward
+[33m92a8994[m HEAD@{102}: pull: Fast-forward
+[33md949a0c[m HEAD@{103}: pull: Fast-forward
+[33m3b64c4a[m HEAD@{104}: pull: Fast-forward
+[33mccac6ab[m HEAD@{105}: pull: Fast-forward
+[33m7f7066f[m HEAD@{106}: pull: Fast-forward
+[33m3759a43[m HEAD@{107}: pull: Fast-forward
+[33mcfe7cdd[m HEAD@{108}: pull: Fast-forward
+[33m2746821[m HEAD@{109}: pull: Fast-forward
+[33me2a7abc[m HEAD@{110}: pull: Fast-forward
+[33m02eba04[m HEAD@{111}: pull: Fast-forward
+[33m742aeeb[m HEAD@{112}: pull: Fast-forward
+[33m9eec913[m HEAD@{113}: pull: Fast-forward
+[33md70e2fc[m HEAD@{114}: pull: Fast-forward
+[33mba6c31c[m HEAD@{115}: pull: Fast-forward
+[33mf5329f2[m HEAD@{116}: clone: from https://github.com/syafiqapextreasure/crm-api

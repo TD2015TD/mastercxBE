@@ -9,6 +9,8 @@ use App\Events\MitelInteractionUpdated;
 use App\Events\QueueStateChanged;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 
@@ -133,6 +135,117 @@ class WebhookController extends Controller
             )
         ]
     )]
+    /**
+     * When Mitel fires ConversationUpdated with state Connected/Answered for an
+     * OpenMedia (chat) interaction, store the accepted state in cache so the
+     * customer widget's poller can detect the agent has joined.
+     */
+    private function handleChatAccepted(array $data): void
+    {
+        // Mitel may use different field names depending on version — check common variants
+        $state = strtolower(
+            $data['conversationState'] ?? $data['state'] ?? $data['action'] ?? ''
+        );
+
+        $mediaType = strtolower(
+            $data['mediaType'] ?? $data['media_type'] ?? $data['type'] ?? ''
+        );
+
+        $interactionId = $data['conversationId']
+            ?? $data['conversation_id']
+            ?? $data['interactionId']
+            ?? $data['interaction_id']
+            ?? $data['call_id']
+            ?? null;
+
+        // Only act when a chat/openmedia interaction transitions to connected/answered
+        $isChat     = in_array($mediaType, ['chat', 'webchat', 'openmedia', '']);
+        $isAccepted = in_array($state, ['connected', 'answered', 'active', 'established', 'accepted']);
+
+        if ($interactionId && $isAccepted && $isChat) {
+            $cacheKey = "chat_interaction_{$interactionId}_accepted";
+            Cache::put($cacheKey, [
+                'agent_name' => $data['agentName'] ?? $data['agent_name'] ?? $data['fromName'] ?? null,
+                'agent_id'   => $data['agentId']   ?? $data['agent_id']   ?? null,
+                'accepted_at' => now()->toISOString(),
+            ], now()->addHours(4));
+
+            Log::info('Chat interaction accepted by agent', [
+                'interaction_id' => $interactionId,
+                'state'          => $state,
+                'agent'          => $data['agentName'] ?? $data['agent_name'] ?? 'unknown',
+            ]);
+        }
+    }
+
+    /**
+     * POST /api/v1/public/mitel-event
+     *
+     * Public endpoint — Mitel OSCMS webhook.
+     * Mitel calls this whenever an OpenMedia interaction changes state.
+     * We check the interaction ID against active chatbot sessions and
+     * immediately signal Python to end or preserve the session.
+     */
+    public function handlePublic(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+        Log::info('Mitel OSCMS webhook received', ['payload' => $payload]);
+
+        // Mitel can send the payload at the root level or inside a "data" key.
+        // Field names also vary by Mitel version — check common variants.
+        $data = $payload['data'] ?? $payload;
+
+        $interactionId = $data['ConversationId']   ?? $data['conversationId']
+                      ?? $data['InteractionId']    ?? $data['interactionId']
+                      ?? $data['interaction_id']   ?? $data['id'] ?? null;
+
+        $state  = strtolower($data['ConversationState'] ?? $data['conversationState']
+                           ?? $data['state']            ?? $data['action']           ?? '');
+
+        $isCleared = filter_var($data['IsCleared'] ?? $data['isCleared'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if (!$interactionId) {
+            return response()->json(['success' => true, 'message' => 'No interaction ID — ignored']);
+        }
+
+        Log::info('Mitel OSCMS event parsed', [
+            'interaction_id' => $interactionId,
+            'state'          => $state,
+            'is_cleared'     => $isCleared,
+        ]);
+
+        // Terminal end states from Mitel
+        $endStates      = ['handled', 'abandoned', 'timedout', 'failed', 'completed', 'closed', 'ended'];
+        // Transfer / re-queue states
+        $transferStates = ['transferred', 'transfer', 'forwarded', 'forward', 'queued', 'offered', 'pending'];
+
+        $isEnd      = in_array($state, $endStates) || $isCleared;
+        $isTransfer = in_array($state, $transferStates);
+
+        if ($isEnd || $isTransfer) {
+            $signal = $isTransfer ? 'transfer' : 'end';
+            $this->signalPython($interactionId, $signal);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Tell the Python WebSocket service to end or mark-as-transfer for a session.
+     */
+    private function signalPython(string $sessionId, string $signal): void
+    {
+        // Use localhost so the call never leaves the machine
+        try {
+            Http::timeout(3)->post("http://localhost:8000/api/internal/session/{$sessionId}/signal", [
+                'signal' => $signal,
+            ]);
+            Log::info('Signalled Python', ['session' => $sessionId, 'signal' => $signal]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to signal Python', ['session' => $sessionId, 'error' => $e->getMessage()]);
+        }
+    }
+
     public function handle(Request $request): JsonResponse
     {
         try {
@@ -152,6 +265,7 @@ class WebhookController extends Controller
 
                 case 'ConversationUpdated':
                     broadcast(new ConversationUpdated($eventData));
+                    $this->handleChatAccepted($eventData);
                     break;
 
                 case 'QueueStateChanged':

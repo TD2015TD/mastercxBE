@@ -963,35 +963,242 @@ class MitelService
         }
     }
 
+    // --- OPEN MEDIA API FUNCTIONS ---
+
+    /**
+     * OData: Get all active open media items currently being executed.
+     * For historical queries use $search='{term}' to query previously executed items.
+     * Endpoint: GET /api/v1/openmedia
+     */
+    public function getOpenMediaItems(array $odataParams = []): array
+    {
+        $this->log('INFO', 'Fetching active open media items', ['params' => array_keys($odataParams)]);
+        try {
+            $response = $this->makeRequest('GET', '/api/v1/openmedia', $odataParams);
+            $this->log('INFO', 'Open media items fetched', ['count' => $response['count'] ?? count($response)]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to fetch open media items', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Reroute a failed interaction or complete an interaction by a third-party system.
+     * Endpoint: PUT /api/v1/openmedia/{id}
+     *
+     * @param  string $id   Mitel interaction ID
+     * @param  array  $data Payload — e.g. ['interactionState' => 'Handled'] to complete
+     */
+    public function updateOpenMediaInteraction(string $id, array $data): array
+    {
+        $this->log('INFO', 'Updating open media interaction', ['id' => $id, 'keys' => array_keys($data)]);
+        try {
+            $response = $this->makeRequest('PUT', "/api/v1/openmedia/{$id}", $data);
+            $this->log('INFO', 'Open media interaction updated', ['id' => $id]);
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to update open media interaction', ['id' => $id, 'error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /**
+     * OData: Get all active open media queues with links to active conversations.
+     * Endpoint: GET /api/v1/openmedia/queues
+     */
+    public function getOpenMediaQueues(array $odataParams = []): array
+    {
+        $this->log('INFO', 'Fetching open media queues', ['params' => array_keys($odataParams)]);
+        try {
+            $response = $this->makeRequest('GET', '/api/v1/openmedia/queues', $odataParams);
+            $this->log('INFO', 'Open media queues fetched');
+            return $response;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to fetch open media queues', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
     /**
      * Escalate a citizen chat session to the Mitel queue via the OpenMedia endpoint.
-     * Returns { Id, PositionInQueue } from Mitel.
      *
-     * @param  string $queue   The Mitel queue name (e.g. "ChatbotEscalation")
-     * @param  array  $vars    VariableData payload: Name, IC, Topic, FaqPath, etc.
+     * @param  string      $queue          Mitel queue name (e.g. "KASTAM-Chat")
+     * @param  array       $vars           VariableData: Name, IC, Topic, FaqPath, etc.
+     * @param  string|null $id             Pre-generated interaction ID (so targetUri can be built before calling)
+     * @param  string|null $targetUri      URL shown/embedded to agent when they accept the interaction
+     * @param  bool        $targetUriEmbedded  Embed targetUri as iframe inside Mitel Ignite (default true)
+     * @param  string|null $subject        Subject line shown in agent inbox
+     * @param  string|null $from           Originator label shown to agent
      */
-    public function escalateToAgent(string $queue, array $vars = []): array
-    {
-        $this->log('INFO', 'Escalating chat to Mitel queue', ['queue' => $queue, 'vars' => array_keys($vars)]);
+    public function escalateToAgent(
+        string $queue,
+        array $vars = [],
+        ?string $id = null,
+        ?string $targetUri = null,
+        bool $targetUriEmbedded = true,
+        ?string $subject = null,
+        ?string $from = null
+    ): array {
+        $this->log('INFO', 'Escalating chat to Mitel queue', [
+            'queue'      => $queue,
+            'id'         => $id,
+            'target_uri' => $targetUri,
+            'vars'       => array_keys($vars),
+        ]);
 
         try {
             $payload = [
-                'QueueName'    => $queue,
-                'MediaType'    => 'Chat',
-                'VariableData' => $vars,
+                'queue'        => $queue,
+                'variableData' => $vars,
             ];
+
+            if ($id)        $payload['id']                = $id;
+            if ($targetUri) $payload['targetUri']         = $targetUri;
+            if ($targetUri) $payload['targetUriEmbedded'] = $targetUriEmbedded;
+            if ($subject)   $payload['subject']           = $subject;
+            if ($from)      $payload['from']              = $from;
 
             $response = $this->makeRequest('POST', '/api/v1/openmedia', $payload);
 
+            $this->log('INFO', 'Escalation raw response', ['response' => $response]);
+
+            $interactionId = $response['id']
+                ?? $response['Id']
+                ?? $response['interactionId']
+                ?? $response['InteractionId']
+                ?? $id
+                ?? null;
+
+            $positionInQueue = $response['positionInQueue']
+                ?? $response['PositionInQueue']
+                ?? null;
+
             $this->log('INFO', 'Escalation successful', [
-                'interaction_id'   => $response['Id'] ?? null,
-                'position_in_queue' => $response['PositionInQueue'] ?? null,
+                'interaction_id'    => $interactionId,
+                'position_in_queue' => $positionInQueue,
             ]);
+
+            $response['_interaction_id']    = $interactionId;
+            $response['_position_in_queue'] = $positionInQueue;
 
             return $response;
         } catch (Exception $e) {
             $this->log('ERROR', 'Escalation failed', ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    /**
+     * @deprecated OpenMedia has no message-sending endpoint.
+     * Messages are delivered to the agent via the targetUri iframe set during escalation.
+     *
+     * @param  string $interactionId  The Mitel interaction ID returned by escalateToAgent
+     * @param  string $content        The plain-text message from the customer
+     */
+    /**
+     * Get the current state of an OpenMedia interaction directly from Mitel.
+     * Returns the full interaction object including conversationState.
+     */
+    public function getOpenMediaInteraction(string $interactionId): array
+    {
+        $this->log('INFO', 'Fetching OpenMedia interaction state', ['interaction_id' => $interactionId]);
+
+        // Mitel has no GET /openmedia/{id} endpoint — list all active items and match by id.
+        try {
+            $response = $this->makeRequest('GET', '/api/v1/openmedia');
+
+            // Mitel returns HAL format: { _embedded: { items: [...] }, count: N, _links: {...} }
+            $items = $response['_embedded']['items']
+                ?? $response['value']
+                ?? [];
+
+            $interaction = null;
+            foreach ($items as $item) {
+                $itemId = $item['id'] ?? $item['Id'] ?? $item['interactionId'] ?? $item['InteractionId'] ?? null;
+                if ($itemId === $interactionId) {
+                    $interaction = $item;
+                    break;
+                }
+            }
+
+            if (!$interaction) {
+                // Not in the active list — interaction was completed/removed in Mitel.
+                // Return a sentinel so callers can treat this as a definitive "ended" state
+                // rather than a transient API failure.
+                $this->log('INFO', 'OpenMedia interaction not in active list — treating as ended', ['interaction_id' => $interactionId]);
+                return ['conversationState' => 'notfound'];
+            }
+
+            $this->log('INFO', 'OpenMedia interaction found', [
+                'interaction_id' => $interactionId,
+                'state'          => $interaction['conversationState'] ?? $interaction['state'] ?? 'unknown',
+            ]);
+            return $interaction;
+        } catch (Exception $e) {
+            $this->log('ERROR', 'Failed to get OpenMedia interaction', [
+                'interaction_id' => $interactionId,
+                'error'          => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Send a customer message into a Mitel OpenMedia chat interaction.
+     *
+     * Tries endpoints in order until one succeeds:
+     *  1. POST /api/v1/chat/{id}/messages   (WebChat-specific endpoint)
+     *  2. PUT  /api/v1/employees/{agentId}/conversations/{id}  (agent-side relay)
+     *
+     * @param  string      $interactionId  Mitel interaction ID
+     * @param  string      $content        Customer's message text
+     * @param  string|null $agentId        Agent ID (from getOpenMediaInteraction), needed for fallback
+     */
+    public function sendOpenMediaMessage(string $interactionId, string $content, ?string $agentId = null): array
+    {
+        $this->log('INFO', 'Sending OpenMedia message', [
+            'interaction_id' => $interactionId,
+            'content_length' => strlen($content),
+            'agent_id'       => $agentId,
+        ]);
+
+        // Attempt 1 — WebChat messages endpoint
+        $endpoints = [
+            ['method' => 'POST', 'uri' => "/api/v1/chat/{$interactionId}/messages",
+             'body' => ['content' => $content, 'contentType' => 'text/plain', 'fromExternalParty' => true]],
+            ['method' => 'POST', 'uri' => "/api/v1/openmedia/{$interactionId}/externalmessages",
+             'body' => ['content' => $content, 'contentType' => 'text/plain']],
+        ];
+
+        // Attempt 3 — relay via agent conversation (if agentId known)
+        if ($agentId) {
+            $endpoints[] = [
+                'method' => 'PUT',
+                'uri'    => "/api/v1/employees/{$agentId}/conversations/{$interactionId}",
+                'body'   => ['conversationAction' => 'Chat', 'content' => $content],
+            ];
+        }
+
+        $lastError = null;
+        foreach ($endpoints as $ep) {
+            try {
+                $response = $this->makeRequest($ep['method'], $ep['uri'], $ep['body']);
+                $this->log('INFO', 'OpenMedia message sent', [
+                    'interaction_id' => $interactionId,
+                    'endpoint'       => $ep['uri'],
+                ]);
+                return $response;
+            } catch (Exception $e) {
+                $this->log('WARN', 'OpenMedia message endpoint failed, trying next', [
+                    'endpoint' => $ep['uri'],
+                    'error'    => substr($e->getMessage(), 0, 120),
+                ]);
+                $lastError = $e;
+            }
+        }
+
+        $this->log('ERROR', 'All OpenMedia message endpoints failed', ['interaction_id' => $interactionId]);
+        throw $lastError;
     }
 }

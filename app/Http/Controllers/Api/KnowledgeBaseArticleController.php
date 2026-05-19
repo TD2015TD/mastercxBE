@@ -25,7 +25,32 @@ class KnowledgeBaseArticleController extends Controller
     public function index(Request $request)
     {
         try {
+            $user     = Auth::user();
+            $roleSlug = $user?->role?->slug ?? 'agent';
+            $isAgent  = $roleSlug === 'agent';
+
             $query = KnowledgeBaseArticle::with('category');
+
+            // Agents:
+            //   ?status=draft  → only their own drafts (for "My Submissions")
+            //   no status      → published + their own drafts (browse view)
+            // Supervisors/admins: everything, optionally filtered by ?status=
+            if ($isAgent) {
+                if ($request->input('status') === 'draft') {
+                    $query->where('status', 'draft')
+                          ->where('uploaded_by', $user->id);
+                } else {
+                    $query->where(function ($q) use ($user) {
+                        $q->where('status', 'published')
+                          ->orWhere(function ($q2) use ($user) {
+                              $q2->where('status', 'draft')
+                                 ->where('uploaded_by', $user->id);
+                          });
+                    });
+                }
+            } elseif ($request->has('status')) {
+                $query->where('status', $request->status);
+            }
 
             // Filter by category
             if ($request->has('category_code')) {
@@ -76,11 +101,20 @@ class KnowledgeBaseArticleController extends Controller
                 ], 422);
             }
 
+            $user = Auth::user();
+            $roleSlug = $user?->role?->slug ?? 'agent';
+            $isAgent = $roleSlug === 'agent';
+
+            // Agents can only create drafts
+            $status = $isAgent ? 'draft' : ($request->input('status', 'draft'));
+
             $data = [
-                'title' => $request->title,
+                'title'         => $request->title,
                 'category_code' => $request->category_code,
-                'author' => Auth::user()->name ?? 'System',
-                'published_at' => now(),
+                'author'        => $user->name ?? 'System',
+                'uploaded_by'   => $user->id ?? null,
+                'status'        => $status,
+                'published_at'  => $status === 'published' ? now() : null,
             ];
 
             // If no file, use manual content
@@ -138,9 +172,10 @@ class KnowledgeBaseArticleController extends Controller
             $article = KnowledgeBaseArticle::findOrFail($id);
 
             $validator = Validator::make($request->all(), [
-                'title' => 'nullable|string|max:500',
+                'title'         => 'nullable|string|max:500',
                 'category_code' => 'nullable|string|exists:lookups,code',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
+                'status'        => 'nullable|in:draft,published,archived',
+                'file'          => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
             ]);
 
             if ($validator->fails()) {
@@ -150,24 +185,15 @@ class KnowledgeBaseArticleController extends Controller
                 ], 422);
             }
 
-            // Update basic fields
-            if ($request->has('title')) {
-                $article->title = $request->title;
-            }
+            if ($request->has('title'))         $article->title         = $request->title;
+            if ($request->has('category_code')) $article->category_code = $request->category_code;
+            if ($request->has('status'))        $article->status        = $request->status;
 
-            if ($request->has('category_code')) {
-                $article->category_code = $request->category_code;
-            }
-
-            // Handle file upload for update
+            // Handle file upload for update — store file only, no content extraction
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
-                $content = $this->articleService->parseDocument($file);
-
-                // Store new file
                 $filePath = $file->store('knowledge-base-documents', 'public');
 
-                $article->content = $content;
                 $article->file_path = $filePath;
                 $article->file_name = $file->getClientOriginalName();
                 $article->file_type = $file->getClientOriginalExtension();
@@ -175,8 +201,8 @@ class KnowledgeBaseArticleController extends Controller
 
             $article->save();
 
-            // Update in OpenSearch
-            $this->articleService->store($article->toArray());
+            // Update ES index only — do NOT call service->store() which creates a new DB record
+            $this->articleService->updateIndex($article);
 
             return response()->json([
                 'success' => true,
@@ -293,6 +319,36 @@ class KnowledgeBaseArticleController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve statistics'
+            ], 500);
+        }
+    }
+
+    /**
+     * Publish a draft article (supervisor/admin only)
+     * POST /api/v1/knowledge-base-articles/{id}/publish
+     */
+    public function publish($id)
+    {
+        $roleSlug = Auth::user()?->role?->slug ?? 'agent';
+        if ($roleSlug === 'agent') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $article = KnowledgeBaseArticle::findOrFail($id);
+            $article->status       = 'published';
+            $article->published_at = $article->published_at ?? now();
+            $article->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Article published successfully',
+                'data'    => $article->load('category'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to publish article: ' . $e->getMessage()
             ], 500);
         }
     }

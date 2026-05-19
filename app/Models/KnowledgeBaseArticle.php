@@ -14,6 +14,8 @@ class KnowledgeBaseArticle extends Model
         'content',
         'category_code', // references Lookup.code
         'author',
+        'status',
+        'uploaded_by',
         'published_at',
         'file_path',
         'file_name',
