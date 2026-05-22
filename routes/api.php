@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
         // Public Authentication (Phone + Email OTP)
         Route::post('/auth/request-otp', [App\Http\Controllers\Api\PublicAuthController::class, 'requestOtp']);
         Route::post('/auth/verify-otp', [App\Http\Controllers\Api\PublicAuthController::class, 'verifyOtp']);
+        Route::post('/auth/register', [App\Http\Controllers\Api\PublicAuthController::class, 'register']);
         
         // Public Ticket APIs
         Route::post('/tickets', [PublicTicketController::class, 'submitTicket']);
@@ -98,6 +99,9 @@ Route::prefix('v1')->group(function () {
 
         // Customer ends chat — marks Mitel interaction as Handled and closes DB session
         Route::post('/chatbot/end/{interactionId}', [ChatbotEscalationController::class, 'endSession']);
+
+        // Store a single chat message in real-time (called by agent widget for each message)
+        Route::post('/chatbot/messages', [ChatbotEscalationController::class, 'storeMessage']);
 
         // Agent transfers chat to another queue — creates new OpenMedia interaction with same targetUri
         Route::post('/chatbot/transfer', [ChatbotEscalationController::class, 'transferChat']);
@@ -349,6 +353,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/sla-stats', [DashboardController::class, 'getSlaStats']);
         Route::get('/dashboard/agent-performance', [DashboardController::class, 'getAgentPerformance']);
         Route::get('/dashboard/trends', [DashboardController::class, 'getTrends']);
+        
+        // New Dashboard Metrics
+        Route::get('/dashboard/ticket-metrics', [DashboardController::class, 'getTicketMetrics']);
+        Route::get('/dashboard/tickets-closed-by-day', [DashboardController::class, 'getTicketsClosedByDay']);
+        Route::get('/dashboard/department-performance', [DashboardController::class, 'getDepartmentPerformance']);
+        Route::get('/dashboard/livechat-status', [DashboardController::class, 'getLiveChatStatus']);
         
         // System Administration
         Route::prefix('system')->group(function () {

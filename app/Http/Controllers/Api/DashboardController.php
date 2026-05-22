@@ -831,4 +831,264 @@ class DashboardController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Get ticket metrics for dashboard cards.
+     */
+    public function getTicketMetrics(Request $request)
+    {
+        try {
+            $department = $request->get('department');
+            $agentId = $request->get('agent_id');
+            $dateFrom = $request->get('date_from');
+            $dateTo = $request->get('date_to');
+
+            $today = Carbon::today();
+
+            // Total in progress (all time)
+            $totalInProgressQuery = Ticket::whereIn('status', ['Open', 'In Progress']);
+            if ($department && $department !== 'all') {
+                $totalInProgressQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $totalInProgressQuery->where('assigned_to', $agentId);
+            }
+            $totalInProgress = $totalInProgressQuery->count();
+
+            // In Progress of the Day
+            $inProgressTodayQuery = Ticket::whereIn('status', ['Open', 'In Progress'])
+                ->whereDate('created_at', $today);
+            if ($department && $department !== 'all') {
+                $inProgressTodayQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $inProgressTodayQuery->where('assigned_to', $agentId);
+            }
+            $inProgressToday = $inProgressTodayQuery->count();
+
+            // Closed for the Day
+            $closedTodayQuery = Ticket::whereIn('status', ['Resolved', 'Closed'])
+                ->whereDate('updated_at', $today);
+            if ($department && $department !== 'all') {
+                $closedTodayQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $closedTodayQuery->where('assigned_to', $agentId);
+            }
+            $closedToday = $closedTodayQuery->count();
+
+            // Total of the Day
+            $totalTodayQuery = Ticket::whereDate('created_at', $today);
+            if ($department && $department !== 'all') {
+                $totalTodayQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $totalTodayQuery->where('assigned_to', $agentId);
+            }
+            $totalToday = $totalTodayQuery->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_in_progress' => $totalInProgress,
+                    'in_progress_today' => $inProgressToday,
+                    'closed_today' => $closedToday,
+                    'total_today' => $totalToday,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch ticket metrics', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load ticket metrics',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get tickets closed by day of week for line chart.
+     */
+    public function getTicketsClosedByDay(Request $request)
+    {
+        try {
+            $department = $request->get('department');
+            $agentId = $request->get('agent_id');
+
+            // Get last 7 days
+            $startDate = Carbon::now()->subDays(6)->startOfDay();
+            $endDate = Carbon::now()->endOfDay();
+
+            $closedTicketsQuery = Ticket::whereIn('status', ['Resolved', 'Closed'])
+                ->whereBetween('updated_at', [$startDate, $endDate]);
+            
+            if ($department && $department !== 'all') {
+                $closedTicketsQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $closedTicketsQuery->where('assigned_to', $agentId);
+            }
+
+            $closedTickets = $closedTicketsQuery
+                ->select(DB::raw('DATE(updated_at) as date'), DB::raw('COUNT(*) as count'))
+                ->groupBy(DB::raw('DATE(updated_at)'))
+                ->orderBy('date')
+                ->get();
+
+            // Create array for all 7 days
+            $chartData = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = Carbon::now()->subDays($i);
+                $dateStr = $date->format('Y-m-d');
+                $dayName = $date->format('D'); // Mon, Tue, Wed, etc.
+                
+                $count = $closedTickets->firstWhere('date', $dateStr)?->count ?? 0;
+                
+                $chartData[] = [
+                    'day' => $dayName,
+                    'date' => $dateStr,
+                    'count' => $count,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $chartData
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch tickets closed by day', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load tickets closed data',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get department performance for bar chart.
+     */
+    public function getDepartmentPerformance(Request $request)
+    {
+        try {
+            $dateFrom = $request->get('date_from');
+            $dateTo = $request->get('date_to');
+
+            $today = Carbon::today();
+            $thisMonth = Carbon::now()->startOfMonth();
+
+            // Get all departments
+            $departments = Agent::select('department')
+                ->distinct()
+                ->whereNotNull('department')
+                ->pluck('department');
+
+            $performanceData = [];
+
+            foreach ($departments as $dept) {
+                $resolvedCount = Ticket::where('department', $dept)
+                    ->whereIn('status', ['Resolved', 'Closed'])
+                    ->whereBetween('updated_at', [$thisMonth, Carbon::now()])
+                    ->count();
+
+                $inProgressCount = Ticket::where('department', $dept)
+                    ->where('status', 'In Progress')
+                    ->count();
+
+                $performanceData[] = [
+                    'department' => $dept,
+                    'resolved' => $resolvedCount,
+                    'in_progress' => $inProgressCount,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $performanceData
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch department performance', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load department performance',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get LiveChat ticket handling status for donut chart.
+     */
+    public function getLiveChatStatus(Request $request)
+    {
+        try {
+            $department = $request->get('department');
+            $agentId = $request->get('agent_id');
+
+            // Get LiveChat tickets (assuming channel = 'livechat' or category = 'LiveChat')
+            $liveChatQuery = Ticket::where(function($query) {
+                $query->where('channel', 'livechat')
+                      ->orWhere('category', 'LiveChat')
+                      ->orWhere('category', 'Live Chat');
+            });
+
+            if ($department && $department !== 'all') {
+                $liveChatQuery->where('department', $department);
+            }
+            if ($agentId) {
+                $liveChatQuery->where('assigned_to', $agentId);
+            }
+
+            $totalLiveChat = $liveChatQuery->count();
+            $solvedLiveChat = Ticket::where(function($query) {
+                $query->where('channel', 'livechat')
+                      ->orWhere('category', 'LiveChat')
+                      ->orWhere('category', 'Live Chat');
+            })
+            ->whereIn('status', ['Resolved', 'Closed']);
+
+            if ($department && $department !== 'all') {
+                $solvedLiveChat->where('department', $department);
+            }
+            if ($agentId) {
+                $solvedLiveChat->where('assigned_to', $agentId);
+            }
+
+            $solvedCount = $solvedLiveChat->count();
+            $unsolvedCount = $totalLiveChat - $solvedCount;
+
+            $solvedPercentage = $totalLiveChat > 0 ? round(($solvedCount / $totalLiveChat) * 100) : 0;
+            $unsolvedPercentage = $totalLiveChat > 0 ? round(($unsolvedCount / $totalLiveChat) * 100) : 0;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total' => $totalLiveChat,
+                    'solved' => $solvedCount,
+                    'unsolved' => $unsolvedCount,
+                    'solved_percentage' => $solvedPercentage,
+                    'unsolved_percentage' => $unsolvedPercentage,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch LiveChat status', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load LiveChat status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
