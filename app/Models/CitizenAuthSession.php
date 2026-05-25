@@ -13,6 +13,7 @@ class CitizenAuthSession extends Model
         'phone_number',
         'email',
         'otp_code',
+        'phone_otp_code',
         'otp_expires_at',
         'session_token',
         'verified_at',

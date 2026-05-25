@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotSession;
+use App\Models\ChatMessage;
 use App\Models\Customer;
 use App\Models\Ticket;
 use App\Models\TicketNumberSequence;
@@ -97,7 +98,8 @@ class ChatbotEscalationController extends Controller
             return response()->json([
                 'success'           => true,
                 'interaction_id'    => $interactionId,
-                'position_in_queue' => $result['_position_in_queue'] ?? 1,
+                'position_in_queue' => $result['_position_in_queue']
+                    ?? ChatbotSession::where('status', 'queuing')->count(),
             ]);
         } catch (\Exception $e) {
             Log::error('Chatbot escalation failed', ['error' => $e->getMessage()]);
@@ -207,8 +209,67 @@ class ChatbotEscalationController extends Controller
         $session = ChatbotSession::where('interaction_id', $interactionId)->first();
 
         if ($session) {
-            $session->update(['status' => 'closed']);
+            $updateData = ['status' => 'closed'];
+            $chatHistory = $request->input('chat_history');
+            Log::info('[endSession] received', [
+                'interaction_id'   => $interactionId,
+                'chat_history_type' => gettype($chatHistory),
+                'chat_history_count' => is_array($chatHistory) ? count($chatHistory) : 'N/A',
+                'raw_body_len'      => strlen($request->getContent()),
+            ]);
+            if ($chatHistory && is_array($chatHistory) && count($chatHistory) > 0) {
+                $updateData['chat_history'] = $chatHistory;
+            }
+            $session->update($updateData);
             $this->autoCreateTicket($session);
+
+            // If ticket already existed (Python beat us) and we now have history, patch its description
+            if ($chatHistory && is_array($chatHistory) && count($chatHistory) > 0) {
+                $existingTicket = \App\Models\Ticket::where('case_id', $interactionId)->first();
+                if ($existingTicket && !str_contains((string) $existingTicket->description, '--- Transkrip Chat ---')) {
+                    $existingTicket->description .= $this->formatTranscript($chatHistory);
+                    $existingTicket->save();
+                }
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * POST /api/v1/public/chatbot/messages
+     *
+     * Called by agent widget in real-time for every message sent/received.
+     * Stores into chat_messages so transcript is available even if the
+     * iframe is destroyed before endSession fires (Mitel Ignite agent-end case).
+     */
+    public function storeMessage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'interaction_id'   => 'required|string|max:64',
+            'sender'           => 'required|in:agent,customer,system',
+            'sender_name'      => 'nullable|string|max:255',
+            'content'          => 'required|string|max:8000',
+            'original_content' => 'nullable|string|max:8000',
+            'sent_at'          => 'nullable|date',
+        ]);
+
+        // Deduplicate: skip if same interaction+sender+content within 2 seconds
+        $recent = ChatMessage::where('interaction_id', $validated['interaction_id'])
+            ->where('sender', $validated['sender'])
+            ->where('content', $validated['content'])
+            ->where('sent_at', '>=', now()->subSeconds(2))
+            ->exists();
+
+        if (!$recent) {
+            ChatMessage::create([
+                'interaction_id'   => $validated['interaction_id'],
+                'sender'           => $validated['sender'],
+                'sender_name'      => $validated['sender_name'] ?? null,
+                'content'          => $validated['content'],
+                'original_content' => $validated['original_content'] ?? null,
+                'sent_at'          => $validated['sent_at'] ?? now(),
+            ]);
         }
 
         return response()->json(['success' => true]);
@@ -268,6 +329,28 @@ class ChatbotEscalationController extends Controller
             $description .= "\n--- Perihal Isu ---\n";
             $description .= ($session->issue ?? '(Tiada perihal isu)') . "\n";
 
+            // Append chat transcript — prefer chat_messages table, fall back to session.chat_history
+            $storedMessages = ChatMessage::where('interaction_id', $session->interaction_id)
+                ->orderBy('sent_at')
+                ->get();
+
+            if ($storedMessages->isNotEmpty()) {
+                $description .= "\n--- Transkrip Chat ---\n";
+                foreach ($storedMessages as $msg) {
+                    if ($msg->sender === 'agent') {
+                        $label = $msg->sender_name ? "Pegawai ({$msg->sender_name})" : 'Pegawai';
+                    } elseif ($msg->sender === 'customer') {
+                        $label = $msg->sender_name ? "Pelanggan ({$msg->sender_name})" : 'Pelanggan';
+                    } else {
+                        $label = $msg->sender_name ?? 'Sistem';
+                    }
+                    $ts = '[' . $msg->sent_at->format('H:i:s') . '] ';
+                    $description .= "{$ts}{$label}: {$msg->content}\n";
+                }
+            } elseif (($history = $session->chat_history) && is_array($history) && count($history) > 0) {
+                $description .= $this->formatTranscript($history);
+            }
+
             Ticket::create([
                 'ticket_number'   => $ticketNumber,
                 'customer_id'     => $customer->id,
@@ -324,6 +407,14 @@ class ChatbotEscalationController extends Controller
             ]);
         }
 
+        // Real-time queue position: count queuing sessions created at or before this one
+        $queuePosition = null;
+        if ($session && $session->status === 'queuing') {
+            $queuePosition = ChatbotSession::where('status', 'queuing')
+                ->where('created_at', '<=', $session->created_at)
+                ->count();
+        }
+
         // Only states where an agent has actually accepted the interaction
         // Do NOT include queue/routing states (routing, queued, parked) — those mean no agent yet
         $acceptedStates = ['connected', 'active', 'answered', 'established', 'accepted', 'acd',
@@ -357,6 +448,7 @@ class ChatbotEscalationController extends Controller
                 'conversation_state' => $state,
                 'agent_name'         => $interaction['agentName'] ?? null,
                 'agent_id'           => $interaction['agentId']   ?? null,
+                'queue_position'     => $assigned ? null : $queuePosition,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to get interaction status', [
@@ -406,6 +498,7 @@ class ChatbotEscalationController extends Controller
                 'success'        => true,
                 'interaction_id' => $interactionId,
                 'assigned'       => false,
+                'queue_position' => $queuePosition,
             ]);
         }
     }
@@ -646,6 +739,33 @@ class ChatbotEscalationController extends Controller
             }
 
             $ticket->assigned_to = $agent->id;
+
+            // Link chat_messages rows to this ticket
+            ChatMessage::where('interaction_id', $interactionId)
+                ->whereNull('ticket_id')
+                ->update(['ticket_id' => $ticket->id]);
+
+            // Patch transcript if ticket was created before messages were stored
+            if (!str_contains((string) $ticket->description, '--- Transkrip Chat ---')) {
+                $storedMessages = ChatMessage::where('interaction_id', $interactionId)
+                    ->orderBy('sent_at')->get();
+
+                if ($storedMessages->isNotEmpty()) {
+                    $transcript = "\n--- Transkrip Chat ---\n";
+                    foreach ($storedMessages as $msg) {
+                        if ($msg->sender === 'agent') {
+                            $label = $msg->sender_name ? "Pegawai ({$msg->sender_name})" : 'Pegawai';
+                        } elseif ($msg->sender === 'customer') {
+                            $label = $msg->sender_name ? "Pelanggan ({$msg->sender_name})" : 'Pelanggan';
+                        } else {
+                            $label = $msg->sender_name ?? 'Sistem';
+                        }
+                        $transcript .= '[' . $msg->sent_at->format('H:i:s') . '] ' . $label . ': ' . $msg->content . "\n";
+                    }
+                    $ticket->description .= $transcript;
+                }
+            }
+
             $ticket->save();
 
             Log::info('Chat ticket assigned to agent', [
@@ -667,5 +787,23 @@ class ChatbotEscalationController extends Controller
             ]);
             return response()->json(['success' => false, 'message' => 'Ralat: ' . $e->getMessage()], 500);
         }
+    }
+
+    private function formatTranscript(array $messages): string
+    {
+        $lines = "\n--- Transkrip Chat ---\n";
+        foreach ($messages as $msg) {
+            $text = $msg['text'] ?? '';
+            if (!$text || str_starts_with($text, '──')) continue;
+            $sender = ($msg['sender'] ?? 'them') === 'me' ? 'Pegawai' : 'Pelanggan';
+            $ts = '';
+            if (!empty($msg['timestamp'])) {
+                try {
+                    $ts = '[' . \Carbon\Carbon::parse($msg['timestamp'])->format('H:i:s') . '] ';
+                } catch (\Exception) {}
+            }
+            $lines .= "{$ts}{$sender}: {$text}\n";
+        }
+        return $lines;
     }
 }

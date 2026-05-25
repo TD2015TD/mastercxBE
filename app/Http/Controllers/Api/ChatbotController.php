@@ -17,7 +17,8 @@ class ChatbotController extends Controller
      */
     public function categories(): JsonResponse
     {
-        $activeCodes = KnowledgeBaseArticle::whereNotNull('published_at')
+        $activeCodes = KnowledgeBaseArticle::where('status', 'published')
+            ->whereNotNull('published_at')
             ->whereNull('deleted_at')
             ->pluck('category_code')
             ->unique()
@@ -26,6 +27,7 @@ class ChatbotController extends Controller
         $categories = DB::table('lookups')
             ->where('type', 'knowledge_base_category')
             ->where('is_active', true)
+            ->whereNull('deleted_at')          // honour soft-deletes from CRM
             ->whereIn('code', $activeCodes)
             ->orderBy('sort_order')
             ->get(['code', 'name_en', 'name_ms', 'icon'])
@@ -45,7 +47,8 @@ class ChatbotController extends Controller
      */
     public function items(string $categoryCode): JsonResponse
     {
-        $items = KnowledgeBaseArticle::whereNotNull('published_at')
+        $items = KnowledgeBaseArticle::where('status', 'published')
+            ->whereNotNull('published_at')
             ->whereNull('deleted_at')
             ->where('category_code', $categoryCode)
             ->orderBy('created_at')

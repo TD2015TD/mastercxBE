@@ -90,7 +90,7 @@ class KnowledgeBaseArticleController extends Controller
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:500',
                 'category_code' => 'required|string|exists:lookups,code',
-                'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB max
+                'file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:30720', // 30MB max
                 'content' => 'required_without:file|string'
             ]);
 
@@ -175,7 +175,7 @@ class KnowledgeBaseArticleController extends Controller
                 'title'         => 'nullable|string|max:500',
                 'category_code' => 'nullable|string|exists:lookups,code',
                 'status'        => 'nullable|in:draft,published,archived',
-                'file'          => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240',
+                'file'          => 'nullable|file|mimes:pdf,doc,docx,txt|max:30720',
             ]);
 
             if ($validator->fails()) {
@@ -231,10 +231,11 @@ class KnowledgeBaseArticleController extends Controller
                 'success' => true,
                 'message' => 'Article deleted successfully'
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('KB article delete failed: ' . $e->getMessage(), ['id' => $id]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete article'
+                'message' => 'Failed to delete article: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -262,7 +263,7 @@ class KnowledgeBaseArticleController extends Controller
         }
 
         try {
-            $dbQuery = KnowledgeBaseArticle::where('status', 'live');
+            $dbQuery = KnowledgeBaseArticle::where('status', 'published');
 
             if ($q !== '') {
                 $dbQuery->where(function ($builder) use ($q) {

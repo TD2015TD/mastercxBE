@@ -158,16 +158,25 @@ class KnowledgeBaseArticleService
     public function delete($id)
     {
         $article = KnowledgeBaseArticle::findOrFail($id);
+
+        // Delete the physical file from storage if present
+        if ($article->file_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($article->file_path);
+        }
+
+        // Delete the database record first — this must always succeed
         $article->delete();
-        // Remove from Elasticsearch (non-fatal: DB record is already deleted)
+
+        // Remove from Elasticsearch — non-fatal if cluster is down
         try {
             $this->es->delete([
                 'index' => $this->index,
-                'id' => $id
+                'id'    => $id,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::warning('KB article ES delete failed (non-fatal): ' . $e->getMessage());
         }
+
         return true;
     }
 

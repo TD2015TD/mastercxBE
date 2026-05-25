@@ -162,7 +162,6 @@ class PublicTicketController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'ticket_number' => 'required|string',
-            'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
@@ -174,16 +173,13 @@ class PublicTicketController extends Controller
         }
 
         $ticket = Ticket::where('ticket_number', $request->ticket_number)
-            ->whereHas('customer', function($query) use ($request) {
-                $query->where('email', $request->email);
-            })
             ->with(['customer', 'assignedAgent'])
             ->first();
 
         if (!$ticket) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ticket not found or email does not match'
+                'message' => 'Ticket not found'
             ], 404);
         }
 
@@ -441,28 +437,18 @@ class PublicTicketController extends Controller
      */
     public function getMyTickets(Request $request)
     {
-        // Phone number is injected by ValidateCitizenSession middleware
-        $phoneNumber = $request->input('citizen_phone_number');
+        // Email is injected by ValidateCitizenSession middleware
+        $email = $request->input('citizen_email');
 
-        if (!$phoneNumber) {
+        if (!$email) {
             return response()->json([
                 'success' => false,
-                'message' => 'Phone number not found in session',
+                'message' => 'Session data not found',
             ], 400);
         }
 
         try {
-            // Find customer by phone number (handle various formats)
-            // Normalize phone number for comparison
-            $normalizedPhone = preg_replace('/^(\+?60|60)/', '0', $phoneNumber);
-            
-            $customer = Customer::where(function($query) use ($phoneNumber, $normalizedPhone) {
-                    $query->where('phone_number', $phoneNumber)
-                          ->orWhere('phone_number', $normalizedPhone)
-                          ->orWhere('phone_number', '+60' . ltrim($normalizedPhone, '0'))
-                          ->orWhere('phone_number', '60' . ltrim($normalizedPhone, '0'));
-                })
-                ->first();
+            $customer = Customer::where('email', $email)->first();
 
             if (!$customer) {
                 return response()->json([
@@ -493,7 +479,7 @@ class PublicTicketController extends Controller
                     'sub_category' => $ticket->sub_category,
                     'customer_name' => $customer->name,
                     'customer_email' => $customer->email,
-                    'customer_phone' => $customer->phone_number,
+                    'customer_phone' => $customer->phone ?? '',
                     'created_at' => $ticket->created_at->toIso8601String(),
                     'updated_at' => $ticket->updated_at->toIso8601String(),
                     'timeline' => $ticket->histories->map(function ($history) {
@@ -518,7 +504,7 @@ class PublicTicketController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to retrieve tickets', [
                 'error' => $e->getMessage(),
-                'phone' => substr($phoneNumber, 0, 3) . '***',
+                'email' => substr($email, 0, 3) . '***',
             ]);
 
             return response()->json([

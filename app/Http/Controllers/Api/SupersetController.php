@@ -222,6 +222,109 @@ class SupersetController extends Controller
     }
 
     /**
+     * Export a Superset dashboard as PDF (proxied through Laravel so we can
+     * inject admin credentials without exposing them to the browser).
+     *
+     * POST /api/v1/superset/export-pdf
+     * Body: { "dashboard_id": "<superset uuid>" }
+     *
+     * @param Request $request
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\JsonResponse
+     */
+    public function exportPdf(Request $request)
+    {
+        $request->validate([
+            'dashboard_id' => 'required|string',
+        ]);
+
+        $dashboardUuid = $request->input('dashboard_id');
+
+        // Access check: only let users who have role access proceed
+        $user       = $request->user();
+        $dashboard  = SupersetDashboard::where('superset_id', $dashboardUuid)->first();
+
+        if ($dashboard && !$dashboard->is_public && $user) {
+            if (!$user->role_id || !$dashboard->hasRoleAccess($user->role_id)) {
+                return response()->json(['error' => 'Access denied to this dashboard'], 403);
+            }
+        }
+
+        $config      = $this->getSupersetConfig();
+        $accessToken = $this->getSupersetAccessToken();
+
+        if (!$accessToken) {
+            return response()->json(['error' => 'Failed to authenticate with Superset'], 500);
+        }
+
+        try {
+            // Superset async PDF endpoint — returns a task key on newer versions.
+            // For versions that support sync PDF:
+            // GET /api/v1/dashboard/{pk}/export/ (returns JSON)
+            // For PDF screenshot:
+            // POST /api/v1/report/                 (creates a one-off report)
+            // Fallback: use the screenshot API to get a PNG per chart.
+            //
+            // Broadest-compatible approach: use the /api/v1/dashboard/<id>/screenshot/
+            // which returns a PNG, or trigger the printable page URL.
+
+            // 1. Resolve numeric PK from UUID
+            $dashboardsResp = Http::withHeaders([
+                'Authorization' => "Bearer {$accessToken}",
+            ])->get("{$config['url']}/api/v1/dashboard/?q=(filters:!((col:uuid,opr:DashboardUUIDFilter,val:{$dashboardUuid})))");
+
+            if (!$dashboardsResp->successful()) {
+                return response()->json(['error' => 'Dashboard not found in Superset'], 404);
+            }
+
+            $result = $dashboardsResp->json()['result'] ?? [];
+            if (empty($result)) {
+                return response()->json(['error' => 'Dashboard not found in Superset'], 404);
+            }
+
+            $pk = $result[0]['id'];
+
+            // 2. Request PDF export
+            $pdfResp = Http::withHeaders([
+                'Authorization' => "Bearer {$accessToken}",
+                'Accept'        => 'application/pdf',
+            ])->get("{$config['url']}/api/v1/dashboard/{$pk}/export/");
+
+            if ($pdfResp->successful()) {
+                $contentType = $pdfResp->header('Content-Type');
+
+                // If Superset returned a real PDF/binary stream, proxy it
+                if (str_contains($contentType, 'pdf') || str_contains($contentType, 'octet-stream')) {
+                    return response($pdfResp->body(), 200, [
+                        'Content-Type'        => 'application/pdf',
+                        'Content-Disposition' => 'attachment; filename="dashboard-report.pdf"',
+                    ]);
+                }
+
+                // Some Superset versions return JSON (dashboard definition export), not PDF
+                // Return a redirect to the printable URL instead
+            }
+
+            // 3. Fallback: return the Superset printable URL so the frontend
+            //    can open it in a new tab (user downloads from Superset directly)
+            $printUrl = "{$config['url']}/superset/dashboard/{$pk}/?standalone=3";
+
+            return response()->json([
+                'success'   => true,
+                'method'    => 'redirect',
+                'print_url' => $printUrl,
+                'message'   => 'Open this URL in your browser to download the PDF.',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Exception during Superset PDF export', ['error' => $e->getMessage()]);
+            return response()->json([
+                'error'   => 'Failed to generate report',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get list of available dashboards (optional helper)
      *
      * @return \Illuminate\Http\JsonResponse

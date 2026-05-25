@@ -24,5 +24,10 @@ class ChatbotSession extends Model
         'queue_name',
         'crm_agent_id',
         'issue',
+        'chat_history',
+    ];
+
+    protected $casts = [
+        'chat_history' => 'array',
     ];
 }

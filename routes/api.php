@@ -359,6 +359,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/tickets-closed-by-day', [DashboardController::class, 'getTicketsClosedByDay']);
         Route::get('/dashboard/department-performance', [DashboardController::class, 'getDepartmentPerformance']);
         Route::get('/dashboard/livechat-status', [DashboardController::class, 'getLiveChatStatus']);
+        Route::get('/dashboard/tickets-by-channel', [DashboardController::class, 'getTicketsByChannel']);
         
         // System Administration
         Route::prefix('system')->group(function () {
@@ -557,6 +558,8 @@ Route::prefix('v1')->group(function () {
             // Guest token generation
             Route::post('/guest-token', [SupersetController::class, 'getGuestToken']);
             Route::get('/dashboards', [SupersetController::class, 'getDashboards']);
+            // PDF report export (proxied through Laravel)
+            Route::post('/export-pdf', [SupersetController::class, 'exportPdf']);
 
             // Dashboard management (CRUD)
             Route::apiResource('dashboard-configs', SupersetDashboardController::class);

@@ -1026,6 +1026,68 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get today's ticket count grouped by channel for bar chart.
+     */
+    public function getTicketsByChannel(Request $request)
+    {
+        try {
+            $department = $request->get('department');
+            $agentId    = $request->get('agent_id');
+            $today      = Carbon::today();
+
+            $channelLabels = [
+                'phone'        => 'Phone',
+                'email'        => 'Email',
+                'chat'         => 'Live Chat',
+                'web'          => 'Web Portal',
+                'walk-in'      => 'Walk-in',
+                'social_media' => 'Social Media',
+            ];
+
+            $channelData = [];
+
+            foreach ($channelLabels as $channel => $label) {
+                $query = Ticket::where('channel', $channel)
+                    ->whereDate('created_at', $today);
+
+                if ($department && $department !== 'all') {
+                    $query->where('department', $department);
+                }
+                if ($agentId) {
+                    $query->where('assigned_to', $agentId);
+                }
+
+                $channelData[] = [
+                    'channel' => $channel,
+                    'label'   => $label,
+                    'count'   => $query->count(),
+                ];
+            }
+
+            $total = array_sum(array_column($channelData, 'count'));
+
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'channels' => $channelData,
+                    'total'    => $total,
+                    'date'     => $today->format('Y-m-d'),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch tickets by channel', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load tickets by channel',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get LiveChat ticket handling status for donut chart.
      */
     public function getLiveChatStatus(Request $request)

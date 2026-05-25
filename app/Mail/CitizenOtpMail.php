@@ -15,15 +15,18 @@ class CitizenOtpMail extends Mailable
 
     public string $otpCode;
     public string $phoneNumber;
+    public string $otpType;
     private ?EmailTemplate $template;
 
     /**
      * Create a new message instance.
+     * @param string $otpType  'email' or 'phone' — used to differentiate subject lines
      */
-    public function __construct(string $otpCode, string $phoneNumber)
+    public function __construct(string $otpCode, string $phoneNumber, string $otpType = 'email')
     {
         $this->otpCode = $otpCode;
         $this->phoneNumber = $phoneNumber;
+        $this->otpType = $otpType;
         $this->template = EmailTemplate::getByCode('CITIZEN_OTP');
     }
 
@@ -32,8 +35,10 @@ class CitizenOtpMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $subject = 'Kod OTP untuk Portal Khidmat Rakyat';
-        
+        $subject = $this->otpType === 'phone'
+            ? 'Kod OTP Telefon untuk Portal Khidmat Rakyat'
+            : 'Kod OTP E-mel untuk Portal Khidmat Rakyat';
+
         if ($this->template) {
             $rendered = $this->template->render([
                 'otp_code' => $this->otpCode,
