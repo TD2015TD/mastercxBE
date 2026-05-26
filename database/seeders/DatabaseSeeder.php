@@ -14,30 +14,30 @@ class DatabaseSeeder extends Seeder
      * Seed the application's database.
      */
     public function run(): void
-    {
-        // Seed roles and users first
-        $this->call([
-            RoleSeeder::class,
-            UserSeeder::class,
-        ]);
+{
+    // Seed roles and permissions first
+    $this->call([
+        RoleSeeder::class,
+        PermissionSeeder::class,
+        RolePermissionSeeder::class,
+        UserSeeder::class,
+    ]);
 
-        // Seed agents (with their users)
-        $this->call([
-            AgentSeeder::class,
-            CustomerSeeder::class,
-            CategorySeeder::class,
-            TicketNumberSequenceSeeder::class,
-            TicketSeeder::class,
-            EmailTemplateSeeder::class,
-        ]);
-        
-            // Seed knowledge base categories
-            $this->call(\Database\Seeders\KnowledgeBaseCategorySeeder::class);
+    // Seed agents and sample data
+    $this->call([
+        AgentSeeder::class,
+        CustomerSeeder::class,
+        CategorySeeder::class,
+        TicketNumberSequenceSeeder::class,
+        TicketSeeder::class,
+        EmailTemplateSeeder::class,
+        KnowledgeBaseCategorySeeder::class,
+    ]);
 
-        // Seed menu items and role permissions
-        $this->call([
-            MenuItemsSeeder::class,
-            RoleMenuItemsSeeder::class,
-        ]);
-    }
+    // Seed menu items and role menu permissions
+    $this->call([
+        MenuItemsSeeder::class,
+        RoleMenuItemsSeeder::class,
+    ]);
+}
 }

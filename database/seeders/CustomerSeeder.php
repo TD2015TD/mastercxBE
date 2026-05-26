@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Customer;
 
@@ -176,10 +175,19 @@ class CustomerSeeder extends Seeder
         ];
 
         foreach ($customers as $customerData) {
-            // Check if customer already exists by email
             if (!Customer::where('email', $customerData['email'])->exists()) {
                 Customer::create($customerData);
             }
+        }
+
+        // Add fake customers until total customers reaches 182
+        $targetTotal = 182;
+        $currentTotal = Customer::count();
+
+        if ($currentTotal < $targetTotal) {
+            Customer::factory()
+                ->count($targetTotal - $currentTotal)
+                ->create();
         }
     }
 }

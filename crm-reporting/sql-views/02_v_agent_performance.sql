@@ -238,8 +238,8 @@ SELECT
 FROM mitel_agent_daily mad
 LEFT JOIN mitel_login_events mle ON mad.mitel_agent_id = mle.mitel_agent_id 
     AND mad.metric_date = mle.metric_date
-LEFT JOIN mitel_config_agents mca ON mad.mitel_agent_id::text = mca.fk_master_agent
-LEFT JOIN agents a ON mca.fk_employee = UPPER(a.employee_id)
+LEFT JOIN mitel_config_agents mca ON mad.mitel_agent_id::uuid = mca.fk_master_agent
+LEFT JOIN agents a ON mca.fk_employee = a.employee_id::uuid
 LEFT JOIN users u ON a.user_id = u.id
 LEFT JOIN crm_agent_calls cac ON a.id = cac.agent_id 
     AND mad.metric_date = cac.metric_date

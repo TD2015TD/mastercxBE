@@ -61,9 +61,9 @@ SELECT
 
 FROM mitel_data_agent_trace_events mate
 -- Join Mitel config agents
-INNER JOIN mitel_config_agents mca ON mate.agent_id = mca.pkey
+INNER JOIN mitel_config_agents mca ON mate.agent_id::uuid = mca.pkey
 -- Join CRM agents
-LEFT JOIN agents a ON LOWER(mca.fk_employee) = a.employee_id
+LEFT JOIN agents a ON mca.fk_employee = a.employee_id::uuid
 -- Join CRM users for agent name
 LEFT JOIN users u ON a.user_id = u.id
 -- Join make busy reasons

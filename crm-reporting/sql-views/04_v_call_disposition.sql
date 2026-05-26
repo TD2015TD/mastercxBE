@@ -266,8 +266,8 @@ SELECT
 
 FROM mitel_calls mc
 LEFT JOIN mitel_config_queues mq ON mc.queue_id::text = mq.queue_id::text
-LEFT JOIN mitel_config_agents mca ON mc.mitel_agent_id::text = mca.fk_master_agent
-LEFT JOIN agents a ON mca.fk_employee = UPPER(a.employee_id)
+LEFT JOIN mitel_config_agents mca ON mc.mitel_agent_id::uuid = mca.fk_master_agent
+LEFT JOIN agents a ON mca.fk_employee = a.employee_id::uuid
 LEFT JOIN users u ON a.user_id = u.id
 LEFT JOIN linked_tickets lt ON mc.call_id = lt.call_id
 LEFT JOIN customers c ON lt.customer_id = c.id
