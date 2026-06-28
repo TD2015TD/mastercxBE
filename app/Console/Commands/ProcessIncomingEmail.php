@@ -8,10 +8,12 @@ use App\Models\Ticket;
 use App\Models\Agent;
 use App\Models\EmailConfiguration;
 use App\Services\ImapEmailService;
+use App\Services\MitelService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 
 class ProcessIncomingEmail extends Command
 {
@@ -41,7 +43,19 @@ class ProcessIncomingEmail extends Command
 
         if ($once) {
             $this->info('Processing emails once...');
-            $this->processEmails();
+            $lockFile = sys_get_temp_dir() . '/crm-email-process.lock';
+            $lock = @fopen($lockFile, 'c');
+            if ($lock && flock($lock, LOCK_EX | LOCK_NB)) {
+                try {
+                    $this->processEmails();
+                } finally {
+                    flock($lock, LOCK_UN);
+                    fclose($lock);
+                }
+            } else {
+                if ($lock) fclose($lock);
+                $this->line('email:process already running, skipping.');
+            }
             return 0;
         }
 
@@ -157,13 +171,47 @@ class ProcessIncomingEmail extends Command
 
             // Check if this is a reply to an existing ticket
             $existingTicket = null;
-            $ticketNumber = EmailMessage::extractTicketNumber($emailData['subject']);
-
-            if ($ticketNumber) {
-                $existingTicket = Ticket::where('ticket_number', $ticketNumber)->first();
+            Log::info('[ProcessEmail] Threading headers', [
+                'subject'    => $emailData['subject'],
+                'in_reply_to'=> $emailData['in_reply_to'] ?? null,
+                'references' => $emailData['references'] ?? null,
+            ]);
+            // Extract ALL ticket numbers from subject and try from newest (last) to
+            // oldest. Pick the first one that is still open/in-progress so we don't
+            // accidentally create yet another new ticket when only the latest number
+            // in the chain happens to be closed while an earlier one is still active.
+            $allTicketNumbers = [];
+            if (preg_match_all('/\[([A-Z]{1,10}-\d{4,8}-\d{3,8})\]/i', $emailData['subject'], $tnMatches)) {
+                $allTicketNumbers = array_map('strtoupper', $tnMatches[1]);
+            }
+            foreach (array_reverse($allTicketNumbers) as $ticketNumber) {
+                $candidate = Ticket::where('ticket_number', $ticketNumber)->first();
+                if (!$candidate) continue;
+                if (!in_array($candidate->status, ['Closed', 'Resolved', 'Cancelled'])) {
+                    $existingTicket = $candidate;
+                    Log::info('[ProcessEmail] Matched open ticket by subject', ['ticket' => $existingTicket->ticket_number, 'status' => $existingTicket->status]);
+                    break;
+                }
+                // Candidate is closed — keep looking at older numbers in the list
+                Log::info('[ProcessEmail] Subject ticket is closed, checking older', ['ticket' => $candidate->ticket_number]);
             }
 
-            // If no ticket number in subject, try to find by conversation thread
+            // If no ticket number in subject, try to find by In-Reply-To header matching a stored message
+            if (!$existingTicket && !empty($emailData['in_reply_to'])) {
+                $inReplyTo = trim($emailData['in_reply_to']);
+                $previousEmail = EmailMessage::where('message_id', $inReplyTo)
+                    ->whereNotNull('ticket_id')
+                    ->first();
+
+                if ($previousEmail && $previousEmail->ticket_id) {
+                    $existingTicket = Ticket::find($previousEmail->ticket_id);
+                    if ($existingTicket) {
+                        Log::info('[ProcessEmail] Matched ticket by In-Reply-To', ['ticket' => $existingTicket->ticket_number]);
+                    }
+                }
+            }
+
+            // If still not found, try by conversation thread ID
             if (!$existingTicket && isset($emailData['conversation_thread_id'])) {
                 $previousEmail = EmailMessage::where('conversation_thread_id', $emailData['conversation_thread_id'])
                     ->whereNotNull('ticket_id')
@@ -173,6 +221,43 @@ class ProcessIncomingEmail extends Command
                 if ($previousEmail && $previousEmail->ticket_id) {
                     $existingTicket = Ticket::find($previousEmail->ticket_id);
                 }
+            }
+
+            // 4th attempt: scan every message-ID listed in the References header.
+            // This catches cases where the SMTP relay rewrites our Message-ID so the
+            // In-Reply-To on the customer's next reply doesn't match what we stored,
+            // but earlier message IDs in the thread (e.g. the customer's very first
+            // email) are still present and ARE in our database.
+            if (!$existingTicket && !empty($emailData['references'])) {
+                $refs = preg_split('/\s+/', trim($emailData['references']));
+                foreach (array_filter($refs) as $ref) {
+                    $ref = trim($ref);
+                    if (!$ref) continue;
+                    $previousEmail = EmailMessage::where('message_id', $ref)
+                        ->whereNotNull('ticket_id')
+                        ->first();
+                    if ($previousEmail && $previousEmail->ticket_id) {
+                        $existingTicket = Ticket::find($previousEmail->ticket_id);
+                        if ($existingTicket) {
+                            Log::info('[ProcessEmail] Matched ticket via References header', [
+                                'ref'    => $ref,
+                                'ticket' => $existingTicket->ticket_number,
+                            ]);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // If the matched ticket is already closed/resolved/cancelled, treat the
+            // customer reply as a brand-new enquiry and open a fresh ticket instead
+            // of reopening the old one. Keep a reference so the Mitel iframe can
+            // show the previous conversation as context.
+            $closedTicket = null;
+            if ($existingTicket && in_array($existingTicket->status, ['Closed', 'Resolved', 'Cancelled'])) {
+                $this->info("Ticket {$existingTicket->ticket_number} is {$existingTicket->status} — creating new ticket for this reply");
+                $closedTicket    = $existingTicket;
+                $existingTicket  = null;
             }
 
             // Store email message
@@ -191,7 +276,7 @@ class ProcessIncomingEmail extends Command
                 $this->updateExistingTicket($existingTicket, $emailMessage);
                 $this->info("Updated existing ticket: {$existingTicket->ticket_number}");
             } else {
-                $ticket = $this->createTicketFromEmail($emailMessage, $customer, $config);
+                $ticket = $this->createTicketFromEmail($emailMessage, $customer, $config, $closedTicket);
                 $emailMessage->ticket_id = $ticket->id;
                 $this->info("Created new ticket: {$ticket->ticket_number}");
             }
@@ -241,7 +326,7 @@ class ProcessIncomingEmail extends Command
     /**
      * Create a new ticket from email.
      */
-    protected function createTicketFromEmail(EmailMessage $emailMessage, Customer $customer, ?EmailConfiguration $config = null): Ticket
+    protected function createTicketFromEmail(EmailMessage $emailMessage, Customer $customer, ?EmailConfiguration $config = null, ?Ticket $previousTicket = null): Ticket
     {
         // Use config settings if available, otherwise use defaults
         $department = $config?->department ?? 'Support';
@@ -272,13 +357,14 @@ class ProcessIncomingEmail extends Command
             'priority' => $priority,
             'department' => $department,
             'category' => 'Email Request',
-            'subject' => $emailMessage->subject ?: 'No Subject',
+            'subject' => trim(preg_replace('/\s*\[[A-Z]{1,10}-\d{4,8}-\d{3,8}\]/i', '', $emailMessage->subject ?: 'No Subject')) ?: 'No Subject',
             'description' => $emailMessage->body_text ?: $emailMessage->body_html ?: 'No content',
             'urgency' => $this->mapPriorityToUrgency($priority),
             'impact' => 'Medium',
             'status' => 'Open',
             'channel' => 'email',
             'source' => $config ? "IMAP ({$config->name})" : 'IMAP',
+            'case_id' => (string) \Illuminate\Support\Str::uuid(),
         ]);
 
         // Calculate SLA
@@ -310,6 +396,9 @@ class ProcessIncomingEmail extends Command
             );
         }
 
+        // Push to Mitel Ignite so agents receive it in their inbox
+        $this->pushEmailToMitel($ticket, $emailMessage, $config, $previousTicket);
+
         // Update subject to include ticket number for future replies
         $this->sendAutoReply($emailMessage, $ticket);
 
@@ -317,26 +406,61 @@ class ProcessIncomingEmail extends Command
     }
 
     /**
+     * Create an OpenMedia interaction in Mitel so the email appears in agent inboxes.
+     */
+    protected function pushEmailToMitel(Ticket $ticket, EmailMessage $emailMessage, ?EmailConfiguration $config = null, ?Ticket $previousTicket = null): void
+    {
+        try {
+            $queue = $config?->settings['mitel_queue']
+                ?? config('services.mitel.email_queue', 'KASTAM-Email');
+
+            $interactionId = (string) Str::uuid();
+            $frontendUrl   = rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/');
+            $targetUri     = "{$frontendUrl}/email-interaction?ticket={$ticket->ticket_number}";
+            // Append previous ticket reference so the agent can see the old thread for context
+            if ($previousTicket) {
+                $targetUri .= "&ref={$previousTicket->ticket_number}";
+            }
+
+            $mitel  = app(MitelService::class);
+            $result = $mitel->escalateToAgent(
+                queue:             $queue,
+                vars:              [
+                    'Name'    => $emailMessage->from_name ?: $emailMessage->from_email,
+                    'Email'   => $emailMessage->from_email,
+                    'Subject' => $emailMessage->subject,
+                    'Channel' => 'Email',
+                ],
+                id:                $interactionId,
+                targetUri:         $targetUri,
+                targetUriEmbedded: true,
+                subject:           $emailMessage->subject ?: 'Email — ' . $emailMessage->from_email,
+                from:              $emailMessage->from_name ?: $emailMessage->from_email,
+            );
+
+            $interactionId = $result['_interaction_id'] ?? $interactionId;
+            $ticket->mitel_interaction_id = $interactionId;
+            $ticket->save();
+
+            Log::info('[email:process] Pushed to Mitel queue', [
+                'ticket'         => $ticket->ticket_number,
+                'queue'          => $queue,
+                'interaction_id' => $interactionId,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[email:process] Failed to push email to Mitel', [
+                'ticket' => $ticket->ticket_number,
+                'error'  => $e->getMessage(),
+            ]);
+            // Non-fatal: ticket was created; just won't appear in Ignite immediately
+        }
+    }
+
+    /**
      * Update existing ticket with new email.
      */
     protected function updateExistingTicket(Ticket $ticket, EmailMessage $emailMessage): void
     {
-        // If ticket is closed or resolved, reopen it
-        if (in_array($ticket->status, ['Closed', 'Resolved', 'Cancelled'])) {
-            $ticket->reopen();
-
-            $ticket->logHistory(
-                'reopened',
-                'status',
-                'Closed',
-                'Open',
-                "Ticket reopened due to new email from customer",
-                ['email_message_id' => $emailMessage->id]
-            );
-
-            $this->info("Reopened ticket: {$ticket->ticket_number}");
-        }
-
         // Add email as a note/comment to the ticket
         $ticket->logHistory(
             'comment',
@@ -387,14 +511,27 @@ class ProcessIncomingEmail extends Command
      */
     protected function autoAssignAgent(?string $department = null): ?Agent
     {
-        $query = Agent::where('availability', 'available')
-            ->where('status', 'active');
-
+        // Try department match first
         if ($department) {
-            $query->where('department', $department);
+            $agent = Agent::where('status', 'active')
+                ->where('department', $department)
+                ->where('availability', 'available')
+                ->first();
+            if ($agent) return $agent;
+
+            // Department match without availability filter (any active agent in dept)
+            $agent = Agent::where('status', 'active')
+                ->where('department', $department)
+                ->first();
+            if ($agent) return $agent;
         }
 
-        return $query->first();
+        // Fallback: any active available agent
+        return Agent::where('status', 'active')
+            ->where('availability', 'available')
+            ->first()
+            // Last resort: any active agent
+            ?? Agent::where('status', 'active')->first();
     }
 
     /**

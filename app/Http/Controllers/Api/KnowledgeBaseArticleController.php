@@ -57,12 +57,18 @@ class KnowledgeBaseArticleController extends Controller
                 $query->where('category_code', $request->category_code);
             }
 
-            // Search
-            if ($request->has('search')) {
+            // Search (ilike = case-insensitive on PostgreSQL)
+            if ($request->has('search') && $request->search !== '') {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('content', 'like', "%{$search}%");
+                    $q->where('title', 'ilike', "%{$search}%")
+                      ->orWhere('content', 'ilike', "%{$search}%")
+                      ->orWhere('category_code', 'ilike', "%{$search}%")
+                      ->orWhereHas('category', function($catQ) use ($search) {
+                          $catQ->where('code', 'ilike', "%{$search}%")
+                               ->orWhere('name_en', 'ilike', "%{$search}%")
+                               ->orWhere('name_ms', 'ilike', "%{$search}%");
+                      });
                 });
             }
 

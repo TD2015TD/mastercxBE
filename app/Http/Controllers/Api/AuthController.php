@@ -7,8 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Services\AuthenticationService;
+use App\Services\McxOpenMediaService;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use OpenApi\Attributes as OA;
 
@@ -337,6 +339,7 @@ class AuthController extends Controller
                     'user' => $user,
                     'permissions' => $permissions,
                     'access_token' => $token,
+                    'MitelToken' => $request->ignite_token,
                     'token_type' => 'bearer',
                     'expires_in' => config('jwt.ttl') * 60
                 ]
@@ -389,6 +392,46 @@ class AuthController extends Controller
     public function logout()
     {
         try {
+            $user = auth()->user();
+
+            // Hangup any active Mitel interactions assigned to this user's agent
+            // Ticket stays In Progress so another agent can pick it up later
+            if ($user?->agent) {
+                $agentId = $user->agent->id;
+                $activeTickets = Ticket::where('assigned_to', $agentId)
+                    ->whereNotNull('mitel_interaction_id')
+                    ->whereIn('status', ['Open', 'In Progress'])
+                    ->get(['id', 'ticket_number', 'mitel_interaction_id']);
+
+                if ($activeTickets->isNotEmpty()) {
+                    try {
+                        $mcx = app(McxOpenMediaService::class);
+                        foreach ($activeTickets as $ticket) {
+                            try {
+                                $mcx->closeInteraction($ticket->mitel_interaction_id, 'agent_logout');
+                                Log::info('[Logout] Mitel interaction hung up', [
+                                    'ticket'   => $ticket->ticket_number,
+                                    'mitel_id' => $ticket->mitel_interaction_id,
+                                    'agent'    => $agentId,
+                                ]);
+                            } catch (\Throwable $e) {
+                                Log::warning('[Logout] Failed to hangup interaction', [
+                                    'ticket' => $ticket->ticket_number,
+                                    'error'  => $e->getMessage(),
+                                ]);
+                            }
+                            // Clear mitel link so sync-interactions doesn't auto-close the ticket
+                            Ticket::withoutEvents(function () use ($ticket) {
+                                $ticket->mitel_interaction_id = null;
+                                $ticket->save();
+                            });
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('[Logout] McxOpenMediaService init failed', ['error' => $e->getMessage()]);
+                    }
+                }
+            }
+
             auth()->logout();
 
             return response()->json([

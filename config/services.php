@@ -41,6 +41,7 @@ return [
         'client_secret'    => env('MITEL_CLIENT_SECRET'),
         'timeout'          => env('MITEL_API_TIMEOUT', 30),
         'escalation_queue' => env('MITEL_ESCALATION_QUEUE', 'ChatbotEscalation'),
+        'email_queue'      => env('MITEL_EMAIL_QUEUE', 'KASTAM-Email'),
     ],
 
     'elasticsearch' => [

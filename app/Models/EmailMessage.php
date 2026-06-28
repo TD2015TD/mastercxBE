@@ -29,6 +29,7 @@ class EmailMessage extends Model
         'in_reply_to',
         'references',
         'raw_message',
+        'direction',
     ];
 
     protected $casts = [
@@ -83,7 +84,7 @@ class EmailMessage extends Model
 
     /**
      * Extract ticket number from subject line if exists.
-     * Looks for patterns like [TKT-12345] or #TKT-12345
+     * Matches bracketed references like [TE-260609-00044] or [TKT-20240101-001].
      */
     public static function extractTicketNumber(?string $subject): ?string
     {
@@ -91,7 +92,16 @@ class EmailMessage extends Model
             return null;
         }
 
-        // Pattern for ticket numbers: [TKT...], #TKT..., or RE: [TKT...]
+        // Primary: bracketed ticket number e.g. [TE-260609-00044].
+        // Use preg_match_all so that when a subject contains multiple ticket
+        // numbers (e.g. "[TE-260615-00074] [TE-260616-00080]" from a chain of
+        // tickets), we return the LAST one — that is always the most recently
+        // opened ticket and is the one the reply belongs to.
+        if (preg_match_all('/\[([A-Z]{1,10}-\d{4,8}-\d{3,8})\]/i', $subject, $matches)) {
+            return strtoupper(end($matches[1]));
+        }
+
+        // Fallback: old TKT-style references [TKT-123] or TKT-123
         if (preg_match('/\[?(TKT[A-Z0-9\-]+)\]?/i', $subject, $matches)) {
             return strtoupper($matches[1]);
         }

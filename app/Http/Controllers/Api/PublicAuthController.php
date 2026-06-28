@@ -15,81 +15,97 @@ use Carbon\Carbon;
 class PublicAuthController extends Controller
 {
     /**
-     * Send phone OTP via SMS/WhatsApp.
-     * TODO: Replace with real SMS gateway (Twilio, Nexmo, WhatsApp) when configured.
+     * Resolve customer + email from either email or phone_number input.
+     * Returns [customer, email] or null if not found.
      */
-    private function sendPhoneOtp(string $phoneNumber, string $otpCode, string $email): void
+    private function resolveCustomer(Request $request): ?array
     {
-        // Placeholder: currently falls back to email until SMS service is configured
-        // When SMS is ready, implement here and remove the email fallback below
-        Log::info('Phone OTP (SMS not configured — sent via email fallback)', [
-            'phone' => substr($phoneNumber, 0, 4) . '****',
-            'otp'   => $otpCode,
-        ]);
+        if ($request->filled('email')) {
+            $email    = strtolower(trim($request->email));
+            $customer = Customer::where('email', $email)->first();
+            return $customer ? [$customer, $email] : null;
+        }
 
-        // Email fallback — send phone OTP to same email with different subject
-        // so the user can distinguish which code is which
-        // TODO: Remove this fallback once SMS is configured
-        DynamicMailService::send($email, new CitizenOtpMail($otpCode, $phoneNumber, 'phone'));
+        if ($request->filled('phone_number')) {
+            $phone    = preg_replace('/[\s-]/', '', $request->phone_number);
+            $customer = Customer::where('phone_number', $phone)->first();
+            return $customer ? [$customer, strtolower(trim($customer->email))] : null;
+        }
+
+        return null;
     }
 
     /**
-     * Request OTP codes — one for email, one for phone.
+     * Request OTP — accepts either email OR phone_number.
+     * OTP is always sent to the customer's email address.
      */
     public function requestOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'email'        => 'nullable|email|max:255|required_without:phone_number',
             'phone_number' => [
-                'required', 'string',
+                'nullable', 'string', 'required_without:email',
                 'regex:/^(\+?6?01[0-46-9][-\s]?[0-9]{7,8}|01[0-46-9][-\s]?[0-9]{7,8})$/',
             ],
-            'email' => 'required|email|max:255',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'message' => 'Maklumat tidak sah.', 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Sila masukkan e-mel atau nombor telefon.',
+                'errors'  => $validator->errors(),
+            ], 422);
         }
 
-        $phoneNumber = preg_replace('/[\s-]/', '', $request->phone_number);
-        $email       = strtolower(trim($request->email));
-
-        $customer = Customer::where('email', $email)->first();
-        if (!$customer) {
-            return response()->json(['success' => false, 'message' => 'Maklumat tidak sah. Sila semak nombor telefon dan e-mel anda.'], 404);
+        $resolved = $this->resolveCustomer($request);
+        if (!$resolved) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maklumat tidak sah. Sila semak e-mel atau nombor telefon anda.',
+            ], 404);
         }
 
-        $recentRequests = CitizenAuthSession::countRecentRequests($phoneNumber, 30);
-        if ($recentRequests >= 3) {
-            return response()->json(['success' => false, 'message' => 'Terlalu banyak percubaan. Sila cuba lagi selepas 30 minit.'], 429);
+        [$customer, $email] = $resolved;
+        $phone = $request->filled('phone_number')
+            ? preg_replace('/[\s-]/', '', $request->phone_number)
+            : null;
+
+        // Rate limit by email
+        $recentRequests = CitizenAuthSession::where('email', $email)
+            ->where('created_at', '>=', Carbon::now()->subMinutes(30))
+            ->count();
+
+        if ($recentRequests >= 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terlalu banyak percubaan. Sila cuba lagi selepas 30 minit.',
+            ], 429);
         }
 
         try {
-            $emailOtp = CitizenAuthSession::generateOtp();
-            $phoneOtp = CitizenAuthSession::generateOtp();
+            $otp       = CitizenAuthSession::generateOtp();
             $expiresAt = Carbon::now()->addMinutes(10);
 
             CitizenAuthSession::create([
-                'phone_number'   => $phoneNumber,
+                'phone_number'   => $phone,
                 'email'          => $email,
-                'otp_code'       => $emailOtp,
-                'phone_otp_code' => $phoneOtp,
+                'otp_code'       => $otp,
+                'phone_otp_code' => null,
                 'otp_expires_at' => $expiresAt,
             ]);
 
-            // Send email OTP
-            DynamicMailService::send($email, new CitizenOtpMail($emailOtp, $phoneNumber, 'email'));
+            // Send single OTP to email
+            DynamicMailService::send($email, new CitizenOtpMail($otp, $phone ?? $email, 'email'));
 
-            // Send phone OTP (SMS/WhatsApp — currently falls back to email)
-            $this->sendPhoneOtp($phoneNumber, $phoneOtp, $email);
-
-            Log::info('Dual OTP requested', [
-                'phone' => substr($phoneNumber, 0, 4) . '****',
+            Log::info('OTP requested (email-only)', [
                 'email' => substr($email, 0, 3) . '***@' . explode('@', $email)[1],
+                'via'   => $request->filled('phone_number') ? 'phone_lookup' : 'email_direct',
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Kod OTP telah dihantar ke e-mel dan nombor telefon anda.',
+                'message' => 'Kod OTP telah dihantar ke e-mel anda.',
+                'email_hint' => substr($email, 0, 2) . str_repeat('*', strpos($email, '@') - 2) . substr($email, strpos($email, '@')),
             ]);
 
         } catch (\Exception $e) {
@@ -99,66 +115,78 @@ class PublicAuthController extends Controller
     }
 
     /**
-     * Verify both OTP codes and create session.
+     * Verify OTP and create session.
+     * Accepts either email or phone_number + single otp field.
      */
     public function verifyOtp(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'phone_number'  => 'required|string',
-            'email'         => 'required|email',
-            'email_otp'     => 'required|string|size:6',
-            'phone_otp'     => 'required|string|size:6',
+            'email'        => 'nullable|email|required_without:phone_number',
+            'phone_number' => 'nullable|string|required_without:email',
+            'otp'          => 'required|string|size:6',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'message' => 'Maklumat tidak sah.', 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Maklumat tidak sah.',
+                'errors'  => $validator->errors(),
+            ], 422);
         }
 
-        $phoneNumber = preg_replace('/[\s-]/', '', $request->phone_number);
-        $email       = strtolower(trim($request->email));
-        $emailOtp    = trim($request->email_otp);
-        $phoneOtp    = trim($request->phone_otp);
+        $resolved = $this->resolveCustomer($request);
+        if (!$resolved) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Maklumat tidak sah.',
+            ], 404);
+        }
+
+        [$customer, $email] = $resolved;
+        $otp = trim($request->otp);
 
         try {
-            $masterOtp = '123456';
-            $isMaster  = ($emailOtp === $masterOtp && $phoneOtp === $masterOtp);
+            // Master OTP for testing
+            $isMaster = ($otp === '123456');
 
             if (!$isMaster) {
-                $session = CitizenAuthSession::where('phone_number', $phoneNumber)
-                    ->where('email', $email)
-                    ->where('otp_code', $emailOtp)
-                    ->where('phone_otp_code', $phoneOtp)
+                $session = CitizenAuthSession::where('email', $email)
+                    ->where('otp_code', $otp)
                     ->whereNull('verified_at')
                     ->latest()
                     ->first();
 
                 if (!$session) {
-                    return response()->json(['success' => false, 'message' => 'Kod OTP tidak sah. Sila semak semula kod e-mel dan telefon anda.'], 401);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Kod OTP tidak sah. Sila semak semula e-mel anda.',
+                    ], 401);
                 }
 
                 if ($session->isOtpExpired()) {
-                    return response()->json(['success' => false, 'message' => 'Kod OTP telah tamat tempoh. Sila minta kod baru.'], 401);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Kod OTP telah tamat tempoh. Sila minta kod baru.',
+                    ], 401);
                 }
 
                 $session->update(['verified_at' => now()]);
             }
 
-            $customer = Customer::where('email', $email)->first();
-            if (!$customer) {
-                return response()->json(['success' => false, 'message' => 'Maklumat tidak sah. Sila semak e-mel anda.'], 404);
-            }
+            $phone        = $request->filled('phone_number')
+                ? preg_replace('/[\s-]/', '', $request->phone_number)
+                : ($customer->phone_number ?? '');
+            $sessionToken = CitizenAuthSession::generateSessionToken($phone, $email);
 
-            $sessionToken = CitizenAuthSession::generateSessionToken($phoneNumber, $email);
-
-            Log::info('Dual OTP verified successfully', [
-                'phone' => substr($phoneNumber, 0, 4) . '****',
+            Log::info('OTP verified successfully', [
+                'email' => substr($email, 0, 3) . '***@' . explode('@', $email)[1],
             ]);
 
             return response()->json([
                 'success'       => true,
                 'message'       => 'Log masuk berjaya.',
                 'session_token' => $sessionToken,
-                'phone_number'  => $phoneNumber,
+                'phone_number'  => $phone,
                 'email'         => $email,
                 'customer_name' => $customer->name,
             ]);
@@ -170,7 +198,7 @@ class PublicAuthController extends Controller
     }
 
     /**
-     * Register a new citizen account and send dual OTP.
+     * Register a new citizen account and send OTP via email.
      */
     public function register(Request $request)
     {
@@ -178,7 +206,7 @@ class PublicAuthController extends Controller
             'name'         => 'required|string|max:255',
             'email'        => 'required|email|max:255',
             'phone_number' => [
-                'required', 'string',
+                'nullable', 'string',
                 'regex:/^(\+?6?01[0-46-9][-\s]?[0-9]{7,8}|01[0-46-9][-\s]?[0-9]{7,8})$/',
             ],
             'id_type'   => 'nullable|string|max:50',
@@ -189,9 +217,11 @@ class PublicAuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Maklumat tidak sah.', 'errors' => $validator->errors()], 422);
         }
 
-        $phoneNumber = preg_replace('/[\s-]/', '', $request->phone_number);
-        $email       = strtolower(trim($request->email));
-        $name        = trim($request->name);
+        $email = strtolower(trim($request->email));
+        $name  = trim($request->name);
+        $phone = $request->filled('phone_number')
+            ? preg_replace('/[\s-]/', '', $request->phone_number)
+            : null;
 
         if (Customer::where('email', $email)->exists()) {
             return response()->json(['success' => false, 'message' => 'E-mel ini telah didaftarkan. Sila log masuk.'], 409);
@@ -209,42 +239,44 @@ class PublicAuthController extends Controller
             }
         }
 
-        $recentRequests = CitizenAuthSession::countRecentRequests($phoneNumber, 30);
-        if ($recentRequests >= 3) {
+        $recentRequests = CitizenAuthSession::where('email', $email)
+            ->where('created_at', '>=', Carbon::now()->subMinutes(30))
+            ->count();
+
+        if ($recentRequests >= 5) {
             return response()->json(['success' => false, 'message' => 'Terlalu banyak percubaan. Sila cuba lagi selepas 30 minit.'], 429);
         }
 
         try {
             Customer::create([
-                'name'    => $name,
-                'email'   => $email,
-                'id_type' => $request->id_type ?: null,
-                'id_no'   => $idNo,
-                'status'  => 'active',
+                'name'         => $name,
+                'email'        => $email,
+                'phone_number' => $phone,
+                'id_type'      => $request->id_type ?: null,
+                'id_no'        => $idNo,
+                'status'       => 'active',
             ]);
 
-            $emailOtp  = CitizenAuthSession::generateOtp();
-            $phoneOtp  = CitizenAuthSession::generateOtp();
+            $otp       = CitizenAuthSession::generateOtp();
             $expiresAt = Carbon::now()->addMinutes(10);
 
             CitizenAuthSession::create([
-                'phone_number'   => $phoneNumber,
+                'phone_number'   => $phone,
                 'email'          => $email,
-                'otp_code'       => $emailOtp,
-                'phone_otp_code' => $phoneOtp,
+                'otp_code'       => $otp,
+                'phone_otp_code' => null,
                 'otp_expires_at' => $expiresAt,
             ]);
 
-            DynamicMailService::send($email, new CitizenOtpMail($emailOtp, $phoneNumber, 'email'));
-            $this->sendPhoneOtp($phoneNumber, $phoneOtp, $email);
+            DynamicMailService::send($email, new CitizenOtpMail($otp, $phone ?? $email, 'email'));
 
-            Log::info('New citizen registered with dual OTP', [
+            Log::info('New citizen registered with email OTP', [
                 'email' => substr($email, 0, 3) . '***@' . explode('@', $email)[1],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pendaftaran berjaya! Kod OTP telah dihantar ke e-mel dan nombor telefon anda.',
+                'message' => 'Pendaftaran berjaya! Kod OTP telah dihantar ke e-mel anda.',
             ]);
 
         } catch (\Exception $e) {

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Mitel\QueueController as MitelQueueController;
 use App\Http\Controllers\Api\Mitel\WebhookController as MitelWebhookController;
 use App\Http\Controllers\Api\Mitel\AgentController as MitelAgentController;
 use App\Http\Controllers\Api\Mitel\OpenMediaController as MitelOpenMediaController;
+use App\Http\Controllers\Api\Mitel\McxEmailInteractionController;
 use App\Http\Controllers\Api\WebSocketController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Api\MenuController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Api\KnowledgeBaseController;
 use App\Http\Controllers\Api\KbaseShareController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SystemController;
+use App\Http\Controllers\Api\ChatbotHealthController;
 use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controller
 use App\Http\Controllers\Api\SystemConfigurationController;
 use App\Http\Controllers\Api\SupersetController;
@@ -113,6 +115,11 @@ Route::prefix('v1')->group(function () {
         // Mitel OSCMS webhook — receives real-time interaction state events from Mitel.
         // Public because Mitel cannot send a JWT token. Verified via shared secret header.
         Route::post('/mitel-event', [MitelWebhookController::class, 'handlePublic']);
+
+        // Beacon close — called by sendBeacon on page unload when iframe is destroyed.
+        // Must be public (no auth middleware) because sendBeacon cannot send headers.
+        // JWT is validated from the request body._jwt field inside the controller.
+        Route::post('/tickets/{id}/close-beacon', [\App\Http\Controllers\Api\TicketController::class, 'closeBeacon']);
 
         // Get a per-agent Mitel Bearer token via server-side impersonation.
         // Only the username is required — no password (server uses client_credentials + Impersonate header).
@@ -281,10 +288,16 @@ Route::prefix('v1')->group(function () {
         Route::post('/tickets/reserve-number', [TicketController::class, 'reserveTicketNumber']);
         Route::apiResource('tickets', TicketController::class);
         Route::get('/tickets/{id}/history', [TicketController::class, 'history']);
+        Route::get('/tickets/{ticketNumber}/email-thread', [TicketController::class, 'emailThread']);
+        Route::post('/tickets/{ticketNumber}/reply-email', [TicketController::class, 'replyEmail']);
+        Route::post('/email/upload-inline-image', [TicketController::class, 'uploadInlineImage']);
         Route::put('/tickets/{id}/assign', [TicketController::class, 'assign']);
         Route::put('/tickets/{id}/status', [TicketController::class, 'updateStatus']);
         Route::post('/tickets/{id}/resolve', [TicketController::class, 'resolve']);
         Route::post('/tickets/{id}/close', [TicketController::class, 'close']);
+        Route::post('/tickets/close-by-mitel-id', [TicketController::class, 'closeByMitelId']);
+        Route::post('/tickets/{id}/mitel-ping', [TicketController::class, 'mitelPing']);
+        Route::post('/tickets/{id}/mitel-end-conversation', [TicketController::class, 'mitelEndConversation']);
         Route::post('/tickets/{id}/reopen', [TicketController::class, 'reopen']);
         Route::post('/tickets/{id}/response', [TicketController::class, 'recordResponse']);
         Route::get('/tickets/statistics/summary', [TicketController::class, 'statistics']);
@@ -333,6 +346,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/contacts/find-by-phone/{phoneNumber}', [ContactController::class, 'findByPhone']);
         Route::get('/customers/{customerId}/contacts', [ContactController::class, 'index']);
         
+        // Chatbot & Livechat Health Report (admin/super_admin only — requires system.config permission)
+        Route::middleware(['permission:system.config'])->group(function () {
+            Route::get('/admin/chatbot/health', [ChatbotHealthController::class, 'report']);
+            Route::get('/admin/chatbot/session/{interactionId}', [\App\Http\Controllers\Api\ChatbotEscalationController::class, 'getSessionInfo']);
+        });
+
         // Reports & Metrics (for Superset/BI integration)
         Route::get('/reports', [ReportController::class, 'index']);
         Route::get('/reports/agent-metrics', [ReportController::class, 'getAgentMetrics']);
@@ -360,6 +379,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/department-performance', [DashboardController::class, 'getDepartmentPerformance']);
         Route::get('/dashboard/livechat-status', [DashboardController::class, 'getLiveChatStatus']);
         Route::get('/dashboard/tickets-by-channel', [DashboardController::class, 'getTicketsByChannel']);
+        Route::get('/dashboard/departments', [DashboardController::class, 'getDepartments']);
         
         // System Administration
         Route::prefix('system')->group(function () {
@@ -514,6 +534,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/openmedia', [MitelOpenMediaController::class, 'index']);
             Route::get('/openmedia/{id}', [MitelOpenMediaController::class, 'show']);
             Route::put('/openmedia/{id}', [MitelOpenMediaController::class, 'update']);
+
+            // MCX Open Media v2 — email interaction management
+            Route::prefix('mcx-email')->group(function () {
+                Route::get('/{ticketId}/status', [McxEmailInteractionController::class, 'status']);
+                Route::post('/{ticketId}/send', [McxEmailInteractionController::class, 'send']);
+                Route::post('/{ticketId}/close', [McxEmailInteractionController::class, 'close']);
+            });
         });
 
         // Mitel Configuration Management (Admin only)

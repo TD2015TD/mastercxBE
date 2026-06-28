@@ -33,8 +33,8 @@ class MenuController extends Controller
             
             $menuItems = Cache::remember($cacheKey, 3600, function () use ($user) {
                 $role = Role::with(['activeMenuItems' => function ($query) {
-                    $query->whereNull('parent_id') // Only top-level items
-                          ->with('children') // Include sub-items
+                    $query->whereNull('parent_id')
+                          ->with('children')
                           ->ordered();
                 }])->find($user->role_id);
 
@@ -42,7 +42,12 @@ class MenuController extends Controller
                     return [];
                 }
 
-                return $role->activeMenuItems->map(function ($item) {
+                // Filter at PHP level — excludes items where can_view is 0, false, null, or ''
+                // ->values() re-indexes after filter so JSON serializes as array not object
+                return $role->activeMenuItems
+                    ->filter(fn($item) => (bool) $item->pivot->can_view)
+                    ->values()
+                    ->map(function ($item) {
                     return [
                         'id' => $item->id,
                         'label' => $item->label,

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -414,6 +415,9 @@ class RoleController extends Controller
             }
 
             DB::commit();
+
+            // Bust the backend menu cache for this role so all users see changes immediately
+            Cache::forget("menu_items_role_{$role->id}");
 
             // Reload relationships
             $role->load('menuItems');

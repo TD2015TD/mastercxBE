@@ -24,17 +24,20 @@ class Kernel extends ConsoleKernel
                 \Illuminate\Support\Facades\Log::error('SLA Monitor failed');
             });
 
-        // Email Processing - Run every minute to check for new emails
+        // Email Processing - Fallback poll every 30s if email:idle daemon is down
         $schedule->command('email:process --once')
-            ->everyMinute()
+            ->everyThirtySeconds()
             ->withoutOverlapping()
             ->runInBackground()
-            ->onSuccess(function () {
-                \Illuminate\Support\Facades\Log::debug('Email processing check completed');
-            })
             ->onFailure(function () {
                 \Illuminate\Support\Facades\Log::error('Email processing failed');
             });
+
+        // Mitel interaction sync - close CRM tickets when agent hangs up in Mitel
+        $schedule->command('mitel:sync-interactions')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
 
         // Alternative schedules (comment/uncomment as needed):
 

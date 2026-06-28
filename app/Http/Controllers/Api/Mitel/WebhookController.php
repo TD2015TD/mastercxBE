@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Mitel;
 
 use App\Http\Controllers\Controller;
+use App\Models\Ticket;
 use App\Events\AgentStateChanged;
 use App\Events\ConversationUpdated;
 use App\Events\MitelInteractionUpdated;
@@ -227,7 +228,39 @@ class WebhookController extends Controller
             $this->signalPython($interactionId, $signal);
         }
 
+        if ($isEnd) {
+            $this->closeTicketByMitelId($interactionId);
+        }
+
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Close the CRM ticket linked to a Mitel interaction ID when the agent hangs up.
+     * Fires for both email and chat interactions on any terminal state from Mitel.
+     */
+    private function closeTicketByMitelId(string $mitelInteractionId): void
+    {
+        $ticket = Ticket::where('mitel_interaction_id', $mitelInteractionId)
+            ->whereNotIn('status', ['Closed', 'Resolved', 'Cancelled'])
+            ->first();
+
+        if (!$ticket) {
+            return;
+        }
+
+        try {
+            $ticket->close();
+            Log::info('[WebhookController] Ticket auto-closed via Mitel hangup', [
+                'ticket_number'        => $ticket->ticket_number,
+                'mitel_interaction_id' => $mitelInteractionId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[WebhookController] Failed to auto-close ticket via Mitel hangup', [
+                'mitel_interaction_id' => $mitelInteractionId,
+                'error'                => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -153,12 +153,78 @@ class ImapEmailService
         // Extract headers
         $headers = $this->extractHeaders($emailNumber);
 
-        // Extract attachments
+        // Extract attachments (inline images carry a content_id)
         $attachments = $this->extractAttachments($emailNumber, $structure);
 
-        // Get thread information
-        $inReplyTo = $header->in_reply_to ?? null;
-        $references = $header->references ?? null;
+        // Replace cid: references in HTML body with stored public URLs so images
+        // show correctly in the browser iframe and ticket details view.
+        // Resolution order: (1) content_id exact/local-part, (2) img alt text → filename, (3) positional.
+        if (!empty($body['html']) && !empty($attachments)) {
+            $cidMap = [];
+            $imageAtts = [];
+            foreach ($attachments as $att) {
+                if (!empty($att['content_id'])) {
+                    $cid = $att['content_id'];
+                    $cidMap[$cid] = $att['url'];
+                    $localPart = strstr($cid, '@', true) ?: false;
+                    if ($localPart && $localPart !== $cid) {
+                        $cidMap[$localPart] = $att['url'];
+                    }
+                }
+                // Index by filename too (some clients use filename as CID)
+                if (!empty($att['filename'])) {
+                    $cidMap[$att['filename']] = $att['url'];
+                }
+                // Collect image attachments for positional fallback
+                if (str_starts_with(strtolower($att['mime_type'] ?? ''), 'image/')) {
+                    $imageAtts[] = $att;
+                }
+            }
+
+            if (!empty($cidMap) || !empty($imageAtts)) {
+                $imgFallbackIdx = 0;
+                $body['html'] = preg_replace_callback(
+                    '/<img([^>]*?)src=(["\'])cid:([^"\'>\s]+)\2([^>]*?)>/i',
+                    function ($m) use ($cidMap, $attachments, $imageAtts, &$imgFallbackIdx) {
+                        $before = $m[1];
+                        $quote  = $m[2];
+                        $cid    = $m[3];
+                        $after  = $m[4];
+
+                        // 1. CID / filename map
+                        $url = $cidMap[$cid]
+                            ?? $cidMap[strstr($cid, '@', true) ?: '']
+                            ?? null;
+                        if ($url) return "<img{$before}src={$quote}{$url}{$quote}{$after}>";
+
+                        // 2. Alt-text → filename (Gmail sets alt="filename.ext")
+                        $allAttrs = $before . $after;
+                        if (preg_match('/alt=["\']([^"\']+)["\']/i', $allAttrs, $altM)) {
+                            foreach ($attachments as $att) {
+                                if (($att['filename'] ?? '') === $altM[1]) {
+                                    return "<img{$before}src={$quote}{$att['url']}{$quote}{$after}>";
+                                }
+                            }
+                        }
+
+                        // 3. Positional fallback
+                        if (isset($imageAtts[$imgFallbackIdx])) {
+                            $url = $imageAtts[$imgFallbackIdx++]['url'];
+                            return "<img{$before}src={$quote}{$url}{$quote}{$after}>";
+                        }
+
+                        return $m[0]; // leave unresolved; frontend will handle
+                    },
+                    $body['html']
+                );
+            }
+        }
+
+        // Get thread information.
+        // imap_headerinfo() does not expose References; fall back to the raw-parsed
+        // headers (which now correctly handle folded multi-line values).
+        $inReplyTo  = $header->in_reply_to ?? $headers['In-Reply-To'] ?? null;
+        $references = $header->references ?? $headers['References'] ?? null;
         $threadId = EmailMessage::generateThreadId($messageId, $inReplyTo, $references);
 
         return [
@@ -178,7 +244,6 @@ class ImapEmailService
             'conversation_thread_id' => $threadId,
             'in_reply_to' => $inReplyTo,
             'references' => $references,
-            'raw_message' => imap_body($this->connection, $emailNumber),
             'email_number' => $emailNumber,
         ];
     }
@@ -216,50 +281,66 @@ class ImapEmailService
      */
     protected function getBody(int $emailNumber, $structure): array
     {
-        $body = [
-            'text' => '',
-            'html' => '',
-        ];
-
-        if (!isset($structure->parts)) {
-            // Simple email (not multipart)
-            $bodyText = imap_body($this->connection, $emailNumber);
-
-            if ($structure->encoding == 3) { // Base64
-                $bodyText = base64_decode($bodyText);
-            } elseif ($structure->encoding == 4) { // Quoted-printable
-                $bodyText = quoted_printable_decode($bodyText);
-            }
-
-            $body['text'] = $bodyText;
-            return $body;
-        }
-
-        // Multipart email
-        foreach ($structure->parts as $partNum => $part) {
-            $partNumber = $partNum + 1;
-
-            // Get the body part
-            $bodyPart = imap_fetchbody($this->connection, $emailNumber, $partNumber);
-
-            // Decode based on encoding
-            if ($part->encoding == 3) { // Base64
-                $bodyPart = base64_decode($bodyPart);
-            } elseif ($part->encoding == 4) { // Quoted-printable
-                $bodyPart = quoted_printable_decode($bodyPart);
-            }
-
-            // Determine content type
-            $mimeType = $this->getMimeType($part);
-
-            if (strpos($mimeType, 'text/plain') !== false) {
-                $body['text'] = $bodyPart;
-            } elseif (strpos($mimeType, 'text/html') !== false) {
-                $body['html'] = $bodyPart;
-            }
-        }
-
+        $body = ['text' => '', 'html' => ''];
+        $this->extractBodyParts($emailNumber, $structure, '0', $body);
         return $body;
+    }
+
+    /**
+     * Recursively walk the MIME tree to find text/plain and text/html parts.
+     * Handles nested multipart (multipart/alternative inside multipart/mixed, etc.)
+     * as sent by Gmail and other modern mail clients.
+     */
+    protected function extractBodyParts(int $emailNumber, $part, string $sectionPrefix, array &$body): void
+    {
+        $mimeType = $this->getMimeType($part);
+
+        if (strpos($mimeType, 'MULTIPART') === 0) {
+            // Recurse into sub-parts
+            if (!empty($part->parts)) {
+                foreach ($part->parts as $i => $subPart) {
+                    $section = $sectionPrefix === '0'
+                        ? (string) ($i + 1)
+                        : $sectionPrefix . '.' . ($i + 1);
+                    $this->extractBodyParts($emailNumber, $subPart, $section, $body);
+                }
+            }
+            return;
+        }
+
+        // Skip attachments
+        if ($this->isAttachment($part)) {
+            return;
+        }
+
+        // Fetch and decode the leaf part
+        $fetchSection = $sectionPrefix === '0' ? '1' : $sectionPrefix;
+        $content = imap_fetchbody($this->connection, $emailNumber, $fetchSection, FT_PEEK);
+
+        if ($part->encoding == 3) {       // Base64
+            $content = base64_decode($content);
+        } elseif ($part->encoding == 4) { // Quoted-printable
+            $content = quoted_printable_decode($content);
+        }
+
+        // Apply charset if available
+        $charset = null;
+        foreach (($part->parameters ?? []) as $param) {
+            if (strtolower($param->attribute) === 'charset') {
+                $charset = $param->value;
+                break;
+            }
+        }
+        if ($charset && strtolower($charset) !== 'utf-8') {
+            $converted = @iconv($charset, 'UTF-8//TRANSLIT//IGNORE', $content);
+            if ($converted !== false) $content = $converted;
+        }
+
+        if ($mimeType === 'TEXT/PLAIN' && $body['text'] === '') {
+            $body['text'] = $content;
+        } elseif ($mimeType === 'TEXT/HTML' && $body['html'] === '') {
+            $body['html'] = $content;
+        }
     }
 
     /**
@@ -268,11 +349,14 @@ class ImapEmailService
     protected function extractHeaders(int $emailNumber): array
     {
         $rawHeaders = imap_fetchheader($this->connection, $emailNumber);
+        // Unfold RFC 2822 continuation lines (lines starting with whitespace
+        // are continuations of the previous header line).
+        $unfolded = preg_replace('/\r?\n[ \t]+/', ' ', $rawHeaders);
         $headers = [];
 
-        foreach (explode("\n", $rawHeaders) as $line) {
+        foreach (explode("\n", $unfolded) as $line) {
             if (strpos($line, ':') !== false) {
-                list($key, $value) = explode(':', $line, 2);
+                [$key, $value] = explode(':', $line, 2);
                 $headers[trim($key)] = trim($value);
             }
         }
@@ -286,47 +370,65 @@ class ImapEmailService
     protected function extractAttachments(int $emailNumber, $structure): array
     {
         $attachments = [];
-
-        if (!isset($structure->parts)) {
-            return $attachments;
-        }
-
-        foreach ($structure->parts as $partNum => $part) {
-            $partNumber = $partNum + 1;
-
-            // Check if this is an attachment
-            if (!$this->isAttachment($part)) {
-                continue;
-            }
-
-            $filename = $this->getAttachmentFilename($part);
-
-            if (!$filename) {
-                continue;
-            }
-
-            // Get attachment data
-            $attachmentData = imap_fetchbody($this->connection, $emailNumber, $partNumber);
-
-            // Decode based on encoding
-            if ($part->encoding == 3) { // Base64
-                $attachmentData = base64_decode($attachmentData);
-            } elseif ($part->encoding == 4) { // Quoted-printable
-                $attachmentData = quoted_printable_decode($attachmentData);
-            }
-
-            // Store attachment
-            $storedPath = $this->storeAttachment($filename, $attachmentData);
-
-            $attachments[] = [
-                'filename' => $filename,
-                'path' => $storedPath,
-                'size' => strlen($attachmentData),
-                'mime_type' => $this->getMimeType($part),
-            ];
-        }
-
+        $this->collectAttachmentParts($emailNumber, $structure, '0', $attachments);
         return $attachments;
+    }
+
+    /**
+     * Recursively walk the MIME tree to collect all attachment parts.
+     * Mirrors extractBodyParts so nested multipart/mixed structures
+     * (e.g. Gmail replies with inline images + file attachments) are
+     * fully traversed and no attachments are missed.
+     */
+    protected function collectAttachmentParts(int $emailNumber, $part, string $sectionPrefix, array &$attachments): void
+    {
+        $mimeType = $this->getMimeType($part);
+
+        if (strpos($mimeType, 'MULTIPART') === 0) {
+            if (!empty($part->parts)) {
+                foreach ($part->parts as $i => $subPart) {
+                    $section = $sectionPrefix === '0'
+                        ? (string) ($i + 1)
+                        : $sectionPrefix . '.' . ($i + 1);
+                    $this->collectAttachmentParts($emailNumber, $subPart, $section, $attachments);
+                }
+            }
+            return;
+        }
+
+        if (!$this->isAttachment($part)) {
+            return;
+        }
+
+        $filename = $this->getAttachmentFilename($part);
+        if (!$filename) {
+            return;
+        }
+
+        $contentId = null;
+        if (!empty($part->id)) {
+            $contentId = trim($part->id, '<> ');
+        }
+
+        $fetchSection   = $sectionPrefix === '0' ? '1' : $sectionPrefix;
+        $attachmentData = imap_fetchbody($this->connection, $emailNumber, $fetchSection, FT_PEEK);
+
+        if ($part->encoding == 3) {
+            $attachmentData = base64_decode($attachmentData);
+        } elseif ($part->encoding == 4) {
+            $attachmentData = quoted_printable_decode($attachmentData);
+        }
+
+        ['path' => $storedPath, 'url' => $storedUrl] = $this->storeAttachment($filename, $attachmentData);
+
+        $attachments[] = [
+            'filename'   => $filename,
+            'path'       => $storedPath,
+            'url'        => $storedUrl,
+            'size'       => strlen($attachmentData),
+            'mime_type'  => $mimeType,
+            'content_id' => $contentId,
+        ];
     }
 
     /**
@@ -334,9 +436,19 @@ class ImapEmailService
      */
     protected function isAttachment($part): bool
     {
-        return isset($part->disposition) &&
-               (strtolower($part->disposition) == 'attachment' ||
-                strtolower($part->disposition) == 'inline');
+        if (!isset($part->disposition)) {
+            return false;
+        }
+        $disp = strtolower($part->disposition);
+        if ($disp === 'attachment') {
+            return true;
+        }
+        // Only treat inline parts as attachments when they carry a filename
+        // (i.e. they are real files, not just body text or HTML rendered inline).
+        if ($disp === 'inline') {
+            return $this->getAttachmentFilename($part) !== null;
+        }
+        return false;
     }
 
     /**
@@ -388,15 +500,18 @@ class ImapEmailService
     /**
      * Store attachment to disk.
      */
-    protected function storeAttachment(string $filename, string $data): string
+    protected function storeAttachment(string $filename, string $data): array
     {
         $directory = 'email_attachments/' . date('Y/m/d');
         $uniqueFilename = time() . '_' . $filename;
         $path = $directory . '/' . $uniqueFilename;
 
-        Storage::put($path, $data);
+        Storage::disk('public')->put($path, $data);
 
-        return $path;
+        return [
+            'path' => $path,
+            'url'  => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $path,
+        ];
     }
 
     /**
@@ -413,8 +528,13 @@ class ImapEmailService
     public function disconnect(): void
     {
         if ($this->connection) {
-            imap_close($this->connection);
-            Log::info('IMAP connection closed');
+            try {
+                imap_close($this->connection);
+                Log::info('IMAP connection closed');
+            } catch (\Throwable $e) {
+                // Connection may already be closed (e.g. by email:idle's own connection)
+            }
+            $this->connection = null;
         }
     }
 

@@ -5,17 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class Ticket extends Model
 {
     use SoftDeletes;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Guarantee every email ticket has a case_id before it hits the DB.
+        // Runs before INSERT — cannot be overwritten by subsequent saves.
+        static::creating(function (self $ticket) {
+            if ($ticket->channel === 'email' && empty($ticket->case_id)) {
+                $ticket->case_id = (string) Str::uuid();
+            }
+        });
+    }
+
     protected $fillable = [
         'ticket_number',
         'conversation_id',
         'call_id',
         'case_id',
+        'mitel_interaction_id',
         'customer_id',
         'assigned_to',
         'created_by',
@@ -288,8 +303,7 @@ class Ticket extends Model
         $this->updateSlaRemaining();
         $this->save();
 
-        // Update customer metrics
-        $this->customer->updateMetrics();
+        $this->customer?->updateMetrics();
     }
 
     /**
@@ -301,8 +315,7 @@ class Ticket extends Model
         $this->closed_at = now();
         $this->save();
 
-        // Update customer metrics
-        $this->customer->updateMetrics();
+        $this->customer?->updateMetrics();
     }
 
     /**
@@ -317,8 +330,7 @@ class Ticket extends Model
         $this->calculateSla();
         $this->save();
 
-        // Update customer metrics
-        $this->customer->updateMetrics();
+        $this->customer?->updateMetrics();
     }
 
     /**

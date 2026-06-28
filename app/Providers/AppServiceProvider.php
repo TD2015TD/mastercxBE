@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Ticket;
+use App\Observers\TicketObserver;
+use App\Services\McxOpenMediaService;
 use App\Services\MitelService;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,9 +15,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Register MitelService as singleton
         $this->app->singleton(MitelService::class, function ($app) {
             return new MitelService();
+        });
+
+        $this->app->singleton(McxOpenMediaService::class, function ($app) {
+            return new McxOpenMediaService();
         });
     }
 
@@ -23,6 +29,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Ticket::observe(TicketObserver::class);
     }
 }

@@ -1153,4 +1153,31 @@ class DashboardController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get distinct department values from the agents table.
+     */
+    public function getDepartments()
+    {
+        try {
+            $departments = \DB::table('agents')
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->orderBy('department')
+                ->pluck('department')
+                ->filter()
+                ->values();
+
+            return response()->json([
+                'success' => true,
+                'data' => $departments,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load departments',
+                'data' => [],
+            ], 500);
+        }
+    }
 }

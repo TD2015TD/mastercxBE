@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Permission Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .permission { padding: 5px; margin: 5px 0; }
+        .has { background: #d4edda; color: #155724; }
+        .missing { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔒 CRM Permission System Checker</h1>
+    
+    <div class="section">
+        <h2>Current User Session</h2>
+        <button onclick="checkSession()">Check Session</button>
+        <button onclick="clearAndReload()">Clear Cache & Reload</button>
+        <pre id="sessionData">Click "Check Session" to view data...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Current Permissions</h2>
+        <button onclick="checkPermissions()">Check Permissions</button>
+        <pre id="permissionsData">Click "Check Permissions" to view data...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Permission Test: category.manage</h2>
+        <div id="categoryCheck">Not checked yet...</div>
+    </div>
+
+    <div class="section">
+        <h2>Actions</h2>
+        <button onclick="refreshFromAPI()">Refresh Permissions from API</button>
+        <button onclick="window.location.href='/agent-login'">Go to Login</button>
+        <div id="apiResult"></div>
+    </div>
+
+    <script>
+        function checkSession() {
+            const session = localStorage.getItem('user-session');
+            const sessionData = session ? JSON.parse(session) : null;
+            document.getElementById('sessionData').textContent = JSON.stringify(sessionData, null, 2);
+        }
+
+        function checkPermissions() {
+            const permissions = localStorage.getItem('user_permissions');
+            const permData = permissions ? JSON.parse(permissions) : [];
+            document.getElementById('permissionsData').textContent = JSON.stringify(permData, null, 2);
+            
+            // Check for category.manage
+            const hasCategory = permData.includes('category.manage');
+            document.getElementById('categoryCheck').innerHTML = hasCategory 
+                ? '<div class="permission has">✅ You HAVE category.manage permission</div>'
+                : '<div class="permission missing">❌ You DO NOT have category.manage permission</div>';
+        }
+
+        function clearAndReload() {
+            if (confirm('This will clear your session and reload. You will need to login again. Continue?')) {
+                localStorage.clear();
+                sessionStorage.clear();
+                alert('Cache cleared! Redirecting to login...');
+                window.location.href = '/agent-login';
+            }
+        }
+
+        async function refreshFromAPI() {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                document.getElementById('apiResult').innerHTML = '<p style="color: red;">No token found. Please login first.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('apiResult').innerHTML = '<p style="color: green;">✅ Permissions refreshed from API!</p><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                    
+                    // Update localStorage
+                    if (data.user) {
+                        localStorage.setItem('user-session', JSON.stringify(data.user));
+                    }
+                    if (data.permissions) {
+                        localStorage.setItem('user_permissions', JSON.stringify(data.permissions));
+                    }
+                    
+                    alert('Permissions updated! Please check again.');
+                } else {
+                    document.getElementById('apiResult').innerHTML = '<p style="color: red;">❌ Failed to refresh: ' + response.status + '</p>';
+                }
+            } catch (error) {
+                document.getElementById('apiResult').innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+            }
+        }
+
+        // Auto-check on load
+        window.onload = function() {
+            checkSession();
+            checkPermissions();
+        };
+    </script>
+</body>
+</html>

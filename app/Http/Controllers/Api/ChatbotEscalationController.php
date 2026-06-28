@@ -95,11 +95,15 @@ class ChatbotEscalationController extends Controller
                 ]);
             }
 
+            // Use DB count (only active sessions in last 90 min) as the reliable position.
+            $initialPosition = ChatbotSession::where('status', 'queuing')
+                ->where('updated_at', '>=', now()->subMinutes(90))
+                ->count();
+
             return response()->json([
                 'success'           => true,
                 'interaction_id'    => $interactionId,
-                'position_in_queue' => $result['_position_in_queue']
-                    ?? ChatbotSession::where('status', 'queuing')->count(),
+                'position_in_queue' => $initialPosition,
             ]);
         } catch (\Exception $e) {
             Log::error('Chatbot escalation failed', ['error' => $e->getMessage()]);
@@ -171,6 +175,16 @@ class ChatbotEscalationController extends Controller
             return response()->json(['success' => false, 'message' => 'Session not found'], 404);
         }
 
+        // Prefer chat_messages table (richer); fall back to embedded chat_history JSON
+        $messages = \App\Models\ChatMessage::where('interaction_id', $interactionId)
+            ->orderBy('created_at')
+            ->get(['sender', 'sender_name', 'content', 'created_at'])
+            ->toArray();
+
+        if (empty($messages) && is_array($session->chat_history)) {
+            $messages = $session->chat_history;
+        }
+
         return response()->json([
             'success'        => true,
             'interaction_id' => $session->interaction_id,
@@ -184,6 +198,9 @@ class ChatbotEscalationController extends Controller
             'agent_id'       => $session->agent_id,
             'agent_name'     => $session->agent_name,
             'queue_name'     => $session->queue_name,
+            'created_at'     => $session->created_at,
+            'updated_at'     => $session->updated_at,
+            'messages'       => $messages,
         ]);
     }
 
@@ -407,11 +424,13 @@ class ChatbotEscalationController extends Controller
             ]);
         }
 
-        // Real-time queue position: count queuing sessions created at or before this one
+        // Real-time queue position: count active queuing sessions created at or before this one.
+        // Exclude sessions not updated in the last 90 minutes — those are stale/abandoned.
         $queuePosition = null;
         if ($session && $session->status === 'queuing') {
             $queuePosition = ChatbotSession::where('status', 'queuing')
                 ->where('created_at', '<=', $session->created_at)
+                ->where('updated_at', '>=', now()->subMinutes(90))
                 ->count();
         }
 
