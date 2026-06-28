@@ -260,8 +260,8 @@ SELECT
 
 FROM mitel_call_transfers mct
 LEFT JOIN mitel_config_queues mq ON mct.queue_id::text = mq.queue_id::text
-LEFT JOIN mitel_config_agents mca ON mct.mitel_agent_id::text = mca.fk_master_agent
-LEFT JOIN agents a ON mca.fk_employee = UPPER(a.employee_id)
+LEFT JOIN mitel_config_agents mca ON mct.mitel_agent_id::uuid = mca.fk_master_agent
+LEFT JOIN agents a ON mca.fk_employee = a.employee_id::uuid
 LEFT JOIN users u ON a.user_id = u.id
 LEFT JOIN ticket_escalations te ON mct.call_id = te.call_id AND mct.call_start_time = te.call_start_time
 LEFT JOIN customers c ON te.customer_id = c.id

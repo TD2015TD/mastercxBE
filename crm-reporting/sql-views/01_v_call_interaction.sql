@@ -303,9 +303,9 @@ SELECT
 FROM all_calls ac
 -- Join Mitel config agents using agent_id from trace (matches FKMasterAgent in config)
 -- Case-insensitive comparison since call records are lowercase, config is uppercase
-LEFT JOIN mitel_config_agents mca ON LOWER(ac.mitel_agent_id::text) = LOWER(mca.fk_master_agent)
+LEFT JOIN mitel_config_agents mca ON LOWER(ac.mitel_agent_id::text) = LOWER(mca.fk_master_agent::text)
 -- Join CRM agents via employee_id UUID match (case-insensitive: Mitel stores uppercase, CRM lowercase)
-LEFT JOIN agents a ON LOWER(mca.fk_employee) = a.employee_id
+LEFT JOIN agents a ON LOWER(mca.fk_employee::text) = LOWER(a.employee_id::text)
 LEFT JOIN users u ON a.user_id = u.id
 -- Join tickets via CTE (supports call_id and phone+time matching)
 LEFT JOIN linked_tickets lt ON ac.id = lt.id
