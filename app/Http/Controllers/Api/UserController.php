@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
+use App\Services\AuditLogger;
 use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
@@ -192,6 +193,7 @@ class UserController extends Controller
             DB::commit();
 
             $user->load('role');
+            AuditLogger::info('User Created', 'User Management', 'User Administration', "Created user account: {$user->name} ({$user->email})", ['target_user_id' => $user->id, 'role' => $user->role?->slug]);
 
             return response()->json([
                 'success' => true,
@@ -393,6 +395,7 @@ class UserController extends Controller
             DB::commit();
 
             $user->load(['role', 'agent']);
+            AuditLogger::info('User Updated', 'User Management', 'User Administration', "Updated user account: {$user->name} ({$user->email})", ['target_user_id' => $user->id]);
 
             return response()->json([
                 'success' => true,
@@ -447,9 +450,12 @@ class UserController extends Controller
             }
 
             // Soft delete user
+            $userName  = $user->name;
+            $userEmail = $user->email;
             $user->delete();
 
             DB::commit();
+            AuditLogger::warning('User Deleted', 'User Management', 'User Administration', "Deleted user account: {$userName} ({$userEmail})", ['target_user_id' => $id]);
 
             return response()->json([
                 'success' => true,

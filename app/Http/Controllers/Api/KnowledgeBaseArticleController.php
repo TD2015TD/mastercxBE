@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use App\Services\KnowledgeBaseArticleService;
 use App\Models\KnowledgeBaseArticle;
 use Illuminate\Http\Request;
@@ -133,6 +134,7 @@ class KnowledgeBaseArticleController extends Controller
                 $request->hasFile('file') ? $request->file('file') : null
             );
 
+            AuditLogger::info('Article Created', 'Knowledge Base', 'KB Management', "Created KB article: \"{$article->title}\"", ['article_id' => $article->id, 'status' => $article->status]);
             return response()->json([
                 'success' => true,
                 'message' => 'Article created successfully',
@@ -210,6 +212,7 @@ class KnowledgeBaseArticleController extends Controller
             // Update ES index only — do NOT call service->store() which creates a new DB record
             $this->articleService->updateIndex($article);
 
+            AuditLogger::info('Article Updated', 'Knowledge Base', 'KB Management', "Updated KB article: \"{$article->title}\"", ['article_id' => $article->id]);
             return response()->json([
                 'success' => true,
                 'message' => 'Article updated successfully',
@@ -231,7 +234,10 @@ class KnowledgeBaseArticleController extends Controller
     public function destroy($id)
     {
         try {
+            $article = KnowledgeBaseArticle::find($id);
+            $title   = $article?->title ?? "ID #{$id}";
             $this->articleService->delete($id);
+            AuditLogger::warning('Article Deleted', 'Knowledge Base', 'KB Management', "Deleted KB article: \"{$title}\"", ['article_id' => $id]);
 
             return response()->json([
                 'success' => true,
@@ -347,6 +353,7 @@ class KnowledgeBaseArticleController extends Controller
             $article->published_at = $article->published_at ?? now();
             $article->save();
 
+            AuditLogger::info('Article Published', 'Knowledge Base', 'KB Management', "Published KB article: \"{$article->title}\"", ['article_id' => $article->id]);
             return response()->json([
                 'success' => true,
                 'message' => 'Article published successfully',

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use App\Models\AuditLog;
 use App\Services\MitelService;
 
 class SystemController extends Controller
@@ -31,7 +32,7 @@ class SystemController extends Controller
                     'cpu_usage' => $cpuUsage,
                     'memory_usage' => $memoryUsage,
                     'disk_usage' => $diskUsage,
-                    'network_io' => rand(100, 500), // Mock data
+                    'network_io' => $this->getNetworkIO(),
                     'uptime' => $uptime,
                     'last_updated' => now()->toIso8601String(),
                 ]
@@ -337,11 +338,16 @@ class SystemController extends Controller
     private function getMemoryUsage()
     {
         try {
-            $memoryLimit = $this->convertToBytes(ini_get('memory_limit'));
-            $memoryUsed = memory_get_usage(true);
-            return round(($memoryUsed / $memoryLimit) * 100, 2);
+            $meminfo = file_get_contents('/proc/meminfo');
+            preg_match('/MemTotal:\s+(\d+)/', $meminfo, $total);
+            preg_match('/MemAvailable:\s+(\d+)/', $meminfo, $available);
+            if (!empty($total[1]) && !empty($available[1])) {
+                $used = (int)$total[1] - (int)$available[1];
+                return round(($used / (int)$total[1]) * 100, 2);
+            }
+            return 0;
         } catch (\Exception $e) {
-            return rand(50, 80); // Fallback to mock data
+            return 0;
         }
     }
 
@@ -359,8 +365,48 @@ class SystemController extends Controller
 
     private function getSystemUptime()
     {
-        // This is approximate - in production, use actual server uptime
-        return '15d 8h 23m';
+        try {
+            $secs    = (int) explode(' ', file_get_contents('/proc/uptime'))[0];
+            $days    = (int) floor($secs / 86400);
+            $hours   = (int) floor(($secs % 86400) / 3600);
+            $minutes = (int) floor(($secs % 3600) / 60);
+            return "{$days}d {$hours}h {$minutes}m";
+        } catch (\Exception $e) {
+            return 'N/A';
+        }
+    }
+
+    private function getNetworkIO()
+    {
+        try {
+            $netDev = file_get_contents('/proc/net/dev');
+            $totalBytes = 0;
+
+            foreach (explode("\n", $netDev) as $line) {
+                $line = trim($line);
+                if (!$line || str_starts_with($line, 'Inter') || str_starts_with($line, 'face')) continue;
+                $parts = preg_split('/\s+/', $line);
+                $iface = rtrim($parts[0] ?? '', ':');
+                if ($iface === 'lo' || $iface === '') continue;
+                $totalBytes += (int)($parts[1] ?? 0) + (int)($parts[9] ?? 0);
+            }
+
+            $now  = microtime(true);
+            $prev = Cache::get('network_io_prev');
+            Cache::put('network_io_prev', ['bytes' => $totalBytes, 'time' => $now], 120);
+
+            if ($prev && isset($prev['bytes'], $prev['time'])) {
+                $timeDiff  = $now - $prev['time'];
+                $bytesDiff = $totalBytes - $prev['bytes'];
+                if ($timeDiff > 0 && $bytesDiff >= 0) {
+                    return round($bytesDiff * 8 / $timeDiff / 1_000_000, 2); // Mbps
+                }
+            }
+
+            return 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     private function checkDatabaseConnection()
@@ -435,5 +481,108 @@ class SystemController extends Controller
         }
 
         return $value;
+    }
+
+    // ─── Audit Logs ───────────────────────────────────────────────────────────
+
+    public function getAuditLogs(Request $request)
+    {
+        try {
+            $query = AuditLog::query()->orderBy('created_at', 'desc');
+
+            if ($search = $request->get('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('action', 'ilike', "%{$search}%")
+                      ->orWhere('details', 'ilike', "%{$search}%")
+                      ->orWhere('user_name', 'ilike', "%{$search}%");
+                });
+            }
+
+            if ($category = $request->get('category')) {
+                $query->where('category', $category);
+            }
+
+            if ($userId = $request->get('user_id')) {
+                $query->where('user_id', $userId);
+            }
+
+            if ($severity = $request->get('severity')) {
+                $query->where('severity', $severity);
+            }
+
+            if ($dateFrom = $request->get('date_from')) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            }
+
+            if ($dateTo = $request->get('date_to')) {
+                $query->whereDate('created_at', '<=', $dateTo);
+            }
+
+            $perPage = min((int) $request->get('per_page', 20), 100);
+            $logs    = $query->paginate($perPage);
+
+            // Summary counts (respecting same filters except pagination)
+            $baseQuery = AuditLog::query();
+            if ($dateFrom) $baseQuery->whereDate('created_at', '>=', $dateFrom);
+            if ($dateTo)   $baseQuery->whereDate('created_at', '<=', $dateTo);
+
+            $summary = [
+                'info'     => (clone $baseQuery)->where('severity', 'info')->count(),
+                'warning'  => (clone $baseQuery)->where('severity', 'warning')->count(),
+                'critical' => (clone $baseQuery)->where('severity', 'critical')->count(),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data'    => $logs->items(),
+                'meta'    => [
+                    'current_page' => $logs->currentPage(),
+                    'last_page'    => $logs->lastPage(),
+                    'per_page'     => $logs->perPage(),
+                    'total'        => $logs->total(),
+                ],
+                'summary' => $summary,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function exportAuditLogs(Request $request)
+    {
+        try {
+            $query = AuditLog::query()->orderBy('created_at', 'desc');
+
+            if ($search   = $request->get('search'))    $query->where('action', 'ilike', "%{$search}%");
+            if ($category = $request->get('category'))  $query->where('category', $category);
+            if ($userId   = $request->get('user_id'))   $query->where('user_id', $userId);
+            if ($severity = $request->get('severity'))  $query->where('severity', $severity);
+            if ($dateFrom = $request->get('date_from')) $query->whereDate('created_at', '>=', $dateFrom);
+            if ($dateTo   = $request->get('date_to'))   $query->whereDate('created_at', '<=', $dateTo);
+
+            $logs = $query->limit(10000)->get();
+
+            $csv  = "Timestamp,User,Role,Action,Category,Module,Details,Severity,IP Address\n";
+            foreach ($logs as $log) {
+                $csv .= implode(',', [
+                    '"' . $log->created_at->format('Y-m-d H:i:s') . '"',
+                    '"' . str_replace('"', '""', $log->user_name ?? '') . '"',
+                    '"' . ($log->user_role ?? '') . '"',
+                    '"' . str_replace('"', '""', $log->action) . '"',
+                    '"' . $log->category . '"',
+                    '"' . $log->module . '"',
+                    '"' . str_replace('"', '""', $log->details) . '"',
+                    '"' . $log->severity . '"',
+                    '"' . ($log->ip_address ?? '') . '"',
+                ]) . "\n";
+            }
+
+            return response($csv, 200, [
+                'Content-Type'        => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="audit-logs-' . now()->format('Y-m-d') . '.csv"',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

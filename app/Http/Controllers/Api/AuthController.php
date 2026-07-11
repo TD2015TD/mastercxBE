@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Services\AuthenticationService;
 use App\Services\McxOpenMediaService;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -215,6 +216,7 @@ class AuthController extends Controller
                     'reason' => $authResult['message'],
                     'ip_address' => $request->ip()
                 ]);
+                AuditLogger::log('Login Failed', 'Authentication', 'Auth', "Failed login attempt for username: {$credentials['username']}", 'warning', ['username' => $credentials['username']], $request);
                 return response()->json([
                     'success' => false,
                     'message' => $authResult['message']
@@ -232,6 +234,12 @@ class AuthController extends Controller
 
             $user->load(['agent', 'role.permissions']);
 
+            // Mark the agent as available now that they're logged in — this is what
+            // the Transfer Ticket agent list and future telephony presence read from.
+            if ($user->agent) {
+                $user->agent->update(['availability' => 'available', 'last_activity_at' => now()]);
+            }
+
             Log::info('Login successful', [
                 'user_id' => $user->id,
                 'username' => $user->username,
@@ -241,6 +249,7 @@ class AuthController extends Controller
                 'has_agent' => $user->agent !== null,
                 'ip_address' => $request->ip()
             ]);
+            AuditLogger::log('Login', 'Authentication', 'Auth', "User {$user->name} logged in successfully", 'info', ['username' => $user->username, 'role' => $user->role?->slug], $request);
 
             // Get user permissions
             $permissions = $user->getPermissions();
@@ -398,6 +407,10 @@ class AuthController extends Controller
             // Ticket stays In Progress so another agent can pick it up later
             if ($user?->agent) {
                 $agentId = $user->agent->id;
+
+                // Mark the agent offline so they drop off the Transfer Ticket list
+                $user->agent->update(['availability' => 'offline', 'last_activity_at' => now()]);
+
                 $activeTickets = Ticket::where('assigned_to', $agentId)
                     ->whereNotNull('mitel_interaction_id')
                     ->whereIn('status', ['Open', 'In Progress'])
@@ -432,6 +445,7 @@ class AuthController extends Controller
                 }
             }
 
+            AuditLogger::info('Logout', 'Authentication', 'Auth', "User {$user?->name} logged out");
             auth()->logout();
 
             return response()->json([

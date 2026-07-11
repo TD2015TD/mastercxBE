@@ -11,6 +11,7 @@ use App\Models\TicketNumberSequence;
 use App\Models\TicketAttachment;
 use App\Models\User;
 use App\Models\EmailMessage;
+use App\Services\AuditLogger;
 use App\Notifications\TicketCreatedNotification;
 use App\Events\TicketNotification;
 use Illuminate\Http\Request;
@@ -257,6 +258,14 @@ class TicketController extends Controller
                 $ticket->customer->updateMetrics();
             }
 
+            AuditLogger::info(
+                'Ticket Created',
+                'Ticket Management',
+                'Ticket Management',
+                "Created ticket {$ticket->ticket_number} — Status: {$ticket->status}",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status, 'priority' => $ticket->priority]
+            );
+
             DB::commit();
 
             $ticket->load(['customer', 'assignedAgent.user', 'creator']);
@@ -383,6 +392,21 @@ class TicketController extends Controller
             
             $ticket->updateSlaRemaining();
             $ticket->save();
+
+            if (!empty($changes)) {
+                $fieldsChanged = implode(', ', array_keys($changes));
+                $details = isset($changes['status'])
+                    ? "Ticket {$ticket->ticket_number} status changed from '{$changes['status']['old']}' to '{$changes['status']['new']}'"
+                    : "Ticket {$ticket->ticket_number} updated — fields changed: {$fieldsChanged}";
+
+                AuditLogger::info(
+                    'Ticket Updated',
+                    'Ticket Management',
+                    'Ticket Management',
+                    $details,
+                    ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status, 'changes' => $changes]
+                );
+            }
 
             $ticket->load(['customer', 'assignedAgent.user', 'creator']);
 
@@ -547,10 +571,18 @@ class TicketController extends Controller
             );
 
             // Update customer metrics when status changes to/from Resolved or Closed
-            if ($ticket->customer && 
+            if ($ticket->customer &&
                 (in_array($request->status, ['Resolved', 'Closed']) || in_array($oldStatus, ['Resolved', 'Closed']))) {
                 $ticket->customer->updateMetrics();
             }
+
+            AuditLogger::info(
+                'Ticket Status Changed',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} status changed from '{$oldStatus}' to '{$request->status}'",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'old_status' => $oldStatus, 'new_status' => $request->status]
+            );
 
             return response()->json([
                 'success' => true,
@@ -593,6 +625,15 @@ class TicketController extends Controller
 
         try {
             $ticket->resolve($request->resolution_notes);
+
+            AuditLogger::info(
+                'Ticket Resolved',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} marked as Resolved",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+            );
+
             $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([
@@ -655,6 +696,13 @@ class TicketController extends Controller
             Log::info('[closeBeacon] Ticket closed via page unload beacon', [
                 'ticket_number' => $ticket->ticket_number,
             ]);
+            AuditLogger::info(
+                'Ticket Closed',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} closed (page unload)",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+            );
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -674,6 +722,15 @@ class TicketController extends Controller
 
         try {
             $ticket->close();
+
+            AuditLogger::info(
+                'Ticket Closed',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} closed",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+            );
+
             $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([
@@ -713,6 +770,13 @@ class TicketController extends Controller
 
         try {
             $ticket->close();
+            AuditLogger::info(
+                'Ticket Closed',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} closed (Mitel hangup)",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+            );
             return response()->json(['success' => true, 'message' => 'Ticket closed', 'data' => ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number]]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to close ticket', 'error' => $e->getMessage()], 500);
@@ -751,6 +815,13 @@ class TicketController extends Controller
                     'mitel_id'      => $ticket->mitel_interaction_id,
                     'state'         => $state ?? '404',
                 ]);
+                AuditLogger::info(
+                    'Ticket Closed',
+                    'Ticket Management',
+                    'Ticket Management',
+                    "Ticket {$ticket->ticket_number} closed (Mitel call ended)",
+                    ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+                );
                 return response()->json(['success' => true, 'closed' => true, 'status' => 'Closed']);
             }
 
@@ -822,6 +893,15 @@ class TicketController extends Controller
 
         try {
             $ticket->reopen();
+
+            AuditLogger::info(
+                'Ticket Reopened',
+                'Ticket Management',
+                'Ticket Management',
+                "Ticket {$ticket->ticket_number} reopened",
+                ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'status' => $ticket->status]
+            );
+
             $ticket->load(['customer', 'assignedAgent.user']);
 
             return response()->json([

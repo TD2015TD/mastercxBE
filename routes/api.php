@@ -391,6 +391,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/services/{serviceName}/restart', [SystemController::class, 'restartService']);
             Route::post('/connectivity/{service}', [SystemController::class, 'testConnectivity']);
 
+            // Audit Logs
+            Route::get('/audit-logs', [SystemController::class, 'getAuditLogs']);
+            Route::get('/audit-logs/export', [SystemController::class, 'exportAuditLogs']);
+
             // System Configuration Management
             Route::get('/configurations', [SystemConfigurationController::class, 'index']);
             Route::get('/configurations/category/{category}', [SystemConfigurationController::class, 'getByCategory']);

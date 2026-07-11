@@ -84,9 +84,9 @@ class RoleController extends Controller
                 });
             }
 
-            // Include user count
+            // Include user and permission counts
             if ($request->has('with_users') && $request->with_users) {
-                $query->withCount('users');
+                $query->withCount(['users', 'permissions']);
             }
 
             // Include menu items
