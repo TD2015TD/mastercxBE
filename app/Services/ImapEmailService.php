@@ -27,6 +27,24 @@ class ImapEmailService
     }
 
     /**
+     * Build an instance with no live IMAP connection. RawEmailParserService
+     * does the actual parsing for piped mail (this server's ext-imap build
+     * has no local-mbox-file driver, only remote IMAP/POP), but
+     * ProcessIncomingEmail::processSingleEmail() still type-hints
+     * ImapEmailService for its optional markAsRead() call — this satisfies
+     * that without a real connection. markAsRead() is only ever invoked when
+     * $emailData['email_number'] is set, which piped mail never has.
+     */
+    public static function detached(): self
+    {
+        /** @var self $instance */
+        $instance = (new \ReflectionClass(self::class))->newInstanceWithoutConstructor();
+        $instance->connection = null;
+
+        return $instance;
+    }
+
+    /**
      * Connect to IMAP server using database configuration or fallback to env.
      */
     protected function connect(): void

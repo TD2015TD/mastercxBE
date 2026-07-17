@@ -15,7 +15,8 @@
         "opensearch-project/opensearch-php": "^2.0",
         "phpoffice/phpword": "^1.4",
         "smalot/pdfparser": "^2.12",
-        "tymon/jwt-auth": "^2.2"
+        "tymon/jwt-auth": "^2.2",
+        "zbateson/mail-mime-parser": "^4.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
