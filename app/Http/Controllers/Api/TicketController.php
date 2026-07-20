@@ -1778,9 +1778,16 @@ class TicketController extends Controller
                 $attachments, $inReplyToId, $referencesHeader,
                 $ticket_ref, $agentName, $quotedHtml, $messageId
             ) {
-                // Use external URL for the logo — CID attachments break when the email
-                // is quoted in subsequent replies (the recipient sees a black box).
-                $footerForEmail = $this->buildEmailFooter($ticket_ref, $agentName, useUrl: true);
+                // Embed the logo inline (CID) so it renders immediately without the
+                // recipient needing to click "Trust sender" / "Show blocked content" —
+                // mail clients block remotely-fetched <img> sources by default for
+                // senders outside the Safe Senders list. Falls back to the external
+                // URL if the local logo file isn't present on this server.
+                $logoPath = public_path('logo-kastam.png');
+                $logoCid  = file_exists($logoPath) ? $msg->embed($logoPath) : null;
+                $footerForEmail = $logoCid
+                    ? $this->buildEmailFooter($ticket_ref, $agentName, useUrl: false, cidSrc: $logoCid)
+                    : $this->buildEmailFooter($ticket_ref, $agentName, useUrl: true);
                 // Include quoted original so the customer sees context (standard reply format)
                 $fullHtml = $bodyHtml . $footerForEmail . $quotedHtml;
 
