@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Customer;
 use App\Models\EmailMessage;
 use App\Models\Ticket;
-use App\Models\Agent;
 use App\Models\EmailConfiguration;
 use App\Services\ImapEmailService;
 use App\Services\MitelService;
@@ -271,14 +270,17 @@ class ProcessIncomingEmail extends Command
                 'is_processed' => false,
             ]);
 
-            // Create new ticket or update existing one
+            // Update existing ticket, or push the new email to Mitel as a pending
+            // interaction for an agent to triage — no Ticket is created yet. An
+            // agent picks it up in Ignite, opens the email-interaction page, picks
+            // a department/category there, and only then is the Ticket created
+            // (see TicketController::createFromEmail).
             if ($existingTicket) {
                 $this->updateExistingTicket($existingTicket, $emailMessage);
                 $this->info("Updated existing ticket: {$existingTicket->ticket_number}");
             } else {
-                $ticket = $this->createTicketFromEmail($emailMessage, $customer, $config, $closedTicket);
-                $emailMessage->ticket_id = $ticket->id;
-                $this->info("Created new ticket: {$ticket->ticket_number}");
+                $this->pushPendingEmailToMitel($emailMessage, $config, $closedTicket);
+                $this->info("Pushed pending email to Mitel for agent triage: {$emailMessage->id}");
             }
 
             // Mark email as processed
@@ -324,91 +326,12 @@ class ProcessIncomingEmail extends Command
     }
 
     /**
-     * Create a new ticket from email.
+     * Push a not-yet-ticketed email into Mitel as an Open Media interaction so it
+     * rings/screen-pops for an agent. The agent picks department/category on the
+     * email-interaction page and only THEN is the Ticket actually created (see
+     * TicketController::createFromEmail) — this method never creates a Ticket.
      */
-    protected function createTicketFromEmail(EmailMessage $emailMessage, Customer $customer, ?EmailConfiguration $config = null, ?Ticket $previousTicket = null): Ticket
-    {
-        // Use config settings if available, otherwise use defaults
-        $department = $config?->department ?? 'Support';
-        $defaultPriority = $config?->default_priority ?? 'P3';
-        $autoAssign = $config?->auto_assign ?? true;
-
-        // Determine priority based on subject keywords, fallback to config default
-        $priority = $this->determinePriority($emailMessage->subject, $emailMessage->body_text);
-        if ($priority === 'P3' && $defaultPriority !== 'P3') {
-            // If auto-detected priority is default, use config priority
-            $priority = $defaultPriority;
-        }
-
-        // Auto-assign agent if enabled in config
-        $assignedAgent = null;
-        if ($autoAssign) {
-            $assignedAgent = $this->autoAssignAgent($department);
-        }
-
-        // Generate ticket number
-        $ticketNumber = $this->generateTicketNumber('email');
-
-        // Create ticket
-        $ticket = Ticket::create([
-            'ticket_number' => $ticketNumber,
-            'customer_id' => $customer->id,
-            'assigned_to' => $assignedAgent?->id,
-            'priority' => $priority,
-            'department' => $department,
-            'category' => 'Email Request',
-            'subject' => trim(preg_replace('/\s*\[[A-Z]{1,10}-\d{4,8}-\d{3,8}\]/i', '', $emailMessage->subject ?: 'No Subject')) ?: 'No Subject',
-            'description' => $emailMessage->body_text ?: $emailMessage->body_html ?: 'No content',
-            'urgency' => $this->mapPriorityToUrgency($priority),
-            'impact' => 'Medium',
-            'status' => 'Open',
-            'channel' => 'email',
-            'source' => $config ? "IMAP ({$config->name})" : 'IMAP',
-            'case_id' => (string) \Illuminate\Support\Str::uuid(),
-        ]);
-
-        // Calculate SLA
-        $ticket->calculateSla();
-        $ticket->save();
-
-        // Log ticket creation
-        $ticket->logHistory(
-            'created',
-            null,
-            null,
-            null,
-            "Ticket created from email: {$emailMessage->from_email}",
-            [
-                'email_message_id' => $emailMessage->id,
-                'from_email' => $emailMessage->from_email,
-            ]
-        );
-
-        // Log assignment
-        if ($assignedAgent) {
-            $ticket->logHistory(
-                'assigned',
-                'assigned_to',
-                null,
-                $assignedAgent->user->name ?? 'Unknown',
-                "Ticket auto-assigned to " . ($assignedAgent->user->name ?? 'agent'),
-                ['agent_id' => $assignedAgent->id]
-            );
-        }
-
-        // Push to Mitel Ignite so agents receive it in their inbox
-        $this->pushEmailToMitel($ticket, $emailMessage, $config, $previousTicket);
-
-        // Update subject to include ticket number for future replies
-        $this->sendAutoReply($emailMessage, $ticket);
-
-        return $ticket;
-    }
-
-    /**
-     * Create an OpenMedia interaction in Mitel so the email appears in agent inboxes.
-     */
-    protected function pushEmailToMitel(Ticket $ticket, EmailMessage $emailMessage, ?EmailConfiguration $config = null, ?Ticket $previousTicket = null): void
+    protected function pushPendingEmailToMitel(EmailMessage $emailMessage, ?EmailConfiguration $config = null, ?Ticket $previousTicket = null): void
     {
         try {
             $queue = $config?->settings['mitel_queue']
@@ -416,7 +339,7 @@ class ProcessIncomingEmail extends Command
 
             $interactionId = (string) Str::uuid();
             $frontendUrl   = rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/');
-            $targetUri     = "{$frontendUrl}/email-interaction?ticket={$ticket->ticket_number}";
+            $targetUri     = "{$frontendUrl}/email-interaction?pending={$emailMessage->id}";
             // Append previous ticket reference so the agent can see the old thread for context
             if ($previousTicket) {
                 $targetUri .= "&ref={$previousTicket->ticket_number}";
@@ -438,21 +361,20 @@ class ProcessIncomingEmail extends Command
                 from:              $emailMessage->from_name ?: $emailMessage->from_email,
             );
 
-            $interactionId = $result['_interaction_id'] ?? $interactionId;
-            $ticket->mitel_interaction_id = $interactionId;
-            $ticket->save();
+            $emailMessage->mitel_interaction_id = $result['_interaction_id'] ?? $interactionId;
+            $emailMessage->save();
 
-            Log::info('[email:process] Pushed to Mitel queue', [
-                'ticket'         => $ticket->ticket_number,
-                'queue'          => $queue,
-                'interaction_id' => $interactionId,
+            Log::info('[email:process] Pushed pending email to Mitel queue', [
+                'email_message_id' => $emailMessage->id,
+                'queue'            => $queue,
+                'interaction_id'   => $emailMessage->mitel_interaction_id,
             ]);
         } catch (\Exception $e) {
-            Log::error('[email:process] Failed to push email to Mitel', [
-                'ticket' => $ticket->ticket_number,
-                'error'  => $e->getMessage(),
+            Log::error('[email:process] Failed to push pending email to Mitel', [
+                'email_message_id' => $emailMessage->id,
+                'error'            => $e->getMessage(),
             ]);
-            // Non-fatal: ticket was created; just won't appear in Ignite immediately
+            // Non-fatal: the email is stored; it just won't appear in Ignite immediately
         }
     }
 
@@ -473,97 +395,6 @@ class ProcessIncomingEmail extends Command
                 'email_body' => substr($emailMessage->body_text ?: $emailMessage->body_html, 0, 500),
             ]
         );
-    }
-
-    /**
-     * Determine priority from email content.
-     */
-    protected function determinePriority(?string $subject, ?string $body): string
-    {
-        $urgentKeywords = ['urgent', 'critical', 'emergency', 'asap', 'immediately', 'high priority'];
-        $text = strtolower(($subject ?? '') . ' ' . ($body ?? ''));
-
-        foreach ($urgentKeywords as $keyword) {
-            if (strpos($text, $keyword) !== false) {
-                return 'P1';
-            }
-        }
-
-        return 'P3'; // Default priority
-    }
-
-    /**
-     * Map priority to urgency.
-     */
-    protected function mapPriorityToUrgency(string $priority): string
-    {
-        return match($priority) {
-            'P1' => 'Critical',
-            'P2' => 'High',
-            'P3' => 'Medium',
-            'P4' => 'Low',
-            default => 'Medium',
-        };
-    }
-
-    /**
-     * Auto-assign an available agent.
-     */
-    protected function autoAssignAgent(?string $department = null): ?Agent
-    {
-        // Try department match first
-        if ($department) {
-            $agent = Agent::where('status', 'active')
-                ->where('department', $department)
-                ->where('availability', 'available')
-                ->first();
-            if ($agent) return $agent;
-
-            // Department match without availability filter (any active agent in dept)
-            $agent = Agent::where('status', 'active')
-                ->where('department', $department)
-                ->first();
-            if ($agent) return $agent;
-        }
-
-        // Fallback: any active available agent
-        return Agent::where('status', 'active')
-            ->where('availability', 'available')
-            ->first()
-            // Last resort: any active agent
-            ?? Agent::where('status', 'active')->first();
-    }
-
-    /**
-     * Generate ticket number.
-     */
-    protected function generateTicketNumber(string $channel): string
-    {
-        try {
-            $sequenceName = $channel === 'walk-in' ? 'walkIn' : $channel;
-            return \App\Models\TicketNumberSequence::generateNextNumber($sequenceName);
-        } catch (\Exception $e) {
-            Log::error('Ticket number generation failed: ' . $e->getMessage());
-
-            // Fallback
-            do {
-                $number = 'TKT' . date('Ymd') . strtoupper(\Illuminate\Support\Str::random(6));
-            } while (Ticket::where('ticket_number', $number)->exists());
-
-            return $number;
-        }
-    }
-
-    /**
-     * Send auto-reply to customer with ticket number.
-     */
-    protected function sendAutoReply(EmailMessage $emailMessage, Ticket $ticket): void
-    {
-        // TODO: Implement auto-reply email functionality
-        // This would use Laravel's Mail facade to send a confirmation email
-        // with the ticket number to the customer
-
-        Log::info("Auto-reply should be sent to {$emailMessage->from_email} for ticket {$ticket->ticket_number}");
     }
 
     /**

@@ -430,6 +430,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/notifications', [NotificationController::class, 'clearAll']);
 
         // Email Ticket Management
+        Route::get('/tickets/pending-email/{emailMessageId}', [TicketController::class, 'pendingEmail']);
         Route::post('/tickets/from-email', [TicketController::class, 'createFromEmail']);
         
         // Menu Management

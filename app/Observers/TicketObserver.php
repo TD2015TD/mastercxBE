@@ -36,10 +36,13 @@ class TicketObserver
             });
         }
 
-        // For email-channel tickets the Mitel interaction is created by
-        // ProcessIncomingEmail::pushEmailToMitel (which saves mitel_interaction_id).
-        // Creating a second interaction here would leave an unclosed duplicate in
-        // the Mitel queue and cause the "Abandoned" status in Ignite History.
+        // For email-channel tickets the Mitel interaction already exists by the time
+        // the Ticket is created: ProcessIncomingEmail::pushPendingEmailToMitel pushes
+        // it against the EmailMessage as soon as the email arrives, and
+        // TicketController::createFromEmail transfers that mitel_interaction_id onto
+        // the Ticket once an agent confirms it. Creating a second interaction here
+        // would leave an unclosed duplicate in the Mitel queue and cause the
+        // "Abandoned" status in Ignite History.
         // TicketObserver::updated still handles closing when the ticket is resolved.
     }
 

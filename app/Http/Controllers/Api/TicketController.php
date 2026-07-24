@@ -1333,19 +1333,22 @@ class TicketController extends Controller
     }
 
     /**
-     * Create ticket from email message.
-     * This is an internal method used by the email processing service.
+     * Create a ticket from a pending (not-yet-ticketed) email message.
+     *
+     * Incoming emails are pushed to Mitel as a pending Open Media interaction
+     * (see ProcessIncomingEmail::pushPendingEmailToMitel) WITHOUT creating a
+     * Ticket. The agent who accepts that interaction in Ignite lands on the
+     * email-interaction page, picks a department/category there, and this is
+     * the endpoint that actually creates the Ticket — the agent cannot reply
+     * to the email until this succeeds.
      */
     public function createFromEmail(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email_message_id' => 'required|exists:email_messages,id',
-            'customer_id' => 'required|exists:customers,id',
-            'subject' => 'required|string|max:255',
-            'description' => 'required|string',
+            'department' => 'required|string|max:100',
+            'category' => 'required|string|max:100',
             'priority' => 'nullable|in:P1,P2,P3,P4',
-            'department' => 'nullable|string|max:100',
-            'assigned_to' => 'nullable|exists:agents,id',
         ]);
 
         if ($validator->fails()) {
@@ -1355,47 +1358,40 @@ class TicketController extends Controller
             ], 422);
         }
 
+        $emailMessage = \App\Models\EmailMessage::find($request->email_message_id);
+
+        if ($emailMessage->ticket_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A ticket already exists for this email.',
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 
-            $data = $validator->validated();
+            $priority = $request->input('priority', 'P3');
 
-            // Set defaults for email-originated tickets
-            $data['priority'] = $data['priority'] ?? 'P3';
-            $data['department'] = $data['department'] ?? 'Support';
-            $data['category'] = 'Email Request';
-            $data['channel'] = 'email';
-            $data['source'] = 'IMAP';
-            $data['urgency'] = $this->mapPriorityToUrgency($data['priority']);
-            $data['impact'] = 'Medium';
-            // Auto-close on creation
-            $data['status'] = 'Closed';
-            $data['closed_at'] = now()->toDateTimeString();
+            $ticket = Ticket::create([
+                'ticket_number' => $this->generateTicketNumber('email'),
+                'customer_id' => $emailMessage->customer_id,
+                'assigned_to' => auth()->user()->agent->id ?? null,
+                'mitel_interaction_id' => $emailMessage->mitel_interaction_id,
+                'priority' => $priority,
+                'department' => $request->input('department'),
+                'category' => $request->input('category'),
+                'subject' => trim(preg_replace('/\s*\[[A-Z]{1,10}-\d{4,8}-\d{3,8}\]/i', '', $emailMessage->subject ?: 'No Subject')) ?: 'No Subject',
+                'description' => $emailMessage->body_text ?: $emailMessage->body_html ?: 'No content',
+                'urgency' => $this->mapPriorityToUrgency($priority),
+                'impact' => 'Medium',
+                'status' => 'Open',
+                'channel' => 'email',
+                'source' => 'IMAP',
+            ]);
 
-            // Generate ticket number
-            $data['ticket_number'] = $this->generateTicketNumber('email');
+            $emailMessage->ticket_id = $ticket->id;
+            $emailMessage->markAsProcessed();
 
-            // Auto-assign if not provided
-            if (!isset($data['assigned_to']) || !$data['assigned_to']) {
-                $data['assigned_to'] = $this->autoAssignAgent($data['department']);
-            }
-
-            // Set case_id from the email message's message_id
-            $emailMessageForCase = \App\Models\EmailMessage::find($request->email_message_id);
-            if ($emailMessageForCase) {
-                $data['case_id'] = $emailMessageForCase->message_id;
-            }
-
-            $ticket = Ticket::create($data);
-
-            // Update email message with ticket ID
-            $emailMessage = $emailMessageForCase;
-            if ($emailMessage) {
-                $emailMessage->ticket_id = $ticket->id;
-                $emailMessage->markAsProcessed();
-            }
-
-            // Log ticket creation
             $ticket->logHistory(
                 'created',
                 null,
@@ -1403,12 +1399,11 @@ class TicketController extends Controller
                 null,
                 "Ticket created from email message",
                 [
-                    'email_message_id' => $request->email_message_id,
+                    'email_message_id' => $emailMessage->id,
                     'from_email' => $emailMessage->from_email ?? 'Unknown',
                 ]
             );
 
-            // Log assignment if assigned
             if ($ticket->assigned_to) {
                 $agent = Agent::with('user')->find($ticket->assigned_to);
                 $ticket->logHistory(
@@ -1421,7 +1416,6 @@ class TicketController extends Controller
                 );
             }
 
-            // Calculate SLA
             $ticket->calculateSla();
             $ticket->save();
 
@@ -1443,6 +1437,36 @@ class TicketController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Fetch a pending (not-yet-ticketed) email's summary for the triage picker
+     * on the email-interaction page — subject/from/body preview plus whether
+     * a ticket has already been created for it (race with another agent).
+     */
+    public function pendingEmail(string $emailMessageId)
+    {
+        $emailMessage = \App\Models\EmailMessage::with('customer')->find($emailMessageId);
+
+        if (!$emailMessage) {
+            return response()->json(['success' => false, 'message' => 'Email not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $emailMessage->id,
+                'ticket_id' => $emailMessage->ticket_id,
+                'ticket_number' => $emailMessage->ticket?->ticket_number,
+                'subject' => $emailMessage->subject,
+                'from_email' => $emailMessage->from_email,
+                'from_name' => $emailMessage->from_name,
+                'body_text' => $emailMessage->body_text,
+                'body_html' => $emailMessage->body_html,
+                'received_at' => $emailMessage->received_at,
+                'customer' => $emailMessage->customer,
+            ],
+        ]);
     }
 
     /**

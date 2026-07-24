@@ -20,6 +20,7 @@ class EmailMessage extends Model
         'body_html',
         'received_at',
         'ticket_id',
+        'mitel_interaction_id',
         'customer_id',
         'is_processed',
         'processed_at',
