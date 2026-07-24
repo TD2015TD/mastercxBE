@@ -225,6 +225,10 @@ class ChatbotEscalationController extends Controller
 
         $session = ChatbotSession::where('interaction_id', $interactionId)->first();
 
+        // Department/category selected by the agent in the ticket-form panel before ending the chat.
+        $department = $request->input('department');
+        $category   = $request->input('category');
+
         if ($session) {
             $updateData = ['status' => 'closed'];
             $chatHistory = $request->input('chat_history');
@@ -238,15 +242,22 @@ class ChatbotEscalationController extends Controller
                 $updateData['chat_history'] = $chatHistory;
             }
             $session->update($updateData);
-            $this->autoCreateTicket($session);
+            $this->autoCreateTicket($session, $department, $category);
 
-            // If ticket already existed (Python beat us) and we now have history, patch its description
-            if ($chatHistory && is_array($chatHistory) && count($chatHistory) > 0) {
-                $existingTicket = \App\Models\Ticket::where('case_id', $interactionId)->first();
-                if ($existingTicket && !str_contains((string) $existingTicket->description, '--- Transkrip Chat ---')) {
+            // If ticket already existed (Python beat us), patch in whatever we now have
+            $existingTicket = \App\Models\Ticket::where('case_id', $interactionId)->first();
+            if ($existingTicket) {
+                if ($chatHistory && is_array($chatHistory) && count($chatHistory) > 0
+                    && !str_contains((string) $existingTicket->description, '--- Transkrip Chat ---')) {
                     $existingTicket->description .= $this->formatTranscript($chatHistory);
-                    $existingTicket->save();
                 }
+                if ($department) {
+                    $existingTicket->department = $department;
+                }
+                if ($category) {
+                    $existingTicket->category = $category;
+                }
+                $existingTicket->save();
             }
         }
 
@@ -292,7 +303,7 @@ class ChatbotEscalationController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function autoCreateTicket(ChatbotSession $session): void
+    private function autoCreateTicket(ChatbotSession $session, ?string $department = null, ?string $category = null): void
     {
         // Skip if a ticket already exists for this interaction (idempotency guard).
         if (Ticket::where('case_id', $session->interaction_id)->exists()) {
@@ -375,8 +386,8 @@ class ChatbotEscalationController extends Controller
                 'subject'         => 'Live Chat: ' . $topic,
                 'description'     => $description,
                 'channel'         => 'chat',
-                'department'      => config('services.chat.default_department', 'Perkhidmatan Pelanggan'),
-                'category'        => $topic,
+                'department'      => $department ?: config('services.chat.default_department', 'Perkhidmatan Pelanggan'),
+                'category'        => $category ?: $topic,
                 'sub_category'    => 'Live Chat',
                 'priority'        => 'P3',
                 'urgency'         => 'Medium',
