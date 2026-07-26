@@ -1470,6 +1470,17 @@ class TicketController extends Controller
     }
 
     /**
+     * Percent-encode each path segment of a stored email attachment path so
+     * special characters (e.g. a leftover "?" from an undecoded MIME-encoded
+     * filename) can't be misread by the browser as the start of a query
+     * string, truncating the request and causing a 404.
+     */
+    private function encodeAttachmentPathForUrl(string $path): string
+    {
+        return implode('/', array_map('rawurlencode', explode('/', $path)));
+    }
+
+    /**
      * Map priority to urgency level.
      */
     private function mapPriorityToUrgency(string $priority): string
@@ -1639,7 +1650,7 @@ class TicketController extends Controller
                     'attachments' => collect($m->attachments ?? [])->map(function ($att) {
                         if (!empty($att['path'])) {
                             $att['url'] = rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/')
-                                . '/storage/' . $att['path'];
+                                . '/storage/' . $this->encodeAttachmentPathForUrl($att['path']);
                         }
                         return $att;
                     })->values()->all(),

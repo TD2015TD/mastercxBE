@@ -480,19 +480,40 @@ class ImapEmailService
 
         foreach ($part->dparameters as $param) {
             if (strtolower($param->attribute) == 'filename') {
-                return imap_utf8($param->value);
+                return $this->decodeMimeFilename($param->value);
             }
         }
 
         if (isset($part->parameters)) {
             foreach ($part->parameters as $param) {
                 if (strtolower($param->attribute) == 'name') {
-                    return imap_utf8($param->value);
+                    return $this->decodeMimeFilename($param->value);
                 }
             }
         }
 
         return null;
+    }
+
+    /**
+     * Decode an RFC 2047 encoded-word filename (e.g. "=?UTF-8?B?...?="). Some
+     * senders/relays double-encode the value, so keep decoding until it stops
+     * changing rather than assuming a single imap_utf8() pass is enough —
+     * a leftover encoded-word breaks the attachment URL later (its "?" gets
+     * parsed as the start of a query string).
+     */
+    protected function decodeMimeFilename(string $value): string
+    {
+        $decoded = $value;
+        for ($i = 0; $i < 5; $i++) {
+            $next = @imap_utf8($decoded);
+            if ($next === false || $next === $decoded) {
+                break;
+            }
+            $decoded = $next;
+        }
+
+        return $decoded;
     }
 
     /**
@@ -521,15 +542,37 @@ class ImapEmailService
     protected function storeAttachment(string $filename, string $data): array
     {
         $directory = 'email_attachments/' . date('Y/m/d');
-        $uniqueFilename = time() . '_' . $filename;
+        $uniqueFilename = time() . '_' . $this->sanitizeFilenameForPath($filename);
         $path = $directory . '/' . $uniqueFilename;
 
         Storage::disk('public')->put($path, $data);
 
         return [
             'path' => $path,
-            'url'  => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $path,
+            'url'  => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $this->encodePathForUrl($path),
         ];
+    }
+
+    /**
+     * Strip characters that would corrupt a URL or filesystem path, regardless
+     * of how well the filename was decoded (defense in depth).
+     */
+    protected function sanitizeFilenameForPath(string $filename): string
+    {
+        $filename = str_replace(['/', '\\'], '_', $filename);
+        $filename = preg_replace('/[?#%\x00-\x1F]/', '_', $filename);
+
+        return $filename !== '' && $filename !== null ? $filename : 'attachment';
+    }
+
+    /**
+     * Percent-encode each path segment so special characters in the filename
+     * can't be misread by the browser (e.g. an unencoded "?" truncating the
+     * request path into a query string).
+     */
+    protected function encodePathForUrl(string $path): string
+    {
+        return implode('/', array_map('rawurlencode', explode('/', $path)));
     }
 
     /**

@@ -116,7 +116,7 @@ class RawEmailParserService
             $data = $stream ? $stream->getContents() : '';
 
             $directory = 'email_attachments/' . date('Y/m/d');
-            $uniqueFilename = time() . '_' . $filename;
+            $uniqueFilename = time() . '_' . self::sanitizeFilenameForPath($filename);
             $path = $directory . '/' . $uniqueFilename;
 
             Storage::disk('public')->put($path, $data);
@@ -124,7 +124,7 @@ class RawEmailParserService
             $attachments[] = [
                 'filename' => $filename,
                 'path' => $path,
-                'url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $path,
+                'url' => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . self::encodePathForUrl($path),
                 'size' => strlen($data),
                 'mime_type' => $part->getContentType(),
                 'content_id' => $part->getContentId(),
@@ -132,6 +132,29 @@ class RawEmailParserService
         }
 
         return $attachments;
+    }
+
+    /**
+     * Strip characters that would corrupt a URL or filesystem path (defense
+     * in depth alongside ImapEmailService's identical helper — a "?" left in
+     * a stored path breaks the attachment URL by truncating it into a query
+     * string when the browser follows the link).
+     */
+    private static function sanitizeFilenameForPath(string $filename): string
+    {
+        $filename = str_replace(['/', '\\'], '_', $filename);
+        $filename = preg_replace('/[?#%\x00-\x1F]/', '_', $filename);
+
+        return $filename !== '' && $filename !== null ? $filename : 'attachment';
+    }
+
+    /**
+     * Percent-encode each path segment so special characters in the filename
+     * can't be misread by the browser.
+     */
+    private static function encodePathForUrl(string $path): string
+    {
+        return implode('/', array_map('rawurlencode', explode('/', $path)));
     }
 
     /**
