@@ -60,7 +60,23 @@ Route::prefix('v1')->group(function () {
         // Public Ticket APIs
         Route::post('/tickets', [PublicTicketController::class, 'submitTicket']);
         Route::post('/tickets/track', [PublicTicketController::class, 'trackTicket']);
-        
+
+        // Mitel Ignite embedded triage screen (token-authenticated, see EmbedTokenService)
+        Route::get('/pending-emails/{emailMessageId}', [PublicTicketController::class, 'getPendingEmail']);
+        Route::post('/pending-emails/create-ticket', [PublicTicketController::class, 'createTicketFromPendingEmail']);
+
+        // Mitel Ignite embedded full ticket view (token-authenticated) — used once a
+        // ticket already exists, so the same iframe can view/reply/close without ever
+        // hitting the normal JWT-authenticated /tickets/* routes (which 401 in this
+        // cross-origin embed and bounce the whole iframe to /agent-login).
+        Route::get('/tickets/{ticketNumber}/email-thread', [PublicTicketController::class, 'getTicketThread']);
+        Route::post('/tickets/{ticketNumber}/triage', [PublicTicketController::class, 'updateTicketTriage']);
+        Route::post('/tickets/{ticketNumber}/reply-email', [PublicTicketController::class, 'sendTicketReply']);
+        Route::post('/tickets/{ticketNumber}/close', [PublicTicketController::class, 'closeTicket']);
+        Route::post('/tickets/{ticketNumber}/mitel-ping', [PublicTicketController::class, 'ticketMitelPing']);
+        Route::post('/tickets/{ticketNumber}/mitel-end-conversation', [PublicTicketController::class, 'ticketMitelEndConversation']);
+        Route::post('/email/upload-inline-image', [PublicTicketController::class, 'uploadInlineImage']);
+
         // Authenticated Citizen Routes (requires session token)
         Route::middleware('citizen.session')->group(function () {
             Route::get('/tickets/my-tickets', [PublicTicketController::class, 'getMyTickets']);
@@ -359,6 +375,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/reports/ticket-volume', [ReportController::class, 'getTicketVolumeMetrics']);
         Route::get('/reports/sla-compliance', [ReportController::class, 'getSlaComplianceMetrics']);
         Route::get('/reports/customer-satisfaction', [ReportController::class, 'getCustomerSatisfactionMetrics']);
+        Route::get('/reports/all-tickets', [ReportController::class, 'getAllTicketsReport']);
+        Route::get('/reports/tickets-per-agent', [ReportController::class, 'getTicketsPerAgentReport']);
+        Route::get('/reports/interactions-vs-ticket', [ReportController::class, 'getInteractionsVsTicketReport']);
+        Route::get('/reports/channel-summary', [ReportController::class, 'getChannelSummaryReport']);
         
         // Dashboards
         Route::get('/dashboard/agent', [DashboardController::class, 'agentDashboard']);

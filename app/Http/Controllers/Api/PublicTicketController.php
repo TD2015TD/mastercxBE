@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agent;
+use App\Models\EmailMessage;
 use App\Models\Ticket;
+use App\Models\TicketNumberSequence;
 use App\Models\Customer;
 use App\Models\TicketHistory;
 use App\Models\TicketAttachment;
+use App\Services\EmbedTokenService;
+use App\Services\TicketConversationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -512,5 +517,309 @@ class PublicTicketController extends Controller
                 'message' => 'Failed to retrieve tickets',
             ], 500);
         }
+    }
+
+    /**
+     * Fetch a not-yet-ticketed email for the Mitel Ignite embedded triage screen.
+     * Token-authenticated instead of session-authenticated — the embedding iframe
+     * (Ignite's OpenMedia targetUri) is a separate, usually storage-partitioned
+     * browsing context that can't see the agent's normal CX Suite login.
+     */
+    public function getPendingEmail(Request $request, string $emailMessageId)
+    {
+        $emailId = EmbedTokenService::validate((string) $request->query('token'), 'pending_email');
+
+        if ($emailId === null || $emailId !== (int) $emailMessageId) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 401);
+        }
+
+        $emailMessage = EmailMessage::find($emailId);
+
+        if (!$emailMessage) {
+            return response()->json(['success' => false, 'message' => 'Email not found.'], 404);
+        }
+
+        if ($emailMessage->ticket_id) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'already_ticketed' => true,
+                    'ticket_id'         => $emailMessage->ticket_id,
+                    'embed_token'       => EmbedTokenService::generate('ticket', $emailMessage->ticket_id),
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'already_ticketed' => false,
+                'id' => $emailMessage->id,
+                'from_email' => $emailMessage->from_email,
+                'from_name' => $emailMessage->from_name,
+                'subject' => $emailMessage->subject,
+                'body_text' => $emailMessage->body_text,
+                'received_at' => $emailMessage->received_at,
+            ],
+        ]);
+    }
+
+    /**
+     * Create a ticket from a pending email via the embedded triage screen. Same shape
+     * as TicketController::createFromEmail, except attribution: there's no session here
+     * to say which agent is doing this (any available agent in Mitel's queue could be the
+     * one who claimed it), so the ticket is auto-assigned by department/availability
+     * instead of set to auth()->user()->agent.
+     */
+    public function createTicketFromPendingEmail(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+            'department' => 'required|string|max:100',
+            'category' => 'required|string|max:100',
+            'priority' => 'nullable|in:P1,P2,P3,P4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $emailId = EmbedTokenService::validate($request->input('token'), 'pending_email');
+
+        if ($emailId === null) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 401);
+        }
+
+        $emailMessage = EmailMessage::find($emailId);
+
+        if (!$emailMessage) {
+            return response()->json(['success' => false, 'message' => 'Email not found.'], 404);
+        }
+
+        if ($emailMessage->ticket_id) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ticket_id'   => $emailMessage->ticket_id,
+                    'embed_token' => EmbedTokenService::generate('ticket', $emailMessage->ticket_id),
+                ],
+            ]);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $priority = $request->input('priority', 'P3');
+            $department = $request->input('department');
+
+            $assignedTo = Agent::where('department', $department)
+                ->where('availability', 'available')
+                ->where('status', 'active')
+                ->value('id')
+                ?? Agent::where('availability', 'available')->where('status', 'active')->value('id');
+
+            $ticket = Ticket::create([
+                'ticket_number' => TicketNumberSequence::generateNextNumber('email'),
+                'customer_id' => $emailMessage->customer_id,
+                'assigned_to' => $assignedTo,
+                'mitel_interaction_id' => $emailMessage->mitel_interaction_id,
+                'priority' => $priority,
+                'department' => $department,
+                'category' => $request->input('category'),
+                'subject' => trim(preg_replace('/\s*\[[A-Z]{1,10}-\d{4,8}-\d{3,8}\]/i', '', $emailMessage->subject ?: 'No Subject')) ?: 'No Subject',
+                'description' => $emailMessage->body_text ?: $emailMessage->body_html ?: 'No content',
+                'urgency' => match ($priority) {
+                    'P1' => 'Critical', 'P2' => 'High', 'P3' => 'Medium', 'P4' => 'Low', default => 'Medium',
+                },
+                'impact' => 'Medium',
+                'status' => 'Open',
+                'channel' => 'email',
+                'source' => 'IMAP',
+            ]);
+
+            $emailMessage->ticket_id = $ticket->id;
+            $emailMessage->markAsProcessed();
+
+            $ticket->logHistory(
+                'created',
+                null,
+                null,
+                null,
+                'Ticket created from email message (embedded triage)',
+                ['email_message_id' => $emailMessage->id, 'from_email' => $emailMessage->from_email ?? 'Unknown']
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'ticket_id'     => $ticket->id,
+                    'ticket_number' => $ticket->ticket_number,
+                    'embed_token'   => EmbedTokenService::generate('ticket', $ticket->id),
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to create ticket from pending email (embedded triage)', [
+                'email_message_id' => $emailId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Failed to create ticket.'], 500);
+        }
+    }
+
+    // ── Full ticket view (thread + reply + hangup detection), token-authenticated ──
+    //
+    // Backs the SAME Mitel Ignite embedded iframe once a ticket already exists —
+    // either because the triage step just created one, or because the email was
+    // already ticketed before the agent accepted the interaction. Without these,
+    // the frontend would fall back to the normal JWT-authenticated /tickets/* routes,
+    // which 401 in this cross-origin iframe and bounce the whole embed to /agent-login.
+
+    private function resolveTicketByToken(Request $request, string $ticketNumber): array
+    {
+        $token = (string) ($request->query('token') ?? $request->input('token'));
+        $tokenTicketId = EmbedTokenService::validate($token, 'ticket');
+
+        if ($tokenTicketId === null) {
+            return [null, response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 401)];
+        }
+
+        $ticket = Ticket::where(function ($q) use ($ticketNumber) {
+            $q->where('ticket_number', $ticketNumber);
+            if (is_numeric($ticketNumber)) {
+                $q->orWhere('id', (int) $ticketNumber);
+            }
+        })->first();
+
+        if (!$ticket || $ticket->id !== $tokenTicketId) {
+            return [null, response()->json(['success' => false, 'message' => 'Ticket not found or token mismatch.'], 401)];
+        }
+
+        return [$ticket, null];
+    }
+
+    public function getTicketThread(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        $data = app(TicketConversationService::class)->getThreadData($ticket, $request->query('ref'));
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
+    public function sendTicketReply(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        $request->validate([
+            'body'          => 'required|string',
+            'to'            => 'nullable|email',
+            'attachments'   => 'nullable|array',
+            'attachments.*' => 'file|max:20480',
+        ]);
+
+        $agentName = $ticket->assignedAgent?->user?->name ?? $ticket->assignedAgent?->name ?? '';
+
+        $result = app(TicketConversationService::class)->sendReply(
+            $ticket,
+            $request->input('body'),
+            $request->input('to'),
+            $request->hasFile('attachments') ? $request->file('attachments') : [],
+            $agentName
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Re-confirm/change department + category on an already-existing ticket.
+     * Shown every time an agent accepts an email in Ignite — even for a ticket
+     * that already has these set — so triage stays a deliberate step, not a
+     * one-time-only assignment baked in at creation.
+     */
+    public function updateTicketTriage(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        $validator = Validator::make($request->all(), [
+            'department' => 'required|string|max:100',
+            'category'   => 'required|string|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $oldDepartment = $ticket->department;
+        $oldCategory   = $ticket->category;
+        $newDepartment = $request->input('department');
+        $newCategory   = $request->input('category');
+
+        if ($oldDepartment !== $newDepartment || $oldCategory !== $newCategory) {
+            $ticket->update(['department' => $newDepartment, 'category' => $newCategory]);
+            $ticket->logHistory(
+                'updated',
+                'department/category',
+                "{$oldDepartment} / {$oldCategory}",
+                "{$newDepartment} / {$newCategory}",
+                'Department/category confirmed on accept (embedded triage)'
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['department' => $ticket->department, 'category' => $ticket->category],
+        ]);
+    }
+
+    public function closeTicket(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        return app(TicketController::class)->close((string) $ticket->id);
+    }
+
+    public function ticketMitelPing(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        return app(TicketController::class)->mitelPing($request, (string) $ticket->id);
+    }
+
+    public function ticketMitelEndConversation(Request $request, string $ticketNumber)
+    {
+        [$ticket, $errorResponse] = $this->resolveTicketByToken($request, $ticketNumber);
+        if ($errorResponse) return $errorResponse;
+
+        return app(TicketController::class)->mitelEndConversation($request, (string) $ticket->id);
+    }
+
+    /**
+     * Inline image upload for the compose box toolbar — reachable while replying
+     * to a ticket in the embedded iframe, so it needs the same token gate (any
+     * valid embed token proves the caller reached this legitimately; the upload
+     * itself isn't ticket-scoped data, just abuse-prevention).
+     */
+    public function uploadInlineImage(Request $request)
+    {
+        $token = (string) $request->input('token');
+        if (EmbedTokenService::validate($token, 'ticket') === null) {
+            return response()->json(['success' => false, 'message' => 'Invalid or expired link.'], 401);
+        }
+
+        $request->validate(['image' => 'required|file|image|max:10240']);
+        $file = $request->file('image');
+        $path = $file->store('email_attachments/inline/' . date('Y/m/d'), 'public');
+        $url  = rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $path;
+
+        return response()->json(['success' => true, 'url' => $url]);
     }
 }

@@ -56,6 +56,8 @@ return [
         'tblData_AgentPerformanceByPeriod',
         'tblData_QueuePerformanceByPeriod',
         'tblData_AgentEvents',
+        'tblData_MCC_QueuePerformanceByPeriod', // Email/Chat queue Offered/Handled/Abandoned
+        'tblData_QueueSpectrumByPeriod', // Voice queue Ringing/Answer/Talk/Abandon call counts
         'tblData_InboundTrace',
         'tblData_OutboundTrace',
         'tblData_AgentTraceEvents',
@@ -301,6 +303,7 @@ return [
                 'AgentTransferCount' => 'agent_transfer_count',
                 'AgentConferenceCount' => 'agent_conference_count',
                 'AgentAbandonCount' => 'agent_abandoned_count', // Note: "abandoned" not "abandon"
+                'AgentTimeToAbandon' => 'agent_time_to_abandon',
             ],
             'transformations' => [
                 // Combine MidnightStartDate + IntervalStartTime_raw to create full timestamp
@@ -548,7 +551,61 @@ return [
                 'FKAgent' => 'agent_id',
                 'MidnightStartDate' => 'event_date',
                 'EventType' => 'event_type',
-                'Duration' => 'duration',
+                // Note: no generic "Duration" column on this source table — ShiftDuration below is the
+                // per-row shift length. Kept as a separate mapped field for backward compatibility.
+                'LoginTime' => 'login_time',
+                'LogoutTime' => 'logout_time',
+                'ShiftDuration' => 'shift_duration',
+                'WrapUpDuration' => 'wrap_up_duration',
+                'ACDCount' => 'acd_count',
+                'ACDDuration' => 'acd_duration',
+                'MakeBusyDuration' => 'make_busy_duration',
+            ],
+        ],
+
+        'tblData_MCC_QueuePerformanceByPeriod' => [
+            'source_table' => 'tblData_MCC_QueuePerformanceByPeriod',
+            'target_table' => 'mitel_data_mcc_queue_performance',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'DateKey',
+            'column_map' => [
+                'Pkey' => 'id',
+                'FKQueue' => 'queue_id',
+                'DateKey' => 'date_key_raw',
+                'Offered' => 'offered',
+                'DeliveredToQueue' => 'delivered_to_queue',
+                'ServiceCount' => 'service_count',
+                'CompletedCount' => 'completed_count',
+                'CompletedTimeToAnswer' => 'completed_time_to_answer',
+                'CompletedDuration' => 'completed_duration',
+                'ShortAbandon' => 'short_abandon',
+                'LongAbandon' => 'long_abandon',
+                'TimeToAbandon' => 'time_to_abandon',
+            ],
+            'transformations' => [
+                // DateKey arrives as an int like 20260512 — convert to a real date.
+                'period_date' => function ($data) {
+                    $raw = (string) ($data['date_key_raw'] ?? '');
+                    if (strlen($raw) !== 8) {
+                        return null;
+                    }
+                    return substr($raw, 0, 4) . '-' . substr($raw, 4, 2) . '-' . substr($raw, 6, 2);
+                },
+            ],
+            'cleanup_columns' => ['date_key_raw'],
+        ],
+
+        'tblData_QueueSpectrumByPeriod' => [
+            'source_table' => 'tblData_QueueSpectrumByPeriod',
+            'target_table' => 'mitel_data_queue_spectrum',
+            'unique_key' => 'Pkey',
+            'timestamp_column' => 'MidnightStartDate',
+            'column_map' => [
+                'Pkey' => 'id',
+                'FKQueue' => 'queue_id',
+                'MidnightStartDate' => 'period_date',
+                'FKSpectrumType' => 'spectrum_type_id',
+                'TotalCalls' => 'total_calls',
             ],
         ],
 

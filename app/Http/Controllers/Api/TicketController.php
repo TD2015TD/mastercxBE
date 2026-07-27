@@ -175,8 +175,16 @@ class TicketController extends Controller
 
             $data = $validator->validated();
 
-            // Default priority if not provided
-            $data['priority'] = $data['priority'] ?? 'P3';
+            // Priority Matrix: when both urgency and impact are supplied, derive priority from
+            // them (Impact x Urgency matrix) rather than a manually picked value — that's the
+            // whole point of the matrix existing. Falls back to manual/P3 when either is missing.
+            if (!empty($data['urgency']) && !empty($data['impact'])) {
+                $matrixTicket = new Ticket(['urgency' => $data['urgency'], 'impact' => $data['impact']]);
+                $matrixTicket->calculatePriority();
+                $data['priority'] = $matrixTicket->priority;
+            } else {
+                $data['priority'] = $data['priority'] ?? 'P3';
+            }
 
             // Auto-close ticket immediately upon creation
             $data['status'] = 'Closed';
@@ -367,6 +375,25 @@ class TicketController extends Controller
                         'old' => $ticket->{$field},
                         'new' => $newValue
                     ];
+                }
+            }
+
+            // Priority Matrix: if urgency and/or impact are changing, and both end up known,
+            // recompute priority from the matrix — overrides any manually-supplied priority in
+            // the same request, same rule as ticket creation.
+            $effectiveUrgency = $data['urgency'] ?? $ticket->urgency;
+            $effectiveImpact = $data['impact'] ?? $ticket->impact;
+            if ((isset($data['urgency']) || isset($data['impact'])) && !empty($effectiveUrgency) && !empty($effectiveImpact)) {
+                $matrixTicket = new Ticket(['urgency' => $effectiveUrgency, 'impact' => $effectiveImpact]);
+                $matrixTicket->calculatePriority();
+                $data['priority'] = $matrixTicket->priority;
+
+                // Keep the audit-log entry in sync with the matrix-derived value, not whatever
+                // priority (if any) was originally submitted in the request.
+                if ($data['priority'] != $ticket->priority) {
+                    $changes['priority'] = ['old' => $ticket->priority, 'new' => $data['priority']];
+                } else {
+                    unset($changes['priority']);
                 }
             }
 
@@ -1629,8 +1656,7 @@ class TicketController extends Controller
     public function emailThread(Request $request, string $ticketNumber): JsonResponse
     {
         try {
-            $ticket = Ticket::with(['customer', 'assignedAgent.user'])
-                ->where(function ($q) use ($ticketNumber) {
+            $ticket = Ticket::where(function ($q) use ($ticketNumber) {
                     $q->where('ticket_number', $ticketNumber);
                     if (is_numeric($ticketNumber)) {
                         $q->orWhere('id', (int) $ticketNumber);
@@ -1638,76 +1664,10 @@ class TicketController extends Controller
                 })
                 ->firstOrFail();
 
-            $mapMessages = fn ($query) => $query->orderBy('received_at', 'asc')->get()
-                ->map(fn ($m) => [
-                    'id'          => $m->id,
-                    'from_email'  => $m->from_email,
-                    'from_name'   => $m->from_name,
-                    'to_email'    => $m->to_email,
-                    'subject'     => $m->subject,
-                    'body_text'   => $m->body_text,
-                    'body_html'   => $m->body_html,
-                    'attachments' => collect($m->attachments ?? [])->map(function ($att) {
-                        if (!empty($att['path'])) {
-                            $att['url'] = rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/')
-                                . '/storage/' . $this->encodeAttachmentPathForUrl($att['path']);
-                        }
-                        return $att;
-                    })->values()->all(),
-                    'received_at' => $m->received_at?->toISOString(),
-                    'direction'   => $m->direction ?? 'inbound',
-                ]);
+            $data = app(\App\Services\TicketConversationService::class)
+                ->getThreadData($ticket, $request->query('ref'));
 
-            $messages = $mapMessages(EmailMessage::where('ticket_id', $ticket->id));
-
-            // If a previous (closed) ticket reference is provided, load its messages
-            // so the agent can see the full context in the same iframe view.
-            $previousTicketData = null;
-            $previousMessages   = [];
-            if ($refNumber = $request->query('ref')) {
-                $refTicket = Ticket::where('ticket_number', $refNumber)->first();
-                if ($refTicket) {
-                    $previousTicketData = [
-                        'ticket_number' => $refTicket->ticket_number,
-                        'subject'       => $refTicket->subject,
-                        'status'        => $refTicket->status,
-                        'created_at'    => $refTicket->created_at?->toISOString(),
-                        'closed_at'     => $refTicket->closed_at?->toISOString(),
-                    ];
-                    $previousMessages = $mapMessages(EmailMessage::where('ticket_id', $refTicket->id));
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data'    => [
-                    'ticket' => [
-                        'id'                   => $ticket->id,
-                        'ticket_number'        => $ticket->ticket_number,
-                        'subject'              => $ticket->subject,
-                        'status'               => $ticket->status,
-                        'priority'             => $ticket->priority,
-                        'channel'              => $ticket->channel,
-                        'mitel_interaction_id' => $ticket->mitel_interaction_id,
-                        'customer' => $ticket->customer ? [
-                            'name'  => $ticket->customer->name,
-                            'email' => $ticket->customer->email,
-                            'phone' => $ticket->customer->phone,
-                        ] : null,
-                        'assigned_to'             => $ticket->assigned_to,
-                        'assigned_agent'          => $ticket->assignedAgent?->user?->name,
-                        'created_at'              => $ticket->created_at?->toISOString(),
-                        'resolved_at'             => $ticket->resolved_at?->toISOString(),
-                        'closed_at'               => $ticket->closed_at?->toISOString(),
-                        'resolution_time_minutes' => $ticket->resolution_time_minutes,
-                        'sla_due_at'              => $ticket->sla_due_at?->toISOString(),
-                        'sla_breached'            => (bool) $ticket->sla_breached,
-                    ],
-                    'messages'        => $messages,
-                    'previous_ticket' => $previousTicketData,
-                    'previous_messages' => $previousMessages,
-                ],
-            ]);
+            return response()->json(['success' => true, 'data' => $data]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             return response()->json(['success' => false, 'message' => 'Ticket not found'], 404);
         } catch (\Exception $e) {
@@ -1739,163 +1699,17 @@ class TicketController extends Controller
             'attachments.*'  => 'file|max:20480', // 20 MB each
         ]);
 
-        $toEmail = $request->input('to')
-            ?? $ticket->customer?->email
-            ?? EmailMessage::where('ticket_id', $ticket->id)->value('from_email');
+        $agentName = auth()->user()?->name ?? auth()->user()?->username ?? '';
 
-        if (!$toEmail) {
-            return response()->json(['success' => false, 'message' => 'No recipient email address found'], 422);
-        }
+        $result = app(\App\Services\TicketConversationService::class)->sendReply(
+            $ticket,
+            $request->input('body'),
+            $request->input('to'),
+            $request->hasFile('attachments') ? $request->file('attachments') : [],
+            $agentName
+        );
 
-        try {
-            $subject   = 'Re: ' . $ticket->subject . ' [' . $ticket->ticket_number . ']';
-            $bodyHtml  = $request->input('body');
-            $bodyText  = strip_tags($bodyHtml);
-            $fromEmail = config('mail.from.address');
-            $fromName  = config('mail.from.name', config('app.name'));
-
-            // Fetch previous messages so we can thread the reply properly
-            $previousMessages = EmailMessage::where('ticket_id', $ticket->id)
-                ->orderBy('received_at', 'asc')
-                ->get();
-
-            // The most-recent inbound message ID becomes In-Reply-To
-            $lastInbound = $previousMessages->where('direction', 'inbound')->last()
-                ?? $previousMessages->first();
-            $inReplyToId = $lastInbound?->message_id;
-
-            // Build References header from all known message IDs (oldest first)
-            $referencesHeader = $previousMessages
-                ->pluck('message_id')
-                ->filter()
-                ->implode(' ');
-
-            // Existing thread ID to keep the outbound message in the same thread
-            $threadId = $previousMessages->whereNotNull('conversation_thread_id')
-                ->first()?->conversation_thread_id;
-
-            $agentName = auth()->user()?->name ?? auth()->user()?->username ?? '';
-
-            // The quoted original goes only in the sent email so the customer sees standard
-            // reply context. We do NOT include it in $htmlForDb because the CRM already
-            // shows all messages in the thread view — no need to duplicate content there.
-            $quotedHtml = $this->buildQuotedHtml($lastInbound);
-
-            // DB version of footer — uses external URL for logo (works in browser iframe)
-            $footerForDb = $this->buildEmailFooter($ticket, $agentName, useUrl: true);
-            $htmlForDb   = $bodyHtml . $footerForDb;
-
-            // Store uploaded attachments
-            $storedAttachments = [];
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $file) {
-                    $path = $file->store('email_attachments/' . date('Y/m/d'), 'public');
-                    $storedAttachments[] = [
-                        'filename'  => $file->getClientOriginalName(),
-                        'path'      => $path,
-                        'url'       => rtrim(config('app.frontend_url', config('app.url')), '/') . '/storage/' . $path,
-                        'size'      => $file->getSize(),
-                        'mime_type' => $file->getMimeType(),
-                    ];
-                }
-            }
-
-            // Generate Message-ID before sending so we can set it as a header on the
-            // outbound email. Gmail/Outlook will echo this in their In-Reply-To when the
-            // customer replies, which lets ProcessIncomingEmail match the existing ticket.
-            $msgDomain = parse_url(config('app.frontend_url', config('app.url')), PHP_URL_HOST) ?: 'mail.local';
-            $messageId = '<' . \Illuminate\Support\Str::uuid() . '@' . $msgDomain . '>';
-
-            $ticket_ref  = $ticket;
-            $attachments = $storedAttachments;
-            Mail::send([], [], function ($msg) use (
-                $toEmail, $subject, $fromEmail, $fromName, $bodyHtml, $bodyText,
-                $attachments, $inReplyToId, $referencesHeader,
-                $ticket_ref, $agentName, $quotedHtml, $messageId
-            ) {
-                // Embed the logo inline (CID) so it renders immediately without the
-                // recipient needing to click "Trust sender" / "Show blocked content" —
-                // mail clients block remotely-fetched <img> sources by default for
-                // senders outside the Safe Senders list. Falls back to the external
-                // URL if the local logo file isn't present on this server.
-                $logoPath = public_path('logo-kastam.png');
-                $logoCid  = file_exists($logoPath) ? $msg->embed($logoPath) : null;
-                $footerForEmail = $logoCid
-                    ? $this->buildEmailFooter($ticket_ref, $agentName, useUrl: false, cidSrc: $logoCid)
-                    : $this->buildEmailFooter($ticket_ref, $agentName, useUrl: true);
-                // Include quoted original so the customer sees context (standard reply format)
-                $fullHtml = $bodyHtml . $footerForEmail . $quotedHtml;
-
-                $msg->to($toEmail)
-                    ->subject($subject)
-                    ->from($fromEmail, $fromName)
-                    ->html($fullHtml)
-                    ->text($bodyText);
-
-                // Set threading headers via the underlying Symfony Email object so
-                // Gmail/Outlook group this reply in the same conversation thread.
-                $symfonyMsg = $msg->getSymfonyMessage();
-                $headers    = $symfonyMsg->getHeaders();
-                // Set our own Message-ID so the mail server doesn't overwrite it.
-                // When the customer replies, their In-Reply-To will match this value
-                // and ProcessIncomingEmail can link the reply to the same ticket.
-                // Message-ID requires IdentificationHeader — remove the auto-generated
-                // one first, then add ours (addIdHeader expects no angle brackets).
-                if ($headers->has('Message-ID')) {
-                    $headers->remove('Message-ID');
-                }
-                $headers->addIdHeader('Message-ID', trim($messageId, '<>'));
-                if ($inReplyToId) {
-                    $headers->addTextHeader('In-Reply-To', $inReplyToId);
-                }
-                if ($referencesHeader) {
-                    $headers->addTextHeader('References', $referencesHeader);
-                }
-                Log::info('[replyEmail] Threading headers', [
-                    'ticket'       => $ticket_ref->ticket_number,
-                    'message_id'   => $messageId,
-                    'in_reply_to'  => $inReplyToId,
-                    'references'   => $referencesHeader,
-                    'to'           => $toEmail,
-                ]);
-
-                foreach ($attachments as $att) {
-                    $fullPath = Storage::disk('public')->path($att['path']);
-                    $msg->attach($fullPath, [
-                        'as'   => $att['filename'],
-                        'mime' => $att['mime_type'],
-                    ]);
-                }
-            });
-            if (!$threadId) {
-                $threadId = md5($messageId);
-            }
-
-            EmailMessage::create([
-                'message_id'            => $messageId,
-                'ticket_id'             => $ticket->id,
-                'from_email'            => $fromEmail,
-                'from_name'             => $fromName,
-                'to_email'              => $toEmail,
-                'subject'               => $subject,
-                'body_html'             => $htmlForDb,
-                'body_text'             => $bodyText,
-                'attachments'           => $storedAttachments ?: null,
-                'direction'             => 'outbound',
-                'received_at'           => now(),
-                'is_processed'          => true,
-                'conversation_thread_id' => $threadId,
-                'in_reply_to'           => $inReplyToId,
-                'references'            => $referencesHeader ?: null,
-            ]);
-
-            $ticket->logHistory('reply_sent', null, null, null, "Email reply sent to {$toEmail}");
-
-            return response()->json(['success' => true, 'message' => 'Reply sent successfully']);
-        } catch (\Exception $e) {
-            Log::error('replyEmail failed: ' . $e->getMessage(), ['ticket' => $ticketNumber]);
-            return response()->json(['success' => false, 'message' => 'Failed to send reply: ' . $e->getMessage()], 500);
-        }
+        return response()->json($result, $result['success'] ? 200 : 422);
     }
 
     /**

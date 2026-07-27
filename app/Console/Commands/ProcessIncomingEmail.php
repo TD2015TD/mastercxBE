@@ -339,7 +339,11 @@ class ProcessIncomingEmail extends Command
 
             $interactionId = (string) Str::uuid();
             $frontendUrl   = rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/');
-            $targetUri     = "{$frontendUrl}/email-interaction?pending={$emailMessage->id}";
+            // embed_token lets the triage screen work without the agent's normal login —
+            // Ignite's OpenMedia iframe is a separate browsing context that typically can't
+            // see the agent's localStorage-based session at all. See EmbedTokenService.
+            $embedToken    = \App\Services\EmbedTokenService::generate('pending_email', $emailMessage->id);
+            $targetUri     = "{$frontendUrl}/email-interaction?pending={$emailMessage->id}&embed_token={$embedToken}";
             // Append previous ticket reference so the agent can see the old thread for context
             if ($previousTicket) {
                 $targetUri .= "&ref={$previousTicket->ticket_number}";

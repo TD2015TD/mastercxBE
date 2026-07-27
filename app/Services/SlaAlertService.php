@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Agent;
 use App\Models\Ticket;
 use App\Models\Escalation;
 use Illuminate\Support\Facades\Log;
@@ -143,17 +144,31 @@ class SlaAlertService
                 'reason' => $reason,
             ]);
 
-            // Create escalation record
+            $toAgent = $this->resolveEscalationTarget($ticket);
+
+            if (!$toAgent) {
+                Log::warning('Cannot auto-escalate ticket: no supervisor agent found', [
+                    'ticket_id' => $ticket->id,
+                    'department' => $ticket->department,
+                ]);
+                return;
+            }
+
+            // Create escalation record. Field names must match the escalations table exactly —
+            // this previously used escalation_level/escalation_date/priority/department/status
+            // values that don't exist on this table (or don't match its enums), so every
+            // auto-escalation attempt failed silently (caught below, logged, nothing created).
             $escalation = Escalation::create([
                 'ticket_id' => $ticket->id,
-                'escalated_by' => null, // System escalation
-                'escalation_level' => $this->determineEscalationLevel($ticket),
+                'from_agent_id' => $ticket->assigned_to,
+                'to_agent_id' => $toAgent->id,
+                'escalated_by' => null, // System escalation — column is nullable for this reason
+                'level' => $this->determineEscalationLevel($ticket),
                 'reason' => $reason,
-                'escalation_date' => now(),
-                'status' => 'Open',
-                'priority' => $ticket->priority,
-                'department' => $ticket->department,
                 'notes' => 'Auto-escalated due to SLA breach',
+                'escalation_type' => 'auto',
+                'status' => 'pending',
+                'escalated_at' => now(),
             ]);
 
             // Update ticket status
@@ -174,7 +189,7 @@ class SlaAlertService
             // Notify escalation team
             $this->notifySupervisor($ticket, 'escalation', [
                 'message' => "Ticket #{$ticket->ticket_number} auto-escalated due to SLA breach",
-                'escalation_level' => $escalation->escalation_level,
+                'escalation_level' => $escalation->level,
             ]);
 
             Log::info('Ticket escalated successfully', [
@@ -295,14 +310,35 @@ class SlaAlertService
      */
     protected function determineEscalationLevel(Ticket $ticket): string
     {
-        // Higher priority tickets get higher escalation levels
+        // Higher priority tickets get higher escalation levels. Values must match the
+        // escalations.level enum exactly: L1, L2, Supervisor, Manager.
         $levels = [
-            'P1' => 'Level 3', // Critical - highest escalation
-            'P2' => 'Level 2', // High
-            'P3' => 'Level 1', // Medium
-            'P4' => 'Level 1', // Low
+            'P1' => 'Manager',    // Critical - highest escalation
+            'P2' => 'Supervisor', // High
+            'P3' => 'L2',         // Medium
+            'P4' => 'L1',         // Low
         ];
 
-        return $levels[$ticket->priority] ?? 'Level 1';
+        return $levels[$ticket->priority] ?? 'L1';
+    }
+
+    /**
+     * Find the agent an auto-escalation should be routed to: a supervisor in the ticket's
+     * department, falling back to any active supervisor if none exists for that department.
+     */
+    protected function resolveEscalationTarget(Ticket $ticket): ?Agent
+    {
+        $departmentSupervisor = Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
+            ->where('department', $ticket->department)
+            ->where('status', 'active')
+            ->first();
+
+        if ($departmentSupervisor) {
+            return $departmentSupervisor;
+        }
+
+        return Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
+            ->where('status', 'active')
+            ->first();
     }
 }
