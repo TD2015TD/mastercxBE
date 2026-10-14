@@ -127,12 +127,70 @@ class AuthController extends Controller
             if ($user->agent && !empty($user->agent->agent_username)) {
                 try {
                     $mitelService = app(\App\Services\MitelService::class);
-                    $mitelToken = $mitelService->authenticate($user->agent->agent_username);
+
+                    // Prefer a genuine per-agent login (grant_type=password,
+                    // the agent's own real Mitel credentials, entered once
+                    // via /mitel/connect-account) over impersonation
+                    // (client_credentials + Impersonate header). The
+                    // impersonation token's principal is this OAuth client
+                    // ("CXCRM"), not the agent — Mitel's ACD silently
+                    // refuses presence/state changes submitted with it, so
+                    // this is what lets an agent go Available without ever
+                    // opening Ignite. Falls back to impersonation (read-only
+                    // in practice) until the agent connects their account.
+                    //
+                    // $user here is a stdClass decoded from the ALREADY
+                    // JSON-SERIALIZED response above — mitel_password is
+                    // deliberately in Agent::$hidden (must never leak via
+                    // API responses), which means it was never in that JSON
+                    // to begin with, so $user->agent->mitel_password is
+                    // always null/empty no matter what's actually saved.
+                    // Must re-fetch the real Eloquent model to see it.
+                    $agentModel = \App\Models\Agent::find($user->agent->id);
+                    $mitelAuthMode = 'impersonation';
+
+                    if ($agentModel && !empty($agentModel->mitel_password)) {
+                        try {
+                            $mitelToken = $mitelService->authenticateAsUser(
+                                $user->agent->agent_username,
+                                $agentModel->mitel_password
+                            );
+                            $mitelAuthMode = 'per_agent';
+                            Log::info('MitelToken retrieved via per-agent login', [
+                                'user_id' => $user->id,
+                                'agent_username' => $user->agent->agent_username,
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::warning('Per-agent Mitel login failed, falling back to impersonation', [
+                                'user_id' => $user->id,
+                                'agent_username' => $user->agent->agent_username,
+                                'error' => $e->getMessage(),
+                            ]);
+                            $mitelToken = $mitelService->authenticate($user->agent->agent_username);
+                        }
+                    } else {
+                        // No stored password at this exact check — falling back silently
+                        // is what made a real, live failure (agent-to-agent calls
+                        // rejected with "FeatureNotAllowed") take hours to trace back
+                        // to its actual cause. Log it explicitly so it's visible next time.
+                        Log::warning('No Mitel password on file at login — falling back to impersonation', [
+                            'user_id' => $user->id,
+                            'agent_username' => $user->agent->agent_username,
+                        ]);
+                        $mitelToken = $mitelService->authenticate($user->agent->agent_username);
+                    }
 
                     $user->MitelToken = $mitelToken;
+                    // Impersonation's token principal is the app itself ("CXCRM"),
+                    // not the agent — Mitel silently rejects privileged actions
+                    // (presence changes, call origination) submitted with it, with
+                    // no client-visible indication of why. Surfacing this mode lets
+                    // the frontend warn the agent instead of failing silently.
+                    $user->mitelAuthMode = $mitelAuthMode;
                     Log::info('MitelToken retrieved successfully', [
                         'user_id' => $user->id,
-                        'agent_username' => $user->agent->agent_username
+                        'agent_username' => $user->agent->agent_username,
+                        'mitel_auth_mode' => $mitelAuthMode,
                     ]);
                     
                     // Get permissions from original response

@@ -428,7 +428,10 @@ class ProcessIncomingEmail extends Command
                     'ticket_number' => $ticket->ticket_number,
                     'priority' => $ticket->priority,
                     'department' => $ticket->department,
-                    'url' => "/tickets/{$ticket->id}",
+                    // Actual frontend route is "/ticket-management/:id" (Routes.tsx) —
+                    // "/tickets/..." isn't a real route, same defect as
+                    // EscalationNotification/SlaAlertNotification.
+                    'url' => "/ticket-management/{$ticket->id}",
                 ],
                 'read_at' => null,
             ]);

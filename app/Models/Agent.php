@@ -22,6 +22,7 @@ class Agent extends Model
         'mitel_agent_id',
         'mitel_extension',
         'mitel_queue_ids',
+        'mitel_password',
         'mitel_state',              // Current state: Available, Busy, DoNotDisturb, Away, Logout
         'mitel_state_reason',       // Reason for state change (e.g., "Break", "Training")
         'mitel_logged_in',          // Boolean: Is agent currently logged into Mitel
@@ -45,7 +46,29 @@ class Agent extends Model
         'mitel_logged_in' => 'boolean',
         'mitel_last_state_change' => 'datetime',
         'last_activity_at' => 'datetime',
+        // Encrypted transparently via Laravel's Crypt facade (APP_KEY) on
+        // every read/write — never stored or returned as plaintext.
+        'mitel_password' => 'encrypted',
     ];
+
+    // Never serialize this into any API response, no matter which
+    // controller touches the model — a real third-party password must not
+    // rely on every call site remembering to strip it individually.
+    protected $hidden = [
+        'mitel_password',
+    ];
+
+    // Safe, boolean-only stand-in for the frontend to show connection
+    // status without ever exposing whether/what the password is beyond
+    // yes-or-no.
+    protected $appends = [
+        'mitel_connected',
+    ];
+
+    public function getMitelConnectedAttribute(): bool
+    {
+        return !empty($this->attributes['mitel_password'] ?? null);
+    }
 
     /**
      * Get the user that owns the agent profile.

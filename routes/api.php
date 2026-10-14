@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\MitelController; // <--- ADDED: New Mitel Controlle
 use App\Http\Controllers\Api\SystemConfigurationController;
 use App\Http\Controllers\Api\SupersetController;
 use App\Http\Controllers\Api\SupersetDashboardController;
+use App\Http\Controllers\Api\SignalingController;
 use App\Http\Controllers\MitelConfigurationController;
 use App\Http\Controllers\SupersetConfigurationController;
 use App\Http\Controllers\MitelConnectionController;
@@ -241,7 +242,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::post('/auth/refresh', [AuthController::class, 'refresh']);
-        
+
+        // WebRTC call signaling (browser-to-browser internal calling)
+        Route::post('/signaling/{targetUserId}', [SignalingController::class, 'send']);
+        Route::get('/signaling/directory', [SignalingController::class, 'directory']);
+
         // User Management (Admin only - requires user.manage permission)
         Route::middleware(['permission:user.manage'])->group(function () {
             Route::get('/users', [UserController::class, 'index']);
@@ -503,7 +508,14 @@ Route::prefix('v1')->group(function () {
         
         // Mitel/MiContact Center Integration (via Service Layer)
         Route::prefix('mitel')->group(function () {
-            
+
+            // Link the CURRENT logged-in agent's real Mitel credentials so
+            // future logins authenticate as the agent themselves
+            // (grant_type=password) instead of this app impersonating them
+            // — see AuthController::login() for why that distinction matters.
+            Route::post('/connect-account', [MitelController::class, 'connectAccount']);
+            Route::delete('/connect-account', [MitelController::class, 'disconnectAccount']);
+
             // Employee Management (General Mitel API endpoints from MitelController)
             Route::prefix('employees')->group(function () {
                 Route::get('/', [MitelController::class, 'getEmployees']); // Get all employees (OData)

@@ -79,11 +79,11 @@ class Escalation extends Model
     }
 
     /**
-     * Scope for completed escalations.
+     * Scope for resolved escalations.
      */
-    public function scopeCompleted($query)
+    public function scopeResolved($query)
     {
-        return $query->where('status', 'completed');
+        return $query->where('status', 'resolved');
     }
 
     /**
@@ -101,7 +101,7 @@ class Escalation extends Model
      */
     public function markResolved()
     {
-        $this->status = 'completed';
+        $this->status = 'resolved';
         $this->resolved_at = now();
         $this->save();
     }

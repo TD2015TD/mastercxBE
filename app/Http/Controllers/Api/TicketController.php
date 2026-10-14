@@ -128,6 +128,7 @@ class TicketController extends Controller
             $data = $ticket->toArray();
             $data['formatted_sla_remaining'] = $ticket->formatted_sla_remaining;
             $data['is_overdue'] = $ticket->is_overdue;
+            $data['sla_paused'] = $ticket->sla_paused;
             return $data;
         });
 
@@ -321,6 +322,7 @@ class TicketController extends Controller
         $ticketData = $ticket->toArray();
         $ticketData['formatted_sla_remaining'] = $ticket->formatted_sla_remaining;
         $ticketData['is_overdue'] = $ticket->is_overdue;
+        $ticketData['sla_paused'] = $ticket->sla_paused;
 
         return response()->json([
             'success' => true,
@@ -397,11 +399,23 @@ class TicketController extends Controller
                 }
             }
 
-            // Recalculate SLA if priority changed
-            if (isset($data['priority']) && $data['priority'] !== $ticket->priority) {
-                $ticket->priority = $data['priority'];
+            // Re-target the SLA when either half of the policy key changes. Department matters
+            // as much as priority — both select the SLA Configuration row.
+            $priorityChanged = isset($data['priority']) && $data['priority'] !== $ticket->priority;
+            $departmentChanged = isset($data['department']) && $data['department'] !== $ticket->department;
+
+            if ($priorityChanged || $departmentChanged) {
+                if ($priorityChanged) {
+                    $ticket->priority = $data['priority'];
+                    unset($data['priority']); // Already applied to the model
+                }
+
+                if ($departmentChanged) {
+                    $ticket->department = $data['department'];
+                    unset($data['department']);
+                }
+
                 $ticket->calculateSla();
-                unset($data['priority']); // Remove from update array as it's already set
             }
 
             $ticket->update($data);

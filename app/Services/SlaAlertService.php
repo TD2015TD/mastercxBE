@@ -19,7 +19,7 @@ class SlaAlertService
             Log::warning('SLA Breach Detected', [
                 'ticket_id' => $ticket->id,
                 'ticket_number' => $ticket->ticket_number,
-                'agent_id' => $ticket->assigned_agent_id,
+                'agent_id' => $ticket->assigned_to,
                 'department' => $ticket->department,
                 'priority' => $ticket->priority,
                 'sla_due_at' => $ticket->sla_due_at,
@@ -147,10 +147,31 @@ class SlaAlertService
             $toAgent = $this->resolveEscalationTarget($ticket);
 
             if (!$toAgent) {
+                // A log line nobody watches in real time is a silent failure in every way that
+                // matters to an admin. Put it somewhere a human will actually see it: the ticket's
+                // own history, and the audit log.
                 Log::warning('Cannot auto-escalate ticket: no supervisor agent found', [
                     'ticket_id' => $ticket->id,
                     'department' => $ticket->department,
                 ]);
+
+                $ticket->histories()->create([
+                    'user_id' => null,
+                    'action' => 'escalation_failed',
+                    'field_name' => null,
+                    'old_value' => null,
+                    'new_value' => null,
+                    'description' => "Auto-escalation due to SLA breach could not run: no active supervisor found for department \"{$ticket->department}\".",
+                ]);
+
+                \App\Services\AuditLogger::warning(
+                    'Auto-Escalation Failed',
+                    'SLA Engine',
+                    'Escalation Management',
+                    "Ticket {$ticket->ticket_number} breached SLA but could not be auto-escalated — no active supervisor is assigned to department \"{$ticket->department}\".",
+                    ['ticket_id' => $ticket->id, 'ticket_number' => $ticket->ticket_number, 'department' => $ticket->department]
+                );
+
                 return;
             }
 
@@ -171,22 +192,26 @@ class SlaAlertService
                 'escalated_at' => now(),
             ]);
 
-            // Update ticket status
-            $ticket->update([
-                'status' => 'Escalated',
-            ]);
-
-            // Add to ticket history
+            // The ticket status is deliberately left alone. 'Escalated' is not a member of the
+            // tickets.status check constraint, so writing it threw on every auto-escalation and
+            // aborted the surrounding sla:monitor transaction — taking breach detection down
+            // with it. Escalation state belongs to the escalations table, which is also how the
+            // manual escalation flow models it.
             $ticket->histories()->create([
                 'user_id' => null,
                 'action' => 'escalated',
-                'field_name' => 'status',
-                'old_value' => $ticket->status,
-                'new_value' => 'Escalated',
-                'notes' => "Auto-escalated: {$reason}",
+                'field_name' => 'escalation',
+                'old_value' => null,
+                'new_value' => $escalation->level,
+                'description' => "Auto-escalated: {$reason}",
             ]);
 
-            // Notify escalation team
+            // Notify the specific target so they can discover the escalation without already
+            // knowing which ticket it's on, plus the broader supervisor team for visibility.
+            if ($toAgent->user) {
+                $toAgent->user->notify(new \App\Notifications\EscalationNotification($escalation));
+            }
+
             $this->notifySupervisor($ticket, 'escalation', [
                 'message' => "Ticket #{$ticket->ticket_number} auto-escalated due to SLA breach",
                 'escalation_level' => $escalation->level,
@@ -324,21 +349,48 @@ class SlaAlertService
 
     /**
      * Find the agent an auto-escalation should be routed to: a supervisor in the ticket's
-     * department, falling back to any active supervisor if none exists for that department.
+     * own department. Deliberately does NOT fall back to a supervisor from a different
+     * department — that silently misrouted escalations to whichever supervisor happened
+     * to be first system-wide (QA-confirmed bug), which is worse than the caller's existing
+     * "no target found" handling (logs to the ticket history + audit log, doesn't throw).
      */
     protected function resolveEscalationTarget(Ticket $ticket): ?Agent
     {
-        $departmentSupervisor = Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
-            ->where('department', $ticket->department)
+        // Case/whitespace-insensitive match, same reasoning as SlaConfiguration::byDepartment():
+        // agents.department and tickets.department are free text, and a mismatched casing
+        // between how an agent was set up and how the ticket's department is stored would make
+        // a real, correctly-assigned supervisor invisible to this lookup.
+        $departmentMatch = Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
+            ->whereRaw('UPPER(TRIM(department)) = ?', [\Illuminate\Support\Str::upper(trim((string) $ticket->department))])
             ->where('status', 'active')
             ->first();
 
-        if ($departmentSupervisor) {
-            return $departmentSupervisor;
+        if ($departmentMatch) {
+            return $departmentMatch;
         }
 
-        return Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
+        // No supervisor is assigned to this ticket's own department — confirmed directly as a
+        // real gap on this tenant (a "SALES TAX" department with an active, auto-escalate SLA
+        // config but zero supervisors in it). Previously this meant the breach was silently
+        // dropped: no escalation record, no notification, nothing an admin would ever see short
+        // of reading the ticket's own history. A breached ticket reaching NO ONE is worse than
+        // reaching the wrong department's supervisor, so fall back to any active supervisor
+        // instead of giving up — oldest-assigned first, for a stable, predictable choice rather
+        // than whichever row the DB happens to return first.
+        $fallback = Agent::whereHas('user.role', fn ($q) => $q->where('slug', 'supervisor'))
             ->where('status', 'active')
+            ->orderBy('created_at')
             ->first();
+
+        if ($fallback) {
+            Log::warning('No supervisor found for ticket department — falling back to another active supervisor', [
+                'ticket_id' => $ticket->id,
+                'ticket_department' => $ticket->department,
+                'fallback_agent_id' => $fallback->id,
+                'fallback_agent_department' => $fallback->department,
+            ]);
+        }
+
+        return $fallback;
     }
 }

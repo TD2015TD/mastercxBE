@@ -133,6 +133,84 @@ class MitelService
     }
 
     /**
+     * Authenticate AS a specific Mitel user via their own real credentials
+     * (grant_type=password), instead of impersonating them through this
+     * app's client_credentials grant.
+     *
+     * This matters because a client_credentials + Impersonate token's
+     * primary principal is this OAuth client ("CXCRM"), not the user being
+     * impersonated — confirmed via /AuthorizationServer/api/account, whose
+     * claims show `.../claims/name = "CXCRM"` even when impersonating a
+     * real agent. That token is fine for reads (fetching state, agent
+     * info) but Mitel's ACD silently refuses to apply presence/state
+     * changes (e.g. going Available) submitted with it — the PUT returns
+     * 200 OK but never actually mutates anything server-side.
+     *
+     * A password-grant token makes the agent themselves the principal,
+     * which is what a real interactive Ignite login also produces.
+     *
+     * @throws \Exception on invalid credentials or any Mitel API error
+     */
+    public function authenticateAsUser(string $username, string $password): string
+    {
+        $startTime = microtime(true);
+        $this->log('INFO', 'Attempting to authenticate with Mitel as user', ['username' => $username]);
+
+        $response = Http::timeout($this->timeout)
+            ->withHeaders([
+                'Cache-Control' => 'no-cache',
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ])
+            ->asForm()
+            ->post($this->authUrl, [
+                'grant_type' => 'password',
+                'username' => $username,
+                'password' => $password,
+                'client_id' => $this->clientId,
+                'client_secret' => $this->clientSecret,
+            ]);
+
+        $this->handleResponse($response, $startTime);
+
+        $data = $response->json();
+        $accessToken = $data['access_token'] ?? null;
+
+        if (!$accessToken) {
+            throw new \Exception('Mitel did not return an access token for user login');
+        }
+
+        $this->log('INFO', 'User authentication successful', [
+            'username' => $username,
+            'expires_in' => $data['expires_in'] ?? 'unknown',
+        ]);
+
+        return $accessToken;
+    }
+
+    /**
+     * Fetch an employee record using a caller-supplied access token, instead
+     * of this service's own impersonation token. Used right after
+     * authenticateAsUser() to resolve the real employee identity (id, etc.)
+     * of whichever Mitel account was just logged into — 'me' resolves to
+     * the token's own owner.
+     *
+     * @throws \Exception on any Mitel API error
+     */
+    public function getEmployeeByToken(string $accessToken, string $id = 'me'): array
+    {
+        $startTime = microtime(true);
+
+        $response = Http::timeout($this->timeout)
+            ->withToken($accessToken)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->get($this->baseUrl . "/api/v1/employees/{$id}");
+
+        $this->handleResponse($response, $startTime);
+
+        return $response->json();
+    }
+
+    /**
      * Get or refresh the access token.
      */
     private function getAccessToken(): string

@@ -48,7 +48,7 @@ class SlaAlertNotification extends Notification implements ShouldQueue
             ->line("Ticket: #{$ticket->ticket_number}")
             ->line("Priority: {$ticket->priority}")
             ->line("Department: {$ticket->department}")
-            ->action('View Ticket', url("/tickets/{$ticket->id}"))
+            ->action('View Ticket', rtrim(config('app.frontend_url', 'https://cxsuite.telediant.com.my'), '/') . "/ticket-management/{$ticket->id}")
             ->line('Please take immediate action to prevent SLA breach.');
     }
 
@@ -73,7 +73,9 @@ class SlaAlertNotification extends Notification implements ShouldQueue
             'message' => $alertData['message'] ?? 'SLA Alert',
             'remaining' => $alertData['remaining'] ?? null,
             'overdue_by' => $alertData['overdue_by'] ?? null,
-            'url' => url("/tickets/{$ticket->id}"),
+            // Relative path for React Router's navigate() — see EscalationNotification's
+            // identical fix for why url("/tickets/{id}") was wrong on two counts.
+            'url' => "/ticket-management/{$ticket->id}",
             'created_at' => now()->toIso8601String(),
         ];
     }

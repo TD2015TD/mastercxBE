@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TelephonyConfigChanged;
 use App\Models\MitelConfiguration;
 use Illuminate\Http\Request;
 
@@ -67,6 +68,12 @@ class MitelConfigurationController extends Controller
         $config->update([
             'value' => $request->value,
         ]);
+
+        // Push the change out immediately instead of making every already-
+        // open agent tab wait for its next poll — see TelephonyConfigChanged.
+        if ($key === 'TELEPHONY_ENABLED') {
+            event(new TelephonyConfigChanged($request->value === 'true'));
+        }
 
         return response()->json([
             'status' => 'success',

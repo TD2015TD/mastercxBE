@@ -472,6 +472,8 @@ class ReportController extends Controller
                 'agent_name' => optional($ticket->assignedAgent?->user)->name,
                 'category' => $ticket->category,
                 'priority' => $ticket->priority,
+                'urgency' => $ticket->urgency,
+                'impact' => $ticket->impact,
             ];
         });
 

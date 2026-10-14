@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SlaConfiguration extends Model
 {
@@ -42,10 +44,19 @@ class SlaConfiguration extends Model
 
     /**
      * Scope to filter by department.
+     *
+     * Matches on the normalised department so a code ("SALES TAX"), a display name
+     * ("Sales Tax") and a stray-whitespace variant all resolve to the same rows.
      */
     public function scopeByDepartment($query, $department)
     {
-        return $query->where('department', $department);
+        $normalized = static::normalizeDepartment($department);
+
+        if ($normalized === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereRaw('UPPER(TRIM(department)) = ?', [Str::upper($normalized)]);
     }
 
     /**
@@ -57,13 +68,53 @@ class SlaConfiguration extends Model
     }
 
     /**
+     * Resolve a department value to its canonical lookup code.
+     *
+     * Tickets carry the department lookup code ("SALES TAX"); older SLA rows (and anything
+     * hand-entered) may carry the display name ("Sales Tax") or a different case. Both must
+     * resolve to the same policy, otherwise a configured SLA silently never applies.
+     * Returns the input trimmed when it matches no lookup, so free-text departments still work.
+     */
+    public static function normalizeDepartment($department): ?string
+    {
+        if ($department === null || trim((string) $department) === '') {
+            return null;
+        }
+
+        $needle = trim((string) $department);
+        $upper = Str::upper($needle);
+
+        $lookup = DB::table('lookups')
+            ->where('type', 'department')
+            ->whereNull('deleted_at')
+            ->where(function ($query) use ($upper) {
+                $query->whereRaw('UPPER(TRIM(code)) = ?', [$upper])
+                    ->orWhereRaw('UPPER(TRIM(name_en)) = ?', [$upper])
+                    ->orWhereRaw('UPPER(TRIM(name_ms)) = ?', [$upper]);
+            })
+            ->first();
+
+        return $lookup->code ?? $needle;
+    }
+
+    /**
      * Get SLA configuration for a specific department and priority.
+     *
+     * Returns null when nothing is configured — callers must treat that as "no SLA applies"
+     * rather than falling back to a default duration.
      */
     public static function getSlaForTicket($department, $priority)
     {
+        $normalized = static::normalizeDepartment($department);
+
+        if ($normalized === null || empty($priority)) {
+            return null;
+        }
+
         return static::active()
-            ->where('department', $department)
+            ->byDepartment($normalized)
             ->where('priority', $priority)
+            ->orderByDesc('id')
             ->first();
     }
 

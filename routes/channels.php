@@ -46,3 +46,16 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
 Broadcast::channel('supervisor.{supervisorId}', function ($user, $supervisorId) {
     return (int) $user->id === (int) $supervisorId && $user->hasRole('supervisor');
 });
+
+// WebRTC call signaling channel — private to the target user, used to
+// deliver call offers/answers/ICE candidates/hangup directly to them.
+Broadcast::channel('signaling.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+
+// Presence channel — every logged-in user who has the app open joins this,
+// so the P2P call directory can tell who's actually reachable right now
+// instead of just who exists in the users table.
+Broadcast::channel('online-callers', function ($user) {
+    return ['id' => $user->id, 'name' => $user->name];
+});

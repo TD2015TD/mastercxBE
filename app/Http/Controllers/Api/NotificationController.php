@@ -233,7 +233,10 @@ class NotificationController extends Controller
                     'ticket_number' => $request->ticket_number,
                     'priority' => $request->priority,
                     'department' => $request->department,
-                    'url' => "/tickets/{$request->ticket_id}",
+                    // Actual frontend route is "/ticket-management/:id" (Routes.tsx) —
+                    // "/tickets/..." isn't a real route, same defect as
+                    // EscalationNotification/SlaAlertNotification.
+                    'url' => "/ticket-management/{$request->ticket_id}",
                 ],
                 'read_at' => null,
             ]);

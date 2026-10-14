@@ -17,7 +17,12 @@ class EscalationController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Escalation::with(['ticket', 'fromAgent', 'toAgent', 'escalatedBy']);
+        // toAgent/fromAgent.user, not just toAgent/fromAgent — without the nested
+        // .user, the response's to_agent/from_agent carry no name at all, and the
+        // frontend's Escalation section renders "Unknown" for a perfectly valid
+        // target (confirmed directly: the escalation's own to_agent_id was correct,
+        // only the display was broken).
+        $query = Escalation::with(['ticket', 'fromAgent.user', 'toAgent.user', 'escalatedBy']);
 
         // Filter by status
         if ($request->has('status')) {
@@ -107,7 +112,14 @@ class EscalationController extends Controller
 
             DB::commit();
 
-            $escalation->load(['ticket', 'fromAgent', 'toAgent']);
+            $escalation->load(['ticket', 'fromAgent.user', 'toAgent.user']);
+
+            // Surface the escalation to its target without them needing to already know which
+            // ticket it's on — previously nothing notified them at all, so the only way to find
+            // a pending escalation was to happen to open the exact ticket it landed on.
+            if ($escalation->toAgent?->user) {
+                $escalation->toAgent->user->notify(new \App\Notifications\EscalationNotification($escalation));
+            }
 
             return response()->json([
                 'success' => true,
@@ -128,7 +140,7 @@ class EscalationController extends Controller
      */
     public function show($id)
     {
-        $escalation = Escalation::with(['ticket', 'fromAgent', 'toAgent', 'escalatedBy'])->findOrFail($id);
+        $escalation = Escalation::with(['ticket', 'fromAgent.user', 'toAgent.user', 'escalatedBy'])->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -175,7 +187,7 @@ class EscalationController extends Controller
     {
         $escalation = Escalation::findOrFail($id);
 
-        if ($escalation->status === 'completed') {
+        if ($escalation->status === 'resolved') {
             return response()->json([
                 'success' => false,
                 'message' => 'Escalation already resolved'
@@ -218,7 +230,7 @@ class EscalationController extends Controller
         $total = $query->count();
         $pending = (clone $query)->pending()->count();
         $acknowledged = (clone $query)->acknowledged()->count();
-        $completed = (clone $query)->completed()->count();
+        $resolved = (clone $query)->resolved()->count();
 
         // Count by level
         $byLevel = (clone $query)
@@ -238,7 +250,7 @@ class EscalationController extends Controller
                 'total' => $total,
                 'pending' => $pending,
                 'acknowledged' => $acknowledged,
-                'completed' => $completed,
+                'resolved' => $resolved,
                 'by_level' => $byLevel,
                 'by_type' => $byType,
             ]

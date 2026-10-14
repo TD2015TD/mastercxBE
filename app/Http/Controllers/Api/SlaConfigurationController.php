@@ -62,10 +62,15 @@ class SlaConfigurationController extends Controller
             ], 422);
         }
 
+        // Store the canonical department code — tickets are matched on it, so a display name
+        // saved here would produce a rule that can never apply to a ticket.
+        $payload = $request->all();
+        $payload['department'] = SlaConfiguration::normalizeDepartment($request->department);
+
         // Check if configuration already exists for this department and priority
-        $existing = SlaConfiguration::where('department', $request->department)
+        $existing = SlaConfiguration::active()
+            ->byDepartment($payload['department'])
             ->where('priority', $request->priority)
-            ->where('is_active', true)
             ->first();
 
         if ($existing) {
@@ -75,7 +80,7 @@ class SlaConfigurationController extends Controller
             ], 422);
         }
 
-        $config = SlaConfiguration::create($request->all());
+        $config = SlaConfiguration::create($payload);
 
         return response()->json([
             'success' => true,
@@ -124,7 +129,13 @@ class SlaConfigurationController extends Controller
             ], 422);
         }
 
-        $config->update($request->all());
+        $payload = $request->all();
+
+        if ($request->filled('department')) {
+            $payload['department'] = SlaConfiguration::normalizeDepartment($request->department);
+        }
+
+        $config->update($payload);
 
         return response()->json([
             'success' => true,
